@@ -1,4 +1,4 @@
-name: Daily maintenance check
+name: Daily dashboard
 
 on:
   schedule:
@@ -21,12 +21,8 @@ jobs:
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
           packages: |
-            any::ellmer
-            any::httr2
-            any::rvest
             any::readr
             any::dplyr
-            any::jsonlite
             any::gh
             any::purrr
             any::DT
@@ -37,26 +33,15 @@ jobs:
           GITHUB_PAT: ${{ secrets.GH_PAT }}
         run: Rscript R/fetch_issues_prs.R
 
-      - name: Check provider changelogs
-        env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-        run: Rscript R/check_updates.R
-
-      - name: Check chatlas PRs
-        env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          GH_TOKEN: ${{ secrets.GH_PAT }}
-        run: Rscript R/check_chatlas.R
-
       - name: Commit updated data
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add reported.csv chatlas_parity.csv data/ 2>/dev/null || true
+          git add data/ 2>/dev/null || true
           if git diff --cached --quiet; then
             echo "No changes to commit"
           else
-            git commit -m "Daily update $(date -u +%Y-%m-%d)"
+            git commit -m "Daily data update $(date -u +%Y-%m-%d)"
             git push
           fi
 

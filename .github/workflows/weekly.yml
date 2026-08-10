@@ -1,0 +1,52 @@
+name: Weekly LLM checks
+
+on:
+  schedule:
+    - cron: '0 4 * * 1'  # Mondays 04:00 UTC, before the daily publish
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          use-public-rspm: true
+
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          packages: |
+            any::ellmer
+            any::httr2
+            any::rvest
+            any::readr
+            any::dplyr
+            any::jsonlite
+
+      - name: Check provider changelogs
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: Rscript R/check_updates.R
+
+      - name: Check chatlas PRs
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+        run: Rscript R/check_chatlas.R
+
+      - name: Commit results
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add reported.csv chatlas_parity.csv 2>/dev/null || true
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Weekly LLM check $(date -u +%Y-%m-%d)"
+            git push
+          fi
