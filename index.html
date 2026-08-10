@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.9.35">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="updated Mon Aug 10 02:40:46 PM 2026 BST">
+
+<title>ellmer maintenance</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+</style>
+
+
+<script src="site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="site_libs/clipboard/clipboard.min.js"></script>
+<script src="site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="site_libs/quarto-search/fuse.min.js"></script>
+<script src="site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="./">
+<script src="site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="site_libs/quarto-html/popper.min.js"></script>
+<script src="site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="site_libs/quarto-html/anchor.min.js"></script>
+<link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-46f66b053e56abd73bb6e954d61a315b.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-dark-22b4aaf4c2978829df3684e8f2c068db.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-46f66b053e56abd73bb6e954d61a315b.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
+<script src="site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="site_libs/bootstrap/bootstrap-0353adf2665840c2938762b5c5a9da0d.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="site_libs/bootstrap/bootstrap-dark-0353adf2665840c2938762b5c5a9da0d.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="light">
+<link href="site_libs/bootstrap/bootstrap-0353adf2665840c2938762b5c5a9da0d.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<script src="site_libs/quarto-dashboard/quarto-dashboard.js"></script>
+<script src="site_libs/quarto-dashboard/stickythead.js"></script>
+
+
+
+<script src="site_libs/quarto-dashboard/web-components.js" type="module"></script>
+<script src="site_libs/quarto-dashboard/components.js"></script>
+
+<script id="quarto-search-options" type="application/json">{
+  "location": "sidebar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "start",
+  "type": "textbox",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<link href="site_libs/htmltools-fill-0.5.9/fill.css" rel="stylesheet">
+<script src="site_libs/htmlwidgets-1.6.4/htmlwidgets.js"></script>
+<link href="site_libs/datatables-css-0.0.0/datatables-crosstalk.css" rel="stylesheet">
+<script src="site_libs/datatables-binding-0.34.0/datatables.js"></script>
+<script src="site_libs/jquery-3.6.0/jquery-3.6.0.min.js"></script>
+<link href="site_libs/dt-core-1.13.6/css/jquery.dataTables.min.css" rel="stylesheet">
+<link href="site_libs/dt-core-1.13.6/css/jquery.dataTables.extra.css" rel="stylesheet">
+<script src="site_libs/dt-core-1.13.6/js/jquery.dataTables.min.js"></script>
+<link href="site_libs/crosstalk-1.2.2/css/crosstalk.min.css" rel="stylesheet">
+<script src="site_libs/crosstalk-1.2.2/js/crosstalk.min.js"></script>
+
+
+</head>
+
+<body class="quarto-dashboard dashboard-fill fullcontent quarto-light">
+
+<header id="quarto-dashboard-header">
+<nav class="navbar navbar-expand-md slim" data-bs-theme="dark">
+  <div class="navbar-container container-fluid">
+    <button class="navbar-toggler hidden" type="button" data-bs-toggle="collapse" data-bs-target="#dashboard-collapse" aria-controls="dashboard-collapse" aria-expanded="false" aria-label="Toggle navigation">
+      <span class="navbar-toggler-icon"></span>
+    </button>    
+
+
+    <div class="navbar-brand-container">
+
+
+      <div class="navbar-title">
+        <div class="navbar-title-text"><a href="#">ellmer maintenance</a></div>
+        
+        <div class="navbar-author">updated Mon Aug 10 02:40:46 PM 2026 BST</div>
+      </div>
+    </div>
+</div>
+</nav>
+</header>
+<div id="quarto-search-results"></div>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-layout-custom quarto-dashboard-content bslib-gap-spacing html-fill-container bslib-page-fill">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+<!-- main -->
+
+<div class="bslib-grid-item html-fill-item bslib-grid" data-layout="fill" style="display: grid; grid-template-rows: minmax(3em, 1fr); grid-auto-columns: minmax(0, 1fr);">
+<div class="bslib-grid" style="display: grid; grid-template-columns: minmax(3em, 1fr) minmax(3em, 1fr);
+grid-auto-rows: minmax(0, 1fr);">
+<div class="card tabset bslib-card html-fill-container" data-bslib-card-init="" data-require-bs-caller="card()" data-full-screen="false">
+<div class="card-header dashboard-card-no-title bslib-navs-card-title">
+
+<ul class="nav nav-tabs card-header-tabs" role="tablist" data-tabsetid="card-tabset-1"><li class="nav-item" role="presentation"><a href="#card-tabset-1-1" role="tab" data-toggle="tab" data-bs-toggle="tab" data-value="Issues" aria-selected="true" class="nav-link active">Issues</a></li><li class="nav-item" role="presentation"><a href="#card-tabset-1-2" role="tab" data-toggle="tab" data-bs-toggle="tab" data-value="PRs" aria-selected="false" class="nav-link">PRs</a></li></ul></div>
+
+
+<div class="tab-content html-fill-item html-fill-container" data-tabset-id="card-tabset-1"><div class="tab-pane active show html-fill-item html-fill-container" role="tabpanel" id="card-tabset-1-1"><div class="card-body html-fill-item html-fill-container" data-title="Issues">
+<div class="bslib-grid html-fill-item html-fill-container" style="display: grid; grid-template-rows: minmax(3em, 1fr); grid-auto-columns: minmax(0, 1fr);">
+<div class="card cell html-fill-item html-fill-container bslib-card" data-title="Open issues (37)" data-bslib-card-init="" data-require-bs-caller="card()" data-full-screen="false">
+<div class="card-header"><div class="card-title"><span style="display: inline">
+Open issues (37)
+</span></div></div>
+<div class="card-body html-fill-item html-fill-container">
+<div class="cell-output-display html-fill-item html-fill-container">
+<div class="datatables html-widget html-fill-item html-fill-container" id="htmlwidget-c82f21a064d80987aa2b" style="width:100%;height:auto;"></div>
+<script type="application/json" data-for="htmlwidget-c82f21a064d80987aa2b">{"x":{"filter":"none","vertical":false,"data":[["<a target=\"_blank\" href=\"https://github.com/tidyverse/ellmer/issues/1078\">Issue using databricks as provider<\/a>","<a target=\"_blank\" href=\"https://github.com/tidyverse/ellmer/issues/1070\">chat_aws_bedrock() fails after empty response from claude-sonnet-5<\/a>","<a target=\"_blank\" href=\"https://github.com/tidyverse/ellmer/issues/1074\">consider a Chat field describing whether thinking is enabled<\/a>","<a target=\"_blank\" href=\"https://github.com/tidyverse/ellmer/issues/1040\">HuggingFace default model doesn't support function calling or json_schema structured output<\/a>","<a target=\"_blank\" href=\"https://github.com/tidyverse/ellmer/issues/958\">Token Budget / Cap for Agentic Tool Call Loops<\/a>","<a target=\"_blank\" href=\"https://github.com/tidyverse/ellmer/issues/1060\">contents_record() fails for tool results mixing Content and plain values<\/a>","<a target=\"_blank\" href=\"https://github.com/tidyverse/ellmer/issues/1051\">Feature request: callback before each model request in the tool loop (for mid-loop context compaction)<\/a>","<a target=\"_blank\" href=\"https://github.com/tidyverse/ellmer/issues/1050\">Feature Request: Allow custom `base_url` in `chat_google_vertex()` for API gateway proxies<\/a>","<a target=\"_blank\" href=\"https://github.com/tidyverse/ellmer/issues/775\">Add content type for citations<\/a>","<a target=\"_blank\" href=\"https://github.com/tidyverse/ellmer/issues/1017\">Tool definitions don't accept valid special characters for function names or arguments, such as \"ñ\"<\/a>","<a target=\"_blank\" href=\"https://github.com/tidyverse/ellmer/issues/871\">Lazy question: how to achieve something like OpenAI sdk RunContext or hooks with ellmer<\/a>","<a target=\"_blank\" href=\"https://github.com/tidyverse/ellmer/issues/949\">Support multi-turn conversation suffixes in `parallel_chat_structured()`<\/a>","<a target=\"_blank\" href=\"https://github.com/tidyverse/ellmer/issues/984\">Support extracting non-text content from chat responses<\/a>","<a target=\"_blank\" href=\"https://github.com/tidyverse/ellmer/issues/974\">Streaming ContentThinking chunks lack proper <thinking> tag boundaries<\/a>","<a target=\"_blank\" href=\"https://github.com/tidyverse/ellmer/issues/821\">Subagent ideas<\/a>","<a target=\"_blank\" href=\"https://github.com/tidyverse/ellmer/issues/858\">Clarify possible return values from tool<\/a>","<a target=\"_blank\" href=\"https://github.com/tidyverse/ellmer/issues/585\">chat_azure_ai_foundry function for models deployed on Azure AI Foundry<\/a>","<a target=\"_blank\" href=\"https://github.com/tidyverse/ellmer/issues/864\">Remove role hack<\/a>","<a target=\"_blank\" href=\"https://github.com/tidyverse/ellmer/issues/920\">Skipping tests when API_KEY isn't set (undesirable)<\/a>","<a target=\"_blank\" href=\"https://github.com/tidyverse/ellmer/issues/884\">consider support for `llama.cpp`?<\/a>","<a target=\"_blank\" href=\"https://github.com/tidyverse/ellmer/issues/895\">`contents_record()` and `contents_replay()` could operate on list of turns<\/a>","<a target=\"_blank\" href=\"https://github.com/tidyverse/ellmer/issues/928\">Support OpenAI Responses API output item type file_search_call<\/a>","<a target=\"_blank\" href=\"https://github.com/tidyverse/ellmer/issues/913\">Feature suggestion: Add ollama cloud search and fetch tools<\/a>","<a target=\"_blank\" href=\"https://github.com/tidyverse/ellmer/issues/912\">Feature Request: Implement Native \"Agent\" Class (ReAct Loop) for Autonomous Workflows<\/a>","<a target=\"_blank\" href=\"https://github.com/tidyverse/ellmer/issues/911\">Feature Request: Expose 'logprobs' metadata in chat_structured() for confidence scoring<\/a>","<a target=\"_blank\" href=\"https://github.com/tidyverse/ellmer/issues/879\">Provide `as_chat()` helper<\/a>","<a target=\"_blank\" href=\"https://github.com/tidyverse/ellmer/issues/820\">Agent vignette ideas<\/a>","<a target=\"_blank\" href=\"https://github.com/tidyverse/ellmer/issues/220\">Add support for custom printing of chat responses for knitr/Quarto<\/a>","<a target=\"_blank\" href=\"https://github.com/tidyverse/ellmer/issues/287\">Have a debugging story for credentials<\/a>","<a target=\"_blank\" href=\"https://github.com/tidyverse/ellmer/issues/910\">Google Provider can support images being returned from tool calls<\/a>","<a target=\"_blank\" href=\"https://github.com/tidyverse/ellmer/issues/797\">Print/summary method for long chat conversations<\/a>","<a target=\"_blank\" href=\"https://github.com/tidyverse/ellmer/issues/868\">Add openAI files api<\/a>","<a target=\"_blank\" href=\"https://github.com/tidyverse/ellmer/issues/880\">Provide some model metdata?<\/a>","<a target=\"_blank\" href=\"https://github.com/tidyverse/ellmer/issues/796\">Improve UI for long chats<\/a>","<a target=\"_blank\" href=\"https://github.com/tidyverse/ellmer/issues/600\">Add inception AI support<\/a>","<a target=\"_blank\" href=\"https://github.com/tidyverse/ellmer/issues/690\">Add `chat_echo()` for mocking and testing<\/a>","<a target=\"_blank\" href=\"https://github.com/tidyverse/ellmer/issues/695\">New Feature Request : Custom metadata labels - Vertex A<\/a>"],["bug","bug","feature","bug","feature",null,"feature","feature","feature; content types 🖼️","feature","feature","feature; structured data 🏗️","feature","feature","feature","upkeep","feature","upkeep","feature","feature","feature","feature","feature","feature","feature","feature","documentation","feature","feature","feature","feature","feature","feature","feature","feature","upkeep","feature"],["1","1","0","1","3","3","2","1","3","1","6","0","0","3","1","3","2","2","1","3","3","2","0","4","0","0","0","3","3","0","1","0","0","3","0","5","1"],["2026-08-10","2026-08-09","2026-08-09","2026-08-03","2026-07-31","2026-07-27","2026-07-09","2026-07-03","2026-06-26","2026-06-17","2026-06-08","2026-05-20","2026-05-15","2026-05-13","2026-05-13","2026-05-13","2026-05-13","2026-05-13","2026-05-13","2026-05-13","2026-05-13","2026-05-13","2026-05-13","2026-05-13","2026-05-13","2026-05-13","2026-05-13","2026-05-13","2026-05-13","2026-05-13","2026-05-13","2026-05-13","2026-05-13","2026-05-13","2026-05-13","2025-10-10","2025-10-09"],["<a target=\"_blank\" href=\"https://github.com/tidyverse/ellmer/pull/1079\">PR #1079<\/a>","","","","","<a target=\"_blank\" href=\"https://github.com/tidyverse/ellmer/pull/1077\">PR #1077<\/a>","","","<a target=\"_blank\" href=\"https://github.com/tidyverse/ellmer/pull/1068\">PR #1068<\/a>","","<a target=\"_blank\" href=\"https://github.com/tidyverse/ellmer/pull/1023\">PR #1023<\/a>","","","","","<a target=\"_blank\" href=\"https://github.com/tidyverse/ellmer/pull/1077\">PR #1077<\/a>","","","","","","","","","","","","","","","","","","","","",""]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th>issue<\/th>\n      <th>labels<\/th>\n      <th>comments<\/th>\n      <th>updated<\/th>\n      <th>status<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"bPaginate":false,"dom":"ftip","language":{"info":"Showing _TOTAL_ entries"},"pageLength":15,"columnDefs":[{"name":"issue","targets":0},{"name":"labels","targets":1},{"name":"comments","targets":2},{"name":"updated","targets":3},{"name":"status","targets":4}],"order":[],"autoWidth":false,"orderClasses":false,"lengthMenu":[10,15,25,50,100]}},"evals":[],"jsHooks":[]}</script>
+</div>
+</div>
+<bslib-tooltip placement="auto" bsoptions="[]" data-require-bs-version="5" data-require-bs-caller="tooltip()">
+    <template>Expand</template>
+    <span class="bslib-full-screen-enter badge rounded-pill">
+        <svg xmlns="http://www.w3.org/2000/svg" viewbox="0 0 24 24" style="height:1em;width:1em;" aria-hidden="true" role="img"><path d="M20 5C20 4.4 19.6 4 19 4H13C12.4 4 12 3.6 12 3C12 2.4 12.4 2 13 2H21C21.6 2 22 2.4 22 3V11C22 11.6 21.6 12 21 12C20.4 12 20 11.6 20 11V5ZM4 19C4 19.6 4.4 20 5 20H11C11.6 20 12 20.4 12 21C12 21.6 11.6 22 11 22H3C2.4 22 2 21.6 2 21V13C2 12.4 2.4 12 3 12C3.6 12 4 12.4 4 13V19Z"></path></svg>
+    </span>
+</bslib-tooltip><script data-bslib-card-init="">bslib.Card.initializeAllCards();</script></div>
+</div>
+</div></div><div class="tab-pane html-fill-item html-fill-container" role="tabpanel" id="card-tabset-1-2"><div class="card-body html-fill-item html-fill-container" data-title="PRs">
+<div class="bslib-grid html-fill-item html-fill-container" style="display: grid; grid-template-rows: minmax(3em, 1fr); grid-auto-columns: minmax(0, 1fr);">
+<div class="card cell html-fill-item html-fill-container bslib-card" data-title="Open PRs (15)" data-bslib-card-init="" data-require-bs-caller="card()" data-full-screen="false">
+<div class="card-header"><div class="card-title"><span style="display: inline">
+Open PRs (15)
+</span></div></div>
+<div class="card-body html-fill-item html-fill-container">
+<div class="cell-output-display html-fill-item html-fill-container">
+<div class="datatables html-widget html-fill-item html-fill-container" id="htmlwidget-a40b143b009522c263a2" style="width:100%;height:auto;"></div>
+<script type="application/json" data-for="htmlwidget-a40b143b009522c263a2">{"x":{"filter":"none","vertical":false,"data":[["<a target=\"_blank\" href=\"https://github.com/tidyverse/ellmer/pull/1079\">#1079 Normalise Databricks responses when deviate from OpenAICompatible format<\/a>","<a target=\"_blank\" href=\"https://github.com/tidyverse/ellmer/pull/1077\">#1077 Normalise tool results at invoke time<\/a>","<a target=\"_blank\" href=\"https://github.com/tidyverse/ellmer/pull/1068\">#1068 feat: citation content<\/a>","<a target=\"_blank\" href=\"https://github.com/tidyverse/ellmer/pull/1075\">#1075 Explore contents_trajectory(): serialize chats to trajectory-v1<\/a>","<a target=\"_blank\" href=\"https://github.com/tidyverse/ellmer/pull/1023\">#1023 feat: Add tool_context() for tool-calling context<\/a>","<a target=\"_blank\" href=\"https://github.com/tidyverse/ellmer/pull/1052\">#1052 feat(Chat): `on_request_start()` and `on_request_end()` hooks<\/a>","<a target=\"_blank\" href=\"https://github.com/tidyverse/ellmer/pull/991\">#991 Add `mcp_connector()` for provider-hosted MCP server connections<\/a>","<a target=\"_blank\" href=\"https://github.com/tidyverse/ellmer/pull/1067\">#1067 Support ChatGPT subscription authentication<\/a>","<a target=\"_blank\" href=\"https://github.com/tidyverse/ellmer/pull/1064\">#1064 Add bedrock-mantle support to chat_aws_bedrock()<\/a>","<a target=\"_blank\" href=\"https://github.com/tidyverse/ellmer/pull/985\">#985 Handle mcp_tool_use and mcp_tool_result content types<\/a>","<a target=\"_blank\" href=\"https://github.com/tidyverse/ellmer/pull/923\">#923 Add Z AI provider with chat_zai() and models_zai()<\/a>","<a target=\"_blank\" href=\"https://github.com/tidyverse/ellmer/pull/975\">#975 Introduce ContentThinkingDelta for streaming thinking<\/a>","<a target=\"_blank\" href=\"https://github.com/tidyverse/ellmer/pull/960\">#960 Add `chat_azure_anthropic()` for Azure Foundry Anthropic Models<\/a>","<a target=\"_blank\" href=\"https://github.com/tidyverse/ellmer/pull/605\">#605 WIP agents vignette<\/a>","<a target=\"_blank\" href=\"https://github.com/tidyverse/ellmer/pull/414\">#414 copyedit vignette:Tool/function calling<\/a>"],["thisisnic","thisisnic","cpsievert","gadenbuie","gadenbuie","kaipingyang","gadenbuie","t-kalinowski","hadley","klin333","lazasaurus-ai","cpsievert","dareneiri","hadley","lindbrook"],["FALSE","FALSE","FALSE","TRUE","FALSE","FALSE","FALSE","FALSE","FALSE","FALSE","FALSE","FALSE","FALSE","TRUE","FALSE"],["2026-08-10","2026-08-10","2026-08-09","2026-08-06","2026-08-05","2026-08-05","2026-08-04","2026-08-03","2026-07-27","2026-05-27","2026-05-24","2026-05-07","2026-05-06","2026-05-06","2026-05-06"],["","","","","","","","","","","","","","",""]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th>pr<\/th>\n      <th>author<\/th>\n      <th>draft<\/th>\n      <th>updated<\/th>\n      <th>status<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"bPaginate":false,"dom":"ftip","language":{"info":"Showing _TOTAL_ entries"},"pageLength":15,"columnDefs":[{"name":"pr","targets":0},{"name":"author","targets":1},{"name":"draft","targets":2},{"name":"updated","targets":3},{"name":"status","targets":4}],"order":[],"autoWidth":false,"orderClasses":false,"lengthMenu":[10,15,25,50,100]}},"evals":[],"jsHooks":[]}</script>
+</div>
+</div>
+<bslib-tooltip placement="auto" bsoptions="[]" data-require-bs-version="5" data-require-bs-caller="tooltip()">
+    <template>Expand</template>
+    <span class="bslib-full-screen-enter badge rounded-pill">
+        <svg xmlns="http://www.w3.org/2000/svg" viewbox="0 0 24 24" style="height:1em;width:1em;" aria-hidden="true" role="img"><path d="M20 5C20 4.4 19.6 4 19 4H13C12.4 4 12 3.6 12 3C12 2.4 12.4 2 13 2H21C21.6 2 22 2.4 22 3V11C22 11.6 21.6 12 21 12C20.4 12 20 11.6 20 11V5ZM4 19C4 19.6 4.4 20 5 20H11C11.6 20 12 20.4 12 21C12 21.6 11.6 22 11 22H3C2.4 22 2 21.6 2 21V13C2 12.4 2.4 12 3 12C3.6 12 4 12.4 4 13V19Z"></path></svg>
+    </span>
+</bslib-tooltip><script data-bslib-card-init="">bslib.Card.initializeAllCards();</script></div>
+</div>
+</div></div></div><bslib-tooltip placement="auto" bsoptions="[]" data-require-bs-version="5" data-require-bs-caller="tooltip()">
+    <template>Expand</template>
+    <span class="bslib-full-screen-enter badge rounded-pill">
+        <svg xmlns="http://www.w3.org/2000/svg" viewbox="0 0 24 24" style="height:1em;width:1em;" aria-hidden="true" role="img"><path d="M20 5C20 4.4 19.6 4 19 4H13C12.4 4 12 3.6 12 3C12 2.4 12.4 2 13 2H21C21.6 2 22 2.4 22 3V11C22 11.6 21.6 12 21 12C20.4 12 20 11.6 20 11V5ZM4 19C4 19.6 4.4 20 5 20H11C11.6 20 12 20.4 12 21C12 21.6 11.6 22 11 22H3C2.4 22 2 21.6 2 21V13C2 12.4 2.4 12 3 12C3.6 12 4 12.4 4 13V19Z"></path></svg>
+    </span>
+</bslib-tooltip><script data-bslib-card-init="">bslib.Card.initializeAllCards();</script></div><div class="card tabset bslib-card html-fill-container" data-bslib-card-init="" data-require-bs-caller="card()" data-full-screen="false">
+<div class="card-header dashboard-card-no-title bslib-navs-card-title">
+
+<ul class="nav nav-tabs card-header-tabs" role="tablist" data-tabsetid="card-tabset-4"><li class="nav-item" role="presentation"><a href="#card-tabset-4-1" role="tab" data-toggle="tab" data-bs-toggle="tab" data-value="Provider updates" aria-selected="true" class="nav-link active">Provider updates</a></li><li class="nav-item" role="presentation"><a href="#card-tabset-4-2" role="tab" data-toggle="tab" data-bs-toggle="tab" data-value="chatlas" aria-selected="false" class="nav-link">chatlas</a></li></ul></div>
+
+
+<div class="tab-content html-fill-item html-fill-container" data-tabset-id="card-tabset-4"><div class="tab-pane active show html-fill-item html-fill-container" role="tabpanel" id="card-tabset-4-1"><div class="card-body html-fill-item html-fill-container" data-title="Provider updates">
+<div class="bslib-grid html-fill-item html-fill-container" style="display: grid; grid-template-rows: minmax(3em, 1fr); grid-auto-columns: minmax(0, 1fr);">
+<div class="card cell html-fill-item html-fill-container bslib-card" data-title="Provider updates" data-bslib-card-init="" data-require-bs-caller="card()" data-full-screen="false">
+<div class="card-header"><div class="card-title"><span style="display: inline">
+Provider updates
+</span></div></div>
+<div class="card-body html-fill-item html-fill-container">
+<div class="cell-output-display html-fill-item html-fill-container">
+<div class="datatables html-widget html-fill-item html-fill-container" id="htmlwidget-54e4b0ecafa3f4a38e7c" style="width:100%;height:auto;"></div>
+<script type="application/json" data-for="htmlwidget-54e4b0ecafa3f4a38e7c">{"x":{"filter":"none","vertical":false,"data":[["Ollama","DeepSeek","Anthropic","Google Gemini","Anthropic"],["<a target=\"_blank\" href=\"https://ollama.com/blog\">Ollama adds native Anthropic Messages API compatibility<\/a>","<a target=\"_blank\" href=\"https://api-docs.deepseek.com/news/news1000\">DeepSeek-V4-Flash official public beta release with Responses API support<\/a>","<a target=\"_blank\" href=\"https://www.anthropic.com/news/claude-opus-5\">Claude Opus 5 released – new flagship model<\/a>","<a target=\"_blank\" href=\"https://ai.google.dev/gemini-api/docs/release-notes\">Gemini 3.6 Flash and 3.5 Flash-Lite GA: new models and deprecated sampling parameters<\/a>","<a target=\"_blank\" href=\"https://www.anthropic.com/news/claude-sonnet-5\">Claude Sonnet 5 released – new mid-tier flagship model<\/a>"],["Ollama gained compatibility with the Anthropic Messages API (announced January 16, 2026), enabling tools like Claude Code to work with Ollama. This is outside the date window (before 2026-07-11), but the August 10 Muse Glimmer entry mentions new native DFlash and image input support in Ollama's MLX engine, which could affect how ellmer handles image inputs via Ollama's API.","DeepSeek-V4-Flash (deepseek-v4-flash) has been officially released in public beta as of 2026-07-31, replacing the preview version. Notably, it natively supports the Responses API format, which may require ellmer to handle or document this new API surface. ellmer's pricing data and default model references for DeepSeek should be reviewed.","Anthropic released Claude Opus 5 on July 24, 2026, described as a step-change improvement for long-running agents with improvements in coding and professional work. ellmer may need to update its pricing data and consider whether Opus 5 should replace or be added alongside existing Opus model entries.","Gemini 3.6 Flash (gemini-3.6-flash) and Gemini 3.5 Flash-Lite (gemini-3.5-flash-lite) are now generally available. Additionally, the sampling parameters temperature, top_p, and top_k are now deprecated for these latest Gemini models. ellmer may need to update its pricing data for these models and review whether its chat interfaces should handle or warn about the deprecated sampling parameters.","Anthropic released Claude Sonnet 5 on June 30, 2026, delivering frontier performance across coding, agents, and professional work at scale. As a new flagship Sonnet-tier model, ellmer's default model and pricing data for the Sonnet tier may need updating."],["2026-08-10","2026-07-31","2026-07-24","2026-07-21","2026-06-30"]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th>source<\/th>\n      <th>title<\/th>\n      <th>description<\/th>\n      <th>date<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"bPaginate":false,"dom":"ftip","language":{"info":"Showing _TOTAL_ entries"},"pageLength":10,"columnDefs":[{"name":"source","targets":0},{"name":"title","targets":1},{"name":"description","targets":2},{"name":"date","targets":3}],"order":[],"autoWidth":false,"orderClasses":false}},"evals":[],"jsHooks":[]}</script>
+</div>
+</div>
+<bslib-tooltip placement="auto" bsoptions="[]" data-require-bs-version="5" data-require-bs-caller="tooltip()">
+    <template>Expand</template>
+    <span class="bslib-full-screen-enter badge rounded-pill">
+        <svg xmlns="http://www.w3.org/2000/svg" viewbox="0 0 24 24" style="height:1em;width:1em;" aria-hidden="true" role="img"><path d="M20 5C20 4.4 19.6 4 19 4H13C12.4 4 12 3.6 12 3C12 2.4 12.4 2 13 2H21C21.6 2 22 2.4 22 3V11C22 11.6 21.6 12 21 12C20.4 12 20 11.6 20 11V5ZM4 19C4 19.6 4.4 20 5 20H11C11.6 20 12 20.4 12 21C12 21.6 11.6 22 11 22H3C2.4 22 2 21.6 2 21V13C2 12.4 2.4 12 3 12C3.6 12 4 12.4 4 13V19Z"></path></svg>
+    </span>
+</bslib-tooltip><script data-bslib-card-init="">bslib.Card.initializeAllCards();</script></div>
+</div>
+</div></div><div class="tab-pane html-fill-item html-fill-container" role="tabpanel" id="card-tabset-4-2"><div class="card-body html-fill-item html-fill-container" data-title="chatlas">
+<div class="bslib-grid html-fill-item html-fill-container" style="display: grid; grid-template-rows: minmax(3em, 1fr); grid-auto-columns: minmax(0, 1fr);">
+<div class="card cell html-fill-item html-fill-container bslib-card" data-title="chatlas parity" data-bslib-card-init="" data-require-bs-caller="card()" data-full-screen="false">
+<div class="card-header"><div class="card-title"><span style="display: inline">
+chatlas parity
+</span></div></div>
+<div class="card-body html-fill-item html-fill-container">
+<div class="cell-output-display html-fill-item html-fill-container">
+<div class="datatables html-widget html-fill-item html-fill-container" id="htmlwidget-a56d05a58e541b7be468" style="width:100%;height:auto;"></div>
+<script type="application/json" data-for="htmlwidget-a56d05a58e541b7be468">{"x":{"filter":"none","vertical":false,"data":[["<a target=\"_blank\" href=\"https://github.com/posit-dev/chatlas/pull/377\">Support Bedrock Converse models in chat_aws_bedrock()<\/a>","<a target=\"_blank\" href=\"https://github.com/posit-dev/chatlas/pull/370\">Fail loudly when a built-in tool isn't supported by the provider<\/a>","<a target=\"_blank\" href=\"https://github.com/posit-dev/chatlas/pull/363\">Merge multiple tool results into a single result block per tool call<\/a>","<a target=\"_blank\" href=\"https://github.com/posit-dev/chatlas/pull/345\">Add `content_document_file()` and `content_document_url()` for text/CSV/code files<\/a>","<a target=\"_blank\" href=\"https://github.com/posit-dev/chatlas/pull/344\">Better error message when structured output response is truncated<\/a>","<a target=\"_blank\" href=\"https://github.com/posit-dev/chatlas/pull/334\">Provider files API for uploading files once and referencing by ID<\/a>","<a target=\"_blank\" href=\"https://github.com/posit-dev/chatlas/pull/336\">Replay built-in tool content only to the provider that produced it<\/a>","<a target=\"_blank\" href=\"https://github.com/posit-dev/chatlas/pull/335\">Support MCP 2.0.0 breaking API changes<\/a>"],["chatlas PR #377 adds a native Bedrock Runtime Converse provider covering the broad set of Bedrock models that don't use the Mantle or Messages endpoints, with full support for tools, reasoning, structured output, and cache controls. ellmer's open PR #1064 only covers bedrock-mantle support; Converse API support for non-mantle models may still be incomplete or missing from ellmer.","chatlas PR #370 adds a clear error when `tool_web_search()` or `tool_web_fetch()` is registered with a provider that doesn't support them (e.g., sending an empty tool definition caused confusing 400 errors or silent failures). ellmer should similarly detect and raise an informative error when built-in/server-side tools are used with unsupported providers.","chatlas PR #363 fixes a bug where MCP servers returning multiple content chunks for one tool call produced multiple `tool_result` blocks for the same tool ID, causing a 400 error from Anthropic. ellmer issue #1060 touches related territory but the specific fix of collapsing multiple content chunks into a single result block per tool call ID may not be fully covered.","chatlas PR #345 adds `content_document_file()` and `content_document_url()` so users can pass text, Markdown, CSV, or code files as first-class content (with media type metadata) rather than inlining file text manually. ellmer has no equivalent `content_document_*` helpers and this would be a useful feature addition.","chatlas PR #344 replaces a cryptic `JSONDecodeError` with a clear `ValueError` explaining the response hit the output token limit when `chat_structured()` returns truncated JSON. ellmer already has `finish_reason` and truncation warnings via PR #1029, but should verify that structured output truncation surfaces a similarly actionable error message rather than a parse failure.","chatlas PR #334 adds a provider files API so large PDFs or images can be uploaded once and referenced by ID in subsequent turns rather than re-sending bytes every turn. ellmer issue #868 tracks adding the OpenAI files API and this would generalize it across providers.","chatlas PR #336 prevents cross-provider conversation transfer from breaking when built-in tool content (web search, fetch) is present, by filtering provider-specific content during set_turns(). ellmer's contents_record()/contents_replay() (issues #895, #984) doesn't appear to handle this provider-specific content isolation.","chatlas PR #335 migrates MCP tool registration to the mcp 2.0.0 API after a breaking major version release. ellmer should verify its MCP integration still works with the latest mcp package versions and update if needed."],["2026-08-04","2026-07-30","2026-07-30","2026-07-30","2026-07-29","2026-07-29","2026-07-28","2026-07-28"]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th>title<\/th>\n      <th>description<\/th>\n      <th>date<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"bPaginate":false,"dom":"ftip","language":{"info":"Showing _TOTAL_ entries"},"pageLength":10,"columnDefs":[{"name":"title","targets":0},{"name":"description","targets":1},{"name":"date","targets":2}],"order":[],"autoWidth":false,"orderClasses":false}},"evals":[],"jsHooks":[]}</script>
+</div>
+</div>
+<bslib-tooltip placement="auto" bsoptions="[]" data-require-bs-version="5" data-require-bs-caller="tooltip()">
+    <template>Expand</template>
+    <span class="bslib-full-screen-enter badge rounded-pill">
+        <svg xmlns="http://www.w3.org/2000/svg" viewbox="0 0 24 24" style="height:1em;width:1em;" aria-hidden="true" role="img"><path d="M20 5C20 4.4 19.6 4 19 4H13C12.4 4 12 3.6 12 3C12 2.4 12.4 2 13 2H21C21.6 2 22 2.4 22 3V11C22 11.6 21.6 12 21 12C20.4 12 20 11.6 20 11V5ZM4 19C4 19.6 4.4 20 5 20H11C11.6 20 12 20.4 12 21C12 21.6 11.6 22 11 22H3C2.4 22 2 21.6 2 21V13C2 12.4 2.4 12 3 12C3.6 12 4 12.4 4 13V19Z"></path></svg>
+    </span>
+</bslib-tooltip><script data-bslib-card-init="">bslib.Card.initializeAllCards();</script></div>
+
+
+<div id="3ade8a4a-fb1d-4a6c-8409-ac45482d5fc9" class="hidden html-fill-item html-fill-container">
+
+</div>
+</div>
+</div></div></div><bslib-tooltip placement="auto" bsoptions="[]" data-require-bs-version="5" data-require-bs-caller="tooltip()">
+    <template>Expand</template>
+    <span class="bslib-full-screen-enter badge rounded-pill">
+        <svg xmlns="http://www.w3.org/2000/svg" viewbox="0 0 24 24" style="height:1em;width:1em;" aria-hidden="true" role="img"><path d="M20 5C20 4.4 19.6 4 19 4H13C12.4 4 12 3.6 12 3C12 2.4 12.4 2 13 2H21C21.6 2 22 2.4 22 3V11C22 11.6 21.6 12 21 12C20.4 12 20 11.6 20 11V5ZM4 19C4 19.6 4.4 20 5 20H11C11.6 20 12 20.4 12 21C12 21.6 11.6 22 11 22H3C2.4 22 2 21.6 2 21V13C2 12.4 2.4 12 3 12C3.6 12 4 12.4 4 13V19Z"></path></svg>
+    </span>
+</bslib-tooltip><script data-bslib-card-init="">bslib.Card.initializeAllCards();</script></div>
+</div>
+</div>
+
+
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+
+<script type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (_event) {
+  if (window.bslib.Card) {
+    window.bslib.Card.initializeAllCards();
+  }
+}); 
+</script>
+  
+
+
+
+</body></html>
