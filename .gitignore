@@ -4,3 +4,7 @@
 .Renviron
 index_files/
 index.html
+
+/.quarto/
+**/*.quarto_ipynb
+_site/
