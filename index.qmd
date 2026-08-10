@@ -1,0 +1,153 @@
+---
+title: "ellmer maintenance"
+author: "updated `{r} format(Sys.time(), '%a %b %d %X %Y %Z')`"
+format:
+  dashboard:
+    theme: flatly
+execute:
+  echo: false
+  warning: false
+---
+
+```{r}
+#| label: setup
+#| include: false
+library(readr)
+library(dplyr, warn.conflicts = FALSE)
+library(DT)
+
+issues <- read_csv("data/ellmer_issues.csv", col_types = cols(.default = "c"))
+prs <- read_csv("data/ellmer_prs.csv", col_types = cols(.default = "c"))
+
+read_if_exists <- function(path) {
+  if (file.exists(path)) {
+    read_csv(path, col_types = cols(.default = "c"))
+  } else {
+    NULL
+  }
+}
+reported <- read_if_exists("reported.csv")
+parity <- read_if_exists("chatlas_parity.csv")
+
+link_title <- function(url, title) {
+  paste0('<a target="_blank" href="', url, '">', title, "</a>")
+}
+
+pr_links <- function(linked_prs) {
+  vapply(strsplit(ifelse(is.na(linked_prs), "", linked_prs), "; "), function(nums) {
+    nums <- nums[nums != ""]
+    if (length(nums) == 0) return("")
+    paste(
+      link_title(
+        paste0("https://github.com/tidyverse/ellmer/pull/", nums),
+        paste0("PR #", nums)
+      ),
+      collapse = ", "
+    )
+  }, character(1))
+}
+
+not_ignored <- function(df) {
+  filter(df, is.na(ignore) | toupper(ignore) != "TRUE")
+}
+
+suggestions <- bind_rows(
+  if (!is.null(reported)) {
+    reported |>
+      not_ignored() |>
+      transmute(
+        type = "provider",
+        source = provider,
+        title = link_title(link, title),
+        description = description,
+        date = change_date
+      )
+  },
+  if (!is.null(parity)) {
+    parity |>
+      not_ignored() |>
+      transmute(
+        type = "chatlas",
+        source = "chatlas",
+        title = link_title(link, title),
+        description = description,
+        date = merged_date
+      )
+  }
+) |>
+  arrange(date == "unknown", desc(date))
+```
+
+## Row
+
+### Column {.tabset width="55%"}
+
+#### Issues
+
+```{r}
+#| title: !expr paste0("Open issues (", nrow(issues), ")")
+issues |>
+  arrange(desc(updated_at)) |>
+  transmute(
+    issue = link_title(url, title),
+    labels = labels,
+    comments = comments,
+    updated = substr(updated_at, 1, 10),
+    status = pr_links(linked_prs)
+  ) |>
+  datatable(
+    escape = FALSE,
+    rownames = FALSE,
+    options = list(pageLength = 15, dom = "ftip")
+  )
+```
+
+#### PRs
+
+```{r}
+#| title: !expr paste0("Open PRs (", nrow(prs), ")")
+prs |>
+  arrange(desc(updated_at)) |>
+  transmute(
+    pr = link_title(url, paste0("#", number, " ", title)),
+    author = user,
+    draft = draft,
+    updated = substr(updated_at, 1, 10),
+    status = ""
+  ) |>
+  datatable(
+    escape = FALSE,
+    rownames = FALSE,
+    options = list(pageLength = 15, dom = "ftip")
+  )
+```
+
+### Column {.tabset width="45%"}
+
+#### Provider updates
+
+```{r}
+#| title: Provider updates
+suggestions |>
+  filter(type == "provider") |>
+  select(-type) |>
+  datatable(
+    escape = FALSE,
+    rownames = FALSE,
+    options = list(pageLength = 10, dom = "ftip")
+  )
+```
+
+#### chatlas
+
+```{r}
+#| title: chatlas parity
+suggestions |>
+  filter(type == "chatlas") |>
+  select(-type, -source) |>
+  datatable(
+    escape = FALSE,
+    rownames = FALSE,
+    options = list(pageLength = 10, dom = "ftip")
+  )
+```

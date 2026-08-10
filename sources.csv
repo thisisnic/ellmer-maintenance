@@ -1,0 +1,8 @@
+provider,url
+OpenAI,https://developers.openai.com/api/docs/changelog
+Google Gemini,https://ai.google.dev/gemini-api/docs/changelog
+Anthropic,https://www.anthropic.com/news
+DeepSeek,https://api-docs.deepseek.com/updates
+Ollama,https://ollama.com/blog
+Perplexity,https://docs.perplexity.ai/changelog
+Snowflake Cortex,https://docs.snowflake.com/en/release-notes

@@ -1,0 +1,951 @@
+number,title,body,user,labels,state,created_at,updated_at,comments,url,linked_prs
+1078,Issue using databricks as provider,"Hi, 
+
+I am trying to use databricks as a model provider but having issue using the chat_databricks function. The following works for me using databrick's provided code example: 
+
+```
+curl https://dbc-381ac276-0249.cloud.databricks.com/serving-endpoints/databricks-gpt-oss-120b/invocations \
+  -X POST \
+  -H ""Authorization: Bearer $DATABRICKS_TOKEN"" \
+  -H ""Content-Type: application/json"" \
+  -d '{
+  ""messages"": [
+    {
+      ""role"": ""user"",
+      ""content"": ""What is an LLM agent?""
+    }
+  ],
+  ""max_tokens"": 5000,
+  ""model"": ""system.ai.gpt-oss-120b""
+}'
+```
+But when trying with chat_databricks function like the following, it doesn't seem to work: 
+
+```
+databricks_client <- ellmer::chat_databricks(
+    workspace = ""https://dbc-381ac276-0249.cloud.databricks.com/serving-endpoints/databricks-gpt-oss-120b/invocations"",
+    model = ""system.ai.gpt-oss-120b"",
+    token = ""api_key""
+)
+```
+I get the error when I run databricks_client$chat(""What is an LLM agent?"") : 
+
+```
+Error in `req_perform_connection()`:
+! HTTP 404 Not Found.
+ℹ Path must be of form /serving-endpoints/<endpoint_name>/invocations or
+  /serving-endpoints/<endpoint_name>/served-models/<served_model_name>/invocations
+```
+When I try instead the following: 
+```
+databricks_client <- ellmer::chat_databricks(
+    workspace = ""https://dbc-381ac276-0249.cloud.databricks.com"",
+    model = ""system.ai.gpt-oss-120b"",
+    token = ""api_key""
+)
+```
+I get the error: 
+```
+Error in `req_perform_connection()`:
+! HTTP 404 Not Found.
+ℹ The given endpoint does not exist, please retry after checking the specified model and version deployment exists.
+```
+```
+databricks_client <- ellmer::chat_databricks(
+    workspace = ""https://dbc-381ac276-0249.cloud.databricks.com/"",
+    model = ""databricks-gpt-oss-120b"",
+    token = ""api_key""
+)
+```
+gives error: 
+```
+Error: <ellmer::ContentText> object properties are invalid:
+@text must be character, not list
+```
+Would you happen to have any suggestions on how to make ellmer::chat_databricks() function work please? 
+
+Thanks so much!
+Kola",kolabearafk,bug,open,2026-08-10T08:18:42Z,2026-08-10T12:43:55Z,1,https://github.com/tidyverse/ellmer/issues/1078,1079
+1074,consider a Chat field describing whether thinking is enabled,"A couple times in dependent packages, I've thought it would be useful to know whether a given ellmer Chat had thinking enabled or not. This is admittedly a hard problem, e.g. some models have thinking enabled by default but most don't, different models $x$ providers have different ways of parameterizing thinking, etc. That said, to be able to quickly reach for a best-guess `thinking` field with `c(""yes"", ""no"", NA_character_)` would be helpful.
+
+[One example in commons](https://github.com/posit-dev/commons/issues/14).
+",simonpcouch,feature,open,2026-08-03T14:29:04Z,2026-08-09T18:47:14Z,0,https://github.com/tidyverse/ellmer/issues/1074,
+1070,chat_aws_bedrock() fails after empty response from claude-sonnet-5,"With `claude-sonnet-5` on Bedrock, asking the model to respond with only blank lines can produce an assistant turn with an empty thinking block and no text content. The empty thinking block is dropped by `as_json(ProviderAWSBedrock, ContentThinking)` (returns `NULL` when thinking is `""""`), and `compact()` strips it, leaving `content = list()`. On the next turn, Bedrock rejects the empty content array with HTTP 400.
+
+The fix from #376 / PR #393 handles whitespace-only `ContentText`, but this is a different case: the content array is completely empty because the only content block (empty thinking) was dropped.
+
+## Reprex
+
+```r
+library(ellmer)
+chat <- chat_aws_bedrock(model = ""us.anthropic.claude-sonnet-5"")
+chat$chat(""Respond with only two blank lines"")
+chat$chat(""What's 1+1? Just give me the number"")
+#> Error in `req_perform()`: HTTP 400 Bad Request.
+#> The content field in the Message object at messages.1 is empty.
+#> Add a ContentBlock object to the content field and try again.
+```
+
+The same issue likely applies to `chat_anthropic()` since its `as_json(ProviderClaude, ContentThinking)` has the same `return()` for empty thinking.
+
+Found while working on #1066 (bumping default models to `claude-sonnet-5`).",thisisnic,bug,open,2026-08-02T18:16:05Z,2026-08-09T18:47:50Z,1,https://github.com/tidyverse/ellmer/issues/1070,
+1060,contents_record() fails for tool results mixing Content and plain values,"`contents_record()` can return a value that cannot be serialized if a `ContentToolResult` contains both `Content` objects and strings. I first noticed this in shinychat when saving chat history with the new `chat_server()` module.
+
+``` r
+x <- ellmer::ContentToolResult(
+  value = list(
+    ellmer::ContentText(""summary""),
+    ""plain text""
+  )
+)
+
+jsonlite::serializeJSON(ellmer::contents_record(x))
+#> Error in `h()`:
+#> ! error in evaluating the argument 'x' in selecting a method for function 'asJSON': cannot coerce type 'closure' to vector of type 'list'
+```
+
+<sup>Created on 2026-07-14 with [reprex v2.1.1](https://reprex.tidyverse.org)</sup>
+
+The list is not handled recursively because it is not an all-S7 list.
+
+## Expected behavior
+
+- Strings in a tool-result list should be converted to `ContentText`.
+- Other mixed values should produce an informative error directing users to convert them to `Content` or place display-only data in `extra`.
+- `contents_record()` and `contents_replay()` should handle nested S7 objects recursively while preserving list subclasses.
+
+I have a PR drafted, but I'd like some other thoughts on if this the right approach. For a bit more context, I've run into this twice now with Claude-created ellmer tools with shinychat apps.",JamesHWade,,open,2026-07-15T01:24:18Z,2026-07-27T15:56:51Z,3,https://github.com/tidyverse/ellmer/issues/1060,1077
+1051,Feature request: callback before each model request in the tool loop (for mid-loop context compaction),"### Summary
+
+`Chat$chat()` / `Chat$chat_async()` (and `stream()/stream_async()`) run the tool loop internally (`chat_impl` / `chat_impl_async` in `R/chat.R`). There is currently **no callback that fires before each model request inside that loop**, so an application cannot inspect or rewrite the conversation **between tool rounds** within a single `chat()` call.
+
+The existing `on_tool_request(callback(request))` and `on_tool_result(callback(result))` hooks are tool-scoped: they receive only the request/result, don't fire when a turn has no tools (or before the first request), and there is no documented/safe contract for mutating `private$.turns` from them.
+
+### Use case: mid-loop context compaction
+
+I'm building an R coding agent on ellmer. To stay within the model's context window I need **automatic compaction between tool rounds** — exactly what Claude Code does by calling `autoCompactIfNeeded()` at the top of each iteration of its query loop. Because the tool loop is internal to ellmer, I can only compact **before** handing off to `chat()` (i.e. at user-turn boundaries). A single turn that triggers many large tool outputs (e.g. reading several big files) can blow the context limit mid-loop, with no opportunity to compact until the turn ends.
+
+### Where it would hook
+
+In `chat_impl` / `chat_impl_async`, at the top of `while (!is.null(user_turn)) { ... }`, before `private$submit_turns(user_turn, ...)`.
+
+### Proposed API (sketch — happy to follow your preferred shape)
+
+A callback fired before each model request in the loop, mirroring the existing `CallbackManager` pattern:
+
+```r
+# fires before each submit_turns() inside the tool loop
+cancel <- chat$on_turn_start(function() {
+  # app can inspect/rewrite history here, e.g. compact:
+  if (my_should_compact(chat)) chat$set_turns(my_compact(chat$get_turns()))
+})
+```
+
+Naming/signature is entirely yours to decide (`on_turn_start` / `on_request` / a `turn_transform` that returns turns, etc.). The key need is a **safe, documented point to rewrite conversation history between tool rounds**.
+
+### Alternatives considered
+
+- `on_tool_result` + a captured `chat` to call `set_turns()`: works only by luck, is undocumented, doesn't fire without tools, and risks orphaning `tool_use`/`tool_result` pairs.
+- Re-implementing the tool loop outside ellmer using lower-level primitives: `submit_turns()` is private, so there's no clean public way to drive one model turn + tools manually.
+
+I'd be glad to send a PR if you're open to the feature — just let me know the API shape you'd prefer.
+",kaipingyang,feature,open,2026-07-04T06:37:15Z,2026-07-09T13:08:00Z,2,https://github.com/tidyverse/ellmer/issues/1051,
+1050,Feature Request: Allow custom `base_url` in `chat_google_vertex()` for API gateway proxies,"Note: Steps so far were run locally and final issue was created with assistance of Opus 4.6
+
+## Problem
+
+When using Google Vertex AI models through a corporate API gateway (Azure API Management),
+the gateway proxies requests using Google's native API format
+(`/v1beta1/publishers/google/models/{model}:generateContent`) with API key auth
+(`x-goog-api-key` header).
+
+Currently, `chat_google_vertex()` does not accept a `base_url` argument, so there's
+no way to point it at a custom endpoint. The gateway is NOT OpenAI-compatible, so
+`chat_openai_compatible()` doesn't work either.
+
+## Workaround
+
+Using `httr2` directly works:
+
+```r
+url <- ""https://my-gateway.example.com/vertex-ai-express/v1beta1/publishers/google/models/gemini-2.5-flash-lite:generateContent""
+
+resp <- request(url) |>
+  req_headers(`x-goog-api-key` = api_key, `Content-Type` = ""application/json"") |>
+  req_body_json(list(
+    contents = list(list(role = ""user"", parts = list(list(text = ""Hello!""))))
+  )) |>
+  req_perform()
+```
+
+The Python `google.genai` SDK supports this via `HttpOptions(base_url=...)`:
+
+```python
+from google.genai import Client
+from google.genai.types import HttpOptions
+
+client = Client(vertexai=True, api_key=api_key, http_options=HttpOptions(base_url=ENDPOINT))
+```
+
+## Proposed Solution
+Add a `base_url` parameter to `chat_google_vertex()` that overrides the default Google endpoint URL, similar to how the Python SDK's `HttpOptions(base_url=...)` works.
+
+This would also need to support API key authentication (via `x-goog-api-key header`) as an alternative to OAuth/service account credentials.
+
+## Environment
+* ellmer version: 0.4.1
+* R version: [your R version]
+* Gateway path format: /v1beta1/publishers/google/models/{model}:{method}
+* Auth: x-goog-api-key header with API key",Tazinho,feature,open,2026-07-03T08:20:40Z,2026-07-03T09:37:41Z,1,https://github.com/tidyverse/ellmer/issues/1050,
+1040,HuggingFace default model doesn't support function calling or json_schema structured output,"While running package tests today locally, the default HuggingFace model (`meta-llama/llama-3.1-8b-instruct`) fails on two tests due to missing feature support:
+
+**Tool use:**
+```
+HTTP 400 Bad Request.
+model features function calling not support
+```
+
+**Structured output:**
+```
+HTTP 400 Bad Request.
+Model 'meta-llama/llama-3.1-8b-instruct' does not support 'json_schema' response format. Supported formats: json_object.
+```
+
+We should either:
+- Skip these tests for HuggingFace, or
+- Use a model that supports these features for the relevant tests",thisisnic,bug,open,2026-06-28T12:12:21Z,2026-08-03T14:23:36Z,1,https://github.com/tidyverse/ellmer/issues/1040,
+1017,"Tool definitions don't accept valid special characters for function names or arguments, such as ""ñ""","R functions that contain characters such as ""ñ"" (very common Spanish letter that produces a common problem in data science, as its used in the word _año_, meaning _year_) are completely valid in R, but they cause problems with `{ellmer}`
+
+Lets create a basic function that has `ñ` in its name and in its argument:
+
+```r
+obtener_datos_por_año <- function(año = NULL) {
+  
+  require(dplyr)
+  
+  datos <- data.frame(
+    año = c(2020, 2021, 2022, 2023, 2024),
+    inversión = c(100, 150, 200, 250, 300),
+    proyectos = c(5, 8, 12, 15, 18)
+  )
+  
+  datos <- datos |> 
+    filter(año == .env$año)
+  
+  return(datos)
+}
+```
+The function simply filters data from a dataframe.
+
+Try out the function and it will work fine:
+
+```r
+obtener_datos_por_año(año = 2022)
+```
+
+Now let's create a tool definition with `{ellmer}`:
+
+```r
+library(ellmer)
+
+# Crear la herramienta ellmer
+tool_obtener_datos <- ellmer::tool(
+  obtener_datos_por_año,
+  ""Obtiene datos de inversión y proyectos, filtrados opcionalmente por año (2020-2024)"",
+  arguments = list(
+    año = type_integer(description = ""Año a filtrar, entre 2020 y 2024"")
+  )
+)
+```
+
+We get the first error: `ñ` is not supported in a function name:
+```
+# Error in `ellmer::tool()`:
+#   ! `name` must contain only letters, numbers, - and _.
+```
+
+We have to change the function name (let´s say `anio` instead of `año`) to get rid of the error.
+
+Now let's provide the LLM with the function definition:
+
+```r
+chat <- chat_anthropic(
+  model = ""claude-haiku-4-5""
+)
+
+chat$register_tool(tool_obtener_datos)
+```
+
+No problem so far, but let's ask a question that requires the model to use the tool, specifically the argument with `ñ` in its name:
+
+```
+chat$chat(""muéstrame los proyectos de 2020"") # ""show me projects from 2020""
+```
+
+We get another `ñ` related error:
+```
+# Error in `req_perform_connection()`:
+#   ! HTTP 400 Bad Request.
+# ℹ tools.0.custom.input_schema.properties: Property keys should match
+# pattern '^[a-zA-Z0-9_.-]{1,64}$' [invalid_request_error]
+# Run `rlang::last_trace()` to see where the error occurred.
+```
+
+I believe some cautions were taken to validate proper function and argument names in `{ellmer}` but those leave some users having to modify their work in order to match the english alphabet.",bastianolea,feature,open,2026-06-10T15:13:44Z,2026-06-17T10:21:57Z,1,https://github.com/tidyverse/ellmer/issues/1017,
+984,Support extracting non-text content from chat responses,"When an LLM returns content like images and audio from chat responses, there's no ellmer API for extracting and saving it, though it's possible.  Example workarounds:
+
+- #937 
+- https://github.com/hadley/bananarama/blob/main/R/bananarama.R#L246",thisisnic,feature,open,2026-05-15T08:13:30Z,2026-05-15T08:13:35Z,0,https://github.com/tidyverse/ellmer/issues/984,
+974,Streaming ContentThinking chunks lack proper <thinking> tag boundaries,"## Current behavior
+
+When streaming with `stream = ""content""`, each `ContentThinking` chunk is yielded as an independent object. If you print or concatenate these (via `format()`), each fragment gets its own `<thinking>...</thinking>` wrapper:
+
+```r
+chat <- chat_anthropic(model = ""claude-sonnet-4-20250514"")
+
+stream <- chat$stream(""Explain recursion"", stream = ""content"")
+coro::loop(for (chunk in stream) {
+  cat(format(chunk))
+})
+```
+
+Output:
+
+```
+<thinking>
+The user wants an explanation
+</thinking>
+<thinking>
+ of recursion. I should
+</thinking>
+<thinking>
+ start with a simple definition...
+</thinking>
+Recursion is a technique where...
+```
+
+With `stream = ""text""`, thinking text is yielded as bare strings indistinguishable from response text:
+
+```r
+stream <- chat$stream(""Explain recursion"", stream = ""text"")
+coro::loop(for (chunk in stream) {
+  cat(chunk)
+})
+```
+
+Output:
+
+```
+The user wants an explanation of recursion. I should start with a simple definition...Recursion is a technique where...
+```
+
+No way to tell where thinking ended and the response began.
+
+## Expected behavior
+
+The streaming layer should emit `<thinking>` tags at the boundaries — once at the start of thinking, once at the end — so that concatenated output is well-formed:
+
+For `stream = ""text""`:
+```
+<thinking>
+The user wants an explanation of recursion. I should start with a simple definition...
+</thinking>
+
+Recursion is a technique where...
+```
+
+For `stream = ""content""`, the yielded objects stay the same (`ContentThinking` per chunk), but the echo/display output should show proper boundaries.
+
+## Why this matters
+
+Downstream consumers (like shinychat) that receive a stream and need to separate thinking from response content currently have to implement their own stateful tracking of `ContentThinking` objects, accumulate the thinking text, and reconstruct the tag boundaries themselves. If the stream already had correct boundaries in text mode, consumers could treat it as a text stream with well-formed `<thinking>` tags and parse accordingly — no type inspection needed.",cpsievert,feature,open,2026-05-06T21:22:41Z,2026-05-13T18:10:07Z,3,https://github.com/tidyverse/ellmer/issues/974,
+958,Token Budget / Cap for Agentic Tool Call Loops,"**Describe the problem**
+When running unsupervised/scheduled agentic workflows that involve tool calls, there is currently no built-in way to enforce an upper token limit on the full multi-turn loop. Without this, a runaway loop can consume far more tokens than intended with no mechanism to stop it gracefully.
+
+**Desired behavior**
+It would be useful to have a supported way to:
+1. Set a hard token budget for the entire tool call loop, causing it to stop (and error/fail gracefully) if the limit is exceeded.
+2. Optionally inject a system-level message (e.g. *""You are approaching your token limit — wrap up your response now""*) once a soft threshold is reached, giving the model a chance to return a partial result rather than hard-stopping.
+
+**Use case**
+Unsupervised scheduled reports with tool access, where cost/token control is a requirement to prevent silent runaway.",ntentes,feature,open,2026-04-07T14:32:59Z,2026-07-31T18:28:05Z,3,https://github.com/tidyverse/ellmer/issues/958,
+949,Support multi-turn conversation suffixes in `parallel_chat_structured()`,"### Problem
+
+`parallel_chat_structured()` currently supports only a single user turn per parallel job. This is because `as_user_turns()` converts each element of `prompts` into one `UserTurn`, and `append_turns()` appends that single turn to the shared conversation history:
+
+```r
+# R/parallel-chat.R L192-199
+user_turns <- as_user_turns(prompts)
+existing <- chat$get_turns(include_system_prompt = TRUE)
+conversations <- append_turns(list(existing), user_turns)
+```
+
+```r
+# R/turns.R L219-231
+as_user_turns <- function(prompts, ...) {
+  turns <- map(seq_along(prompts), function(i) {
+    as_user_turn(prompts[[i]], ...)
+  })
+  turns
+}
+```
+
+There is no mechanism to supply a multi-turn conversation suffix (e.g., user → assistant → user) per parallel job. Workloads that require each parallel item to be its own short conversation — rather than a single prompt — must fall back to sequential `chat$chat_structured()` calls on separate `Chat` objects, losing the throughput benefit of the parallel API.
+
+### Use case
+
+Simulation-style and survey-style workflows where each parallel item naturally involves multiple turns before the structured extraction. For example, running 500 independent two-turn conversations in parallel:
+
+- **Turn 1:** establish identity/context for a simulated respondent
+- **Turn 2:** ask the rating/classification question
+- **Return:** structured JSON response
+
+Other examples include multi-step annotation pipelines and interview-style prompting where the model should condition on a short prior exchange before producing a structured answer.
+
+### Proposed API
+
+Allow each element of `prompts` to be either a string (current behaviour, one turn) or a list of strings (new, multi-turn suffix):
+
+```r
+parallel_chat_structured(
+  chat = chat,
+  prompts = list(
+    # Job 1: two-turn conversation
+    list(""You are simulating a Democrat."", ""Rate this statement from 0 to 100.""),
+    # Job 2: two-turn conversation
+    list(""You are simulating a Republican."", ""Rate this statement from 0 to 100.""),
+    # Job 3: single-turn (backward compatible)
+    ""Rate this statement from 0 to 100.""
+  ),
+  type = response_type
+)
+```
+
+This would also apply to `parallel_chat()`, `parallel_chat_text()`, and `batch_chat_structured()` since they share the same `as_user_turns()` / `append_turns()` pipeline.
+
+### Implementation notes
+
+The main changes would likely be in:
+
+- **`as_user_turns()`** (`R/turns.R`): detect when an element is a list of strings and return a list of `Turn` objects (alternating user/assistant) rather than a single `UserTurn`.
+- **`append_turns()`** (`R/parallel-chat.R`): handle appending a sequence of turns rather than a single turn.
+- **`parallel_chat_structured()`** (`R/parallel-chat.R`): the structured variant would need to issue multiple rounds of `parallel_turns()` calls, similar to how `parallel_chat()` already loops for tool calls.
+
+### Not a bug
+
+The current docs and API clearly treat `prompts` as single-turn inputs. This is a feature request to extend the parallel API to cover multi-turn workloads.
+
+_Originally raised in https://github.com/rempsyc/ellmer/issues/4._",rempsyc,feature; structured data 🏗️,open,2026-03-26T14:17:39Z,2026-05-20T15:41:27Z,0,https://github.com/tidyverse/ellmer/issues/949,
+928,Support OpenAI Responses API output item type file_search_call,"## Summary
+
+Using `ellmer::chat_openai()` with the **OpenAI Responses API** and the `file_search` tool causes ellmer to error with: `Unknown content type ""file_search_call""`. This blocks RAG workflows that rely on OpenAI-managed vector stores.
+
+## Minimal Reproducible Example
+
+```r
+library(ellmer)
+
+chat <- chat_openai(
+  model = ""gpt-4o"",
+  system_prompt = ""You are a helpful assistant."",
+  api_args = list(
+    tools = list(list(
+      type = ""file_search"",
+      vector_store_ids = list(""vs_XXXX"")
+    ))
+  )
+)
+
+# Any prompt that triggers retrieval
+chat$chat(""Find mentions of <known term> in my documents."")
+```
+
+Or with streaming
+```r
+s <- chat$stream(
+  ""Find mentions of <known term> in my documents."",
+  stream = ""text""
+)
+
+for (chunk in s()) {
+  cat(chunk)
+}
+```
+
+## Related Issues
+
+This appears similar to:
+- #365 (Responses API support umbrella issue)",ksr-zguo,feature,open,2026-02-18T18:13:27Z,2026-05-13T17:53:03Z,2,https://github.com/tidyverse/ellmer/issues/928,
+920,Skipping tests when API_KEY isn't set (undesirable),"I'm developing a package that uses ellmer, and I've made a `models()` function that tries to run all the `models_platform()` functions in ellmer with a tryCatch so it only returns model lists where a valid API_KEY exists in the Renviron (without the user having to remeber what these are or me having to code in checks for them all).
+
+The function works great, but when I try to test it using testthat, it triggers a test skip after the first attempt to get a model list for a platform I don't have an API key for, with the skipped tests message ""ANTHROPIC_API_KEY env var is not configured"". 
+
+I've looked briefly through the ellmer code, but can't figure out exactly where this is triggered. I can see how this would be useful for *your* tests to skip out any tests if an api key isn't set, but it's messing with mine.
+
+So I'm mainly making sure you know this has a side effect on tests in packages using ellmer. I can work around it if it's not something you can/want to change. ",debruine,feature,open,2026-01-22T19:26:28Z,2026-05-13T17:57:42Z,1,https://github.com/tidyverse/ellmer/issues/920,
+913,Feature suggestion: Add ollama cloud search and fetch tools,"ollama offers a fremium cloud option to use their search and fetch tools. More info: https://ollama.com/blog/web-search
+As I see that other provider search and fetch tools are included in {ellmer}, I think ollama could be a new good addition.",jrosell,feature,open,2026-01-09T10:13:24Z,2026-05-13T17:51:15Z,0,https://github.com/tidyverse/ellmer/issues/913,
+912,"Feature Request: Implement Native ""Agent"" Class (ReAct Loop) for Autonomous Workflows","he Problem: Lack of Autonomy
+Currently, `ellmer` provides an excellent interface for one-shot or interactive chat. However, it lacks a native mechanism for autonomy.
+
+To execute multi-step tasks (e.g., ""Download this CSV, clean it, and plot the trend""), a user currently has to manually act as the ""runtime""—copying code blocks, executing them, and pasting errors back into the chat. There is no persistent object capable of the ReAct (Reason + Act) pattern to handle this loop automatically.
+
+ The Proposed Solution
+I propose implementing a dedicated `Agent` class (likely an R6 object) that wraps the existing `Chat` interface to enable autonomous execution.
+
+1. The `Agent` Class (The Brain)
+A stateful object that manages a `while` loop of  Thought → Action → Observation.
+* It would leverage the existing `chat` object for LLM calls.
+* It would automatically handle context window management and recursion limits (`max_steps`).
+* User Experience:
+  ```r
+  agent <- Agent$new(chat)
+  agent$run(""Analyze this dataset"")
+
+2. Strict Tool Interface Current tool definitions are flexible, but an Agent needs strict contracts. I propose a Tool class that:
+* Wraps R functions (e.g., read.csv, ggplot).
+* Automatically generates the JSON schema required by OpenAI/Anthropic (extracting params from formals()).
+* Handles execution errors gracefully, feeding them back to the LLM for self-correction.
+
+3. Safety & Sandboxing (Crucial) Autonomy requires safety. The Agent would include:
+* File System Jail: Restricting I/O to a specific subdirectory (e.g., ./agent_scratchpad/).
+* Human-in-the-Loop: A confirm_execution = TRUE mode where the user approves tools before they run.
+
+Implementation Details
+I have spent time analyzing ellmer's internals (specifically during my work on PR #906 regarding chat history architecture) and believe this can be implemented as a clean layer on top of the existing providers.
+
+GSoC 2026 Participation
+I have drafted a complete 5-page Technical Specification (including architecture diagrams and a 12-week timeline) for building this feature.
+
+I would love to champion this implementation as a Google Summer of Code 2026 project.
+
+Question for Maintainers: Is ellmer (or the Tidyverse team) considering participating in GSoC this year?
+
+If so, I am ready to share the full proposal immediately. If not, I am still keen to discuss this design for future community contributions!",hopessugar,feature,open,2025-12-27T19:03:30Z,2026-05-13T17:50:57Z,4,https://github.com/tidyverse/ellmer/issues/912,
+911,Feature Request: Expose 'logprobs' metadata in chat_structured() for confidence scoring,"I'm not 100% sure this is possible, but from looking at some Python libraries it should be (?) 
+
+I am using ellmer for text classification. I'd like to be able to propagate the uncertainty in the classification to further analyses.
+If I understood correctly, most backends (OpenAI, Ollama via OpenAI-compat, Gemini) now support returning logprobs alongside the generated text. However, chat_structured() currently abstracts this away, returning only the parsed values.
+
+I appreciate a way to access the token-level logprobs (and ideally top_logprobs) corresponding to the extracted fields.
+Since `chat_structured()` returns a tidy list/object, perhaps the metadata could be attached as an attribute to the returned object, or accessed via a specific method on the chat object after the turn.
+",scjohannes,feature,open,2025-12-22T14:35:03Z,2026-05-13T17:50:44Z,0,https://github.com/tidyverse/ellmer/issues/911,
+910,Google Provider can support images being returned from tool calls,"Below are some research notes gleaned from pointing Claude Code at Google's Python SDK (I couldn't find a helpful reference).
+
+### Basic JSON Structure
+
+1. Function Response with Inline Image (base64-encoded bytes)
+
+```json
+{
+  ""name"": ""test"",
+  ""response"": {
+    ""temp"": 14.5
+  },
+  ""parts"": [
+    {
+      ""inline_data"": {
+        ""mime_type"": ""image/png"",
+        ""data"": ""dGVzdDEyMw==""
+      }
+    }
+  ]
+}
+```
+
+2. Function Response with URI-based Image
+
+```json
+{
+  ""name"": ""test"",
+  ""response"": {
+    ""temp"": 14.5
+  },
+  ""parts"": [
+    {
+      ""file_data"": {
+        ""file_uri"": ""gs://bucket/image.jpg"",
+        ""mime_type"": ""image/jpeg""
+      }
+    }
+  ]
+}
+```
+
+3. Function Response with Multiple Media Parts
+
+```json
+{
+  ""name"": ""generate_chart"",
+  ""response"": {
+    ""status"": ""success""
+  },
+  ""parts"": [
+    {
+      ""inline_data"": {
+        ""mime_type"": ""image/png"",
+        ""data"": ""Y2hhcnRfaW1hZ2VfZGF0YQ==""
+      }
+    },
+    {
+      ""file_data"": {
+        ""file_uri"": ""gs://bucket/chart.pdf"",
+        ""mime_type"": ""application/pdf""
+      }
+    }
+  ]
+}
+```
+
+4. Function Response with Only Parts (no response field)
+
+```json
+{
+  ""name"": ""test"",
+  ""parts"": [
+    {
+      ""inline_data"": {
+        ""mime_type"": ""image/png"",
+        ""data"": ""dGVzdDEyMw==""
+      }
+    }
+  ]
+}
+```
+
+### When Used in a Content Message (Part)
+
+When returning this as a content part:
+
+```json
+{
+  ""function_response"": {
+    ""name"": ""test"",
+    ""response"": {
+      ""result"": ""ok""
+    },
+    ""parts"": [
+      {
+        ""inline_data"": {
+          ""mime_type"": ""image/png"",
+          ""data"": ""dGVzdDEyMw==""
+        }
+      }
+    ]
+  }
+}
+```
+
+### JSON Schema
+
+```json
+{
+  ""FunctionResponse"": {
+    ""type"": ""object"",
+    ""properties"": {
+      ""name"": {
+        ""type"": ""string"",
+        ""description"": ""Required. The name of the function""
+      },
+      ""id"": {
+        ""type"": ""string"",
+        ""description"": ""Optional. The id of the function call (required for Gemini API, not Vertex)""
+      },
+      ""response"": {
+        ""type"": ""object"",
+        ""description"": ""Optional. The function response in JSON object format""
+      },
+      ""parts"": {
+        ""type"": ""array"",
+        ""description"": ""Optional. List of media parts"",
+        ""items"": {
+          ""$ref"": ""#/FunctionResponsePart""
+        }
+      },
+      ""will_continue"": {
+        ""type"": ""boolean"",
+        ""description"": ""Optional. For non-blocking function calls""
+      },
+      ""scheduling"": {
+        ""type"": ""string"",
+        ""enum"": [""SCHEDULING_UNSPECIFIED"", ""SILENT"", ""WHEN_IDLE"", ""INTERRUPT""],
+        ""description"": ""Optional. How the response should be scheduled""
+      }
+    },
+    ""required"": [""name""]
+  },
+  ""FunctionResponsePart"": {
+    ""type"": ""object"",
+    ""description"": ""One of inline_data or file_data must be present"",
+    ""properties"": {
+      ""inline_data"": {
+        ""$ref"": ""#/FunctionResponseBlob""
+      },
+      ""file_data"": {
+        ""$ref"": ""#/FunctionResponseFileData""
+      }
+    }
+  },
+  ""FunctionResponseBlob"": {
+    ""type"": ""object"",
+    ""properties"": {
+      ""mime_type"": {
+        ""type"": ""string"",
+        ""description"": ""Required. MIME type (e.g., 'image/png')""
+      },
+      ""data"": {
+        ""type"": ""string"",
+        ""description"": ""Required. Base64-encoded bytes"",
+        ""format"": ""base64""
+      },
+      ""display_name"": {
+        ""type"": ""string"",
+        ""description"": ""Optional. Display name""
+      }
+    },
+    ""required"": [""mime_type"", ""data""]
+  },
+  ""FunctionResponseFileData"": {
+    ""type"": ""object"",
+    ""properties"": {
+      ""file_uri"": {
+        ""type"": ""string"",
+        ""description"": ""Required. URI (e.g., 'gs://bucket/file.jpg')""
+      },
+      ""mime_type"": {
+        ""type"": ""string"",
+        ""description"": ""Required. MIME type""
+      },
+      ""display_name"": {
+        ""type"": ""string"",
+        ""description"": ""Optional. Display name""
+      }
+    },
+    ""required"": [""file_uri"", ""mime_type""]
+  }
+}
+```
+
+### Key Points
+
+1. Both response and parts are optional, but you typically include at least one
+2. Each part can be either inline_data OR file_data, not both
+3. Multiple parts allowed - you can return multiple images or mixed media types",jcheng5,feature,open,2025-12-20T06:12:07Z,2026-05-13T17:09:03Z,0,https://github.com/tidyverse/ellmer/issues/910,
+895,`contents_record()` and `contents_replay()` could operate on list of turns,"```r
+chat$get_turns() |> ellmer::contents_record()
+Run `rlang::last_trace()` to see where the error occurred.
+Error in `ellmer::contents_record()`:
+! Cannot record or replay a list.
+ℹ Only `ellmer::Content` or `ellmer::Turn` classes or subclasses are currently supported.
+```
+
+But it'd be very convenient to be able to round trip
+
+```r
+first <- chat$get_turns() |> contents_record()
+chat2$set_turns(contents_replay(first))
+```",gadenbuie,feature,open,2025-12-01T15:24:16Z,2026-05-13T17:53:24Z,3,https://github.com/tidyverse/ellmer/issues/895,
+884,consider support for `llama.cpp`?,"another interface for local models that may or may not be supported by ollama. this would add flexibility, `llama.cpp` can run gguf-format models and seems like a speedy alternative as well. 
+
+stumbled upon this R implementation over the weekend for reference: [localLLM, a local llama.cpp binding in R](https://github.com/EddieYang211/localLLM)",frankiethull,feature,open,2025-11-24T15:00:54Z,2026-05-13T17:57:09Z,3,https://github.com/tidyverse/ellmer/issues/884,
+880,Provide some model metdata?,"Might be useful to extract out something like ""version"" and ""size"", where size is something like ""big"", ""regular"", ""small"", ""smallest"".
+
+Then you could specify e.g. `chat_claude(model = ""small"")` (although we'd need some way to disambiguate from model names).",hadley,feature,open,2025-11-23T13:18:04Z,2026-05-13T17:06:46Z,0,https://github.com/tidyverse/ellmer/issues/880,
+879,Provide `as_chat()` helper,"Might be based on existing `as_chat()` helper but provide more help when passing a chat object:
+
+* Clone
+* Reset turns
+* Set `echo = ""none""`",hadley,feature,open,2025-11-23T13:05:38Z,2026-05-13T17:49:19Z,0,https://github.com/tidyverse/ellmer/issues/879,
+871,Lazy question: how to achieve something like OpenAI sdk RunContext or hooks with ellmer,"Hi all,
+Thank you for this great package!
+
+This is s neophyte question, but I figure I should ask anyway ! 
+One interesting and usefull feature of the openai agent sdk is the concept of  RunContext and toolContext objects
+https://github.com/openai/openai-agents-python/blob/main/docs/context.md. 
+
+They basically provide objects that are accessible to all tool calls (or hooks) within a run of the model. This provides a way to get some private (likely complex objects) data accessible to tools calls, link to specific runs but not accessible to the model. This is also a way to have side effects (like logging)
+
+In the same vein, beside wrapping the tools calls ourselves with logging and other facilities, are they ways to have register hooks https://openai.github.io/openai-agents-js/openai/agents/classes/agenthooks/?
+
+Thank you in advance ",sounkou-bioinfo,feature,open,2025-11-19T03:08:38Z,2026-06-08T14:21:10Z,6,https://github.com/tidyverse/ellmer/issues/871,1023
+868,Add openAI files api,https://platform.openai.com/docs/api-reference/files/create,hadley,feature,open,2025-11-15T19:18:17Z,2026-05-13T17:06:54Z,0,https://github.com/tidyverse/ellmer/issues/868,
+864,Remove role hack,Then check revdeps and submit fixes to downstream packages.,hadley,upkeep,open,2025-11-14T19:40:03Z,2026-05-13T17:58:08Z,2,https://github.com/tidyverse/ellmer/issues/864,
+858,Clarify possible return values from tool,"Tools can return strings, complex objects (converted to JSON), JSON, and, as of #735, `Content`s and lists of `Content`s. But it's hard to see that from `invoke_tool()` since the coercion doesn't happen until much later in `tool_string()`. I suggest that we create and store the JSON at invoke time, radically simplifying `tool_string()`. We can then verify the tool has returned the expected value, throwing an error to R (not the model, I think) indicating what's wrong.
+
+To make errors more obvious, I'd suggest we also stop automatically converting complex objects to JSON, instead deprecating that behaviour and relying on the user to be explicit about it. Then we can say something like: A tool must return a string, an atomic vector, JSON, `Content`,  or a list of `Content`s.
+
+(Extracted from https://github.com/tidyverse/ellmer/pull/735#discussion_r2519922179 and https://github.com/tidyverse/ellmer/pull/735#discussion_r2520109343)",hadley,upkeep,open,2025-11-13T13:51:21Z,2026-05-13T18:05:26Z,3,https://github.com/tidyverse/ellmer/issues/858,1077
+821,Subagent ideas,"* https://github.com/openai/openai-agents-python https://minusx.ai/blog/decoding-claude-code/#appendix
+* https://google.github.io/adk-docs/agents/workflow-agents/
+* https://gist.github.com/hadley/767de1b47dd2589d46a421416600fef6",hadley,feature,open,2025-10-31T16:30:04Z,2026-05-13T18:06:30Z,1,https://github.com/tidyverse/ellmer/issues/821,
+820,Agent vignette ideas,"* https://claude.ai/chat/f609e0d6-6797-495c-b8a4-3e89cbd2df23
+* https://github.com/feddelegrand7/mini007
+* https://ghuntley.com/agent/ 
+",hadley,documentation,open,2025-10-31T16:29:20Z,2026-05-13T17:44:26Z,0,https://github.com/tidyverse/ellmer/issues/820,
+797,Print/summary method for long chat conversations,"If you have a long or large chat conversation, the print method (i.e. what's shown in the console) can be quite large and can even overflow the console buffer.
+
+In particular, it can be hard to find the chat summary with cost, tokens and turn counts when the chat is quite large. It might be nice to update the print method -- or to add a `summary()` method? -- that collapses turns into a summary view and shows just high-level information.",gadenbuie,feature,open,2025-10-21T19:01:54Z,2026-05-13T17:07:29Z,1,https://github.com/tidyverse/ellmer/issues/797,
+796,Improve UI for long chats,"With both reasoning and images, it can take a long time before you get any results back. We need to some UI (e.g. a spinner) to indicate that something is happening.
+
+Should display it only when `echo = TRUE` and >2s have elapsed since the last token was received. Update the spinner every 0.25s in the background using 
+
+```R
+token_spinner <- function() {
+  cancel <- force
+  spinner <- cli::make_spinner()
+  last_token <- unix_time()
+
+  spin <- function() {
+    if (unix_time() - last_token > 2) {
+      spinner$spin()
+      cancel <<- later::later(spin, delay = 0.25)
+    }
+  }
+
+  seen_token <- function() {
+    cancel()
+    cancel <<- force
+    spinner$finish()
+    last_token <<- unix_time()
+  }
+  list(spin = spin, seen_token = seen_token)
+}
+unix_time <- function() unclass(Sys.time())
+```",hadley,feature,open,2025-10-20T22:05:08Z,2026-05-13T17:05:28Z,3,https://github.com/tidyverse/ellmer/issues/796,
+775,Add content type for citations,https://inspect.aisi.org.uk/reference/inspect_ai.model.html#citation,hadley,feature; content types 🖼️,open,2025-10-08T22:46:42Z,2026-06-26T13:45:29Z,3,https://github.com/tidyverse/ellmer/issues/775,1068
+695,New Feature Request : Custom metadata labels - Vertex A,"Hi Team,
+
+Request your support to add Custom metadata label while accessing gemini models in Vertex AI.
+
+Business Need:
+
+(Source Reference : https://cloud.google.com/vertex-ai/generative-ai/docs/multimodal/add-labels-to-api-calls)
+What are labels?
+A label is a key-value pair that you can assign to generateContent and streamGenerateContent API calls. They help you organize these calls and manage your costs at scale, with the granularity you need. You can attach a label to each call, then filter the calls based on their labels. Information about labels is forwarded to the billing system that lets you break down your billed charges by label. With built-in [billing reports](https://cloud.google.com/billing/docs/how-to/reports), you can filter and group costs by labels.
+
+Common use cases for labels
+Team or cost center labels: Add labels based on team or cost center to distinguish API calls owned by different teams (for example, team:research and team:analytics). You can use this type of label for cost accounting or budgeting.
+Component labels: For example, component:redis, component:frontend, component:ingest, and component:dashboard.
+Environment or stage labels: For example, environment:production and environment:test.
+Ownership labels: Used to identify the teams that are responsible for operations, for example: team:shopping-cart.
+
+R Code to access via REST API
+
+```R
+library(httr)
+library(jsonlite)
+
+# ---- STEP 1: Set your values ----
+project_id <- ""your-project-id""            # <-- Replace with your GCP project ID
+location <- ""us-central1""                  # <-- Replace with region (e.g., us-central1)
+model_id <- ""gemini-1.5-pro-preview-0409""  # <-- Replace with your model ID
+response_method <- ""generateContent""       # or ""streamGenerateContent""
+
+# Prompt and labels
+prompt_text <- ""What are the key benefits of using generative AI in financial services?""
+label_key <- ""env""
+label_value <- ""test""
+
+# ---- STEP 2: Get access token from gcloud ----
+access_token <- system(""gcloud auth print-access-token"", intern = TRUE)
+
+# ---- STEP 3: Prepare request body ----
+body <- list(
+  contents = list(
+    role = ""USER"",
+    parts = list(text = prompt_text)
+  ),
+  labels = setNames(list(label_value), label_key)
+)
+
+# ---- STEP 4: Convert to JSON ----
+json_body <- toJSON(body, auto_unbox = TRUE)
+
+# ---- STEP 5: Make POST request ----
+url <- sprintf(""https://%s-aiplatform.googleapis.com/v1/projects/%s/locations/%s/publishers/google/models/%s:%s"",
+               location, project_id, location, model_id, response_method)
+
+res <- POST(
+  url,
+  add_headers(
+    Authorization = paste(""Bearer"", access_token),
+    `Content-Type` = ""application/json; charset=utf-8""
+  ),
+  body = json_body
+)
+
+# ---- STEP 6: View the response ----
+cat(content(res, ""text"", encoding = ""UTF-8""))
+```",arunrajes,feature,open,2025-08-01T08:54:14Z,2025-10-09T22:08:13Z,1,https://github.com/tidyverse/ellmer/issues/695,
+690,Add `chat_echo()` for mocking and testing,"It would be useful to have a `chat_echo()` to create a chat instance that just returns the user input and doesn't call any APIs. Carson made an [example like this for Shiny](https://shiny.posit.co/py/components/display-messages/chat/) and it's useful for debugging, testing, and examples when I'm not ready for real model usage yet.
+
+_Originally posted by @gadenbuie in https://github.com/tidyverse/ellmer/pull/170#discussion_r1852816913_
+            ",gadenbuie,upkeep,open,2025-07-31T15:33:20Z,2025-10-10T17:18:17Z,5,https://github.com/tidyverse/ellmer/issues/690,
+600,Add inception AI support,https://platform.inceptionlabs.ai/docs#getting-started,hadley,feature,open,2025-06-30T12:26:30Z,2026-05-13T17:04:36Z,0,https://github.com/tidyverse/ellmer/issues/600,
+585,chat_azure_ai_foundry function for models deployed on Azure AI Foundry,"My (local government) organisation uses Azure AI services for hosting LLM's from different providers. I've succeeded in configuring ellmer to use gpt-4.1 on an Azure OpenAI resource, but I've not yet managed to get ellmer working with a model from Mistral deployed on an Azure AI Foundry resource. I've tried tweaking the defaults of the `chat_azure_openai` function to suit my needs, but so far I haven't produced anything working.
+
+Are you planning to add a `chat_azure_ai_foundry` function (or something like that) in the near future to ellmer? That would be very helpful to government workers like me who are more or less chained to the Microsoft ecosystem.
+
+Any guidance on how to configure other functions in the ellmer package for use with Azure AI Foundry would be super helpful too.",pietervreeburg,feature,open,2025-06-23T22:02:55Z,2026-05-13T18:02:08Z,2,https://github.com/tidyverse/ellmer/issues/585,
+287,Have a debugging story for credentials,"Now that we do so much magic internally to get ambient credentials, I wonder if we need better ways to surface (and/or debug) what credentials have been selected to users.
+
+Something like the following:
+
+```r
+> chat <- chat_snowflake()
+## Using model = ""llama3.1-70b"".
+## Using key-pair authentication.
+```
+
+or
+
+```r
+> chat <- chat_databricks()
+## Using machine-to-machine (M2M) credentials.
+```
+
+or
+
+```r
+> chat <- chat_azure()
+## Using Azure service principal credentials.
+```
+
+Of course, that might be annoying if we print it every time; I know that `gargle` at least has a ""verbosity"" setting that turns on debug messages for the credential source. The internal API could be:
+
+```r
+set_auth_source <- function(src) {
+  if (!getOption(""ellmer_auth_debug"", FALSE)) {
+    return()
+  }
+  cli::cli_inform(""Using {.field {src}}."")
+}
+```",atheriel,feature,open,2025-01-30T15:54:07Z,2026-05-13T17:38:49Z,3,https://github.com/tidyverse/ellmer/issues/287,
+220,Add support for custom printing of chat responses for knitr/Quarto,"It would be really nice if there was a way to leverage the markdown output from LLM responses in Quarto documents. 
+
+For example, a code chunk in a Quarto document like:
+````
+```{r}
+library(elmer)
+
+chat <- chat_claude(
+  system_prompt = ""You are a friendly but terse assistant. You always use markdown syntax for code."",
+)
+chat$chat(""How can I access the first element of a vector in R?"")
+```
+````
+
+Might end up rendering to something like:
+
+![Image](https://github.com/user-attachments/assets/07f230fb-1c18-4659-9918-6e2b48d73e1d)
+
+
+Using `#| output: asis` gets you part-way there but it really needs some styling to set it apart from the other body text in the document. There's not an easy way to do this from the Quarto side. 
+
+CC @cderv 
+
+
+
+
+
+",cwickham,feature,open,2024-12-13T21:55:41Z,2026-05-13T17:39:50Z,3,https://github.com/tidyverse/ellmer/issues/220,
