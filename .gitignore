@@ -2,4 +2,5 @@
 .Rhistory
 .RData
 .Renviron
-index_files/**index.html
+index_files/
+index.html
