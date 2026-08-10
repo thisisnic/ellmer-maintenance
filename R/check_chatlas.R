@@ -84,6 +84,24 @@ ellmer_prs_text <- paste(
   collapse = "\n\n---\n\n"
 )
 
+# --- Fetch ellmer ground truth: NEWS.md and NAMESPACE ---
+ellmer_news <- paste(
+  readLines(
+    "https://raw.githubusercontent.com/tidyverse/ellmer/main/NEWS.md",
+    warn = FALSE
+  ),
+  collapse = "\n"
+)
+ellmer_news <- substr(ellmer_news, 1, 30000)
+
+ellmer_namespace <- paste(
+  readLines(
+    "https://raw.githubusercontent.com/tidyverse/ellmer/main/NAMESPACE",
+    warn = FALSE
+  ),
+  collapse = "\n"
+)
+
 # --- Build prompt ---
 chatlas_text <- paste(
   sprintf(
@@ -99,18 +117,25 @@ chatlas_text <- paste(
 system_prompt <- paste(
   "You compare recently merged PRs from chatlas (Python LLM package) against",
   "ellmer (its R equivalent) to find features or fixes that ellmer should also have.",
-  "",
   "chatlas and ellmer are sister packages with similar APIs.",
-  "Many changes will already exist in ellmer or be R-irrelevant (Python-specific",
-  "packaging, typing, async patterns, etc). Only flag things where:",
-  "- ellmer is missing an equivalent feature or fix",
-  "- No ellmer issue or PR (open or merged) already covers it",
   "",
-  "Read the ellmer PR bodies carefully: they may reveal that ellmer already",
-  "had a capability chatlas only added recently, or that work is in flight.",
+  "Flag a chatlas PR ONLY if ALL of the following hold:",
+  "1. The capability does not appear in ellmer's NEWS.md and no equivalent",
+  "   function is exported in ellmer's NAMESPACE.",
+  "2. No ellmer issue or PR in the provided lists covers the same work.",
+  "   An OPEN ellmer PR counts as covered: work in flight must not be flagged.",
+  "3. It is not Python-specific (packaging, typing, async patterns), not",
+  "   documentation-only, and not CI/tooling.",
+  "4. It is something ellmer plausibly needs: a user-facing feature or fix.",
   "",
-  "Skip: documentation-only changes, Python-specific changes, CI/tooling,",
-  "things that are clearly already in ellmer based on the issue/PR list.",
+  "Statements about ellmer's existing behavior inside ellmer PR bodies are",
+  "authoritative. For example, if an ellmer PR body explains that ellmer has",
+  "always used a particular API, then support for that API is not missing.",
+  "Also check the chatlas PR bodies themselves: they sometimes link to the",
+  "equivalent ellmer PR or issue, which proves the work is already covered.",
+  "",
+  "Do not rely on your prior knowledge of ellmer, which may be out of date.",
+  "Use only the provided NEWS.md, NAMESPACE, and issue/PR lists.",
   "",
   "If nothing is relevant, return an empty updates array.",
   sep = "\n"
@@ -121,7 +146,10 @@ update_type <- type_object(
   title = type_string("Short description of what ellmer needs, e.g. 'Add price refusal fallback'"),
   description = type_string("2-3 sentences: what chatlas did and what the equivalent ellmer change would be"),
   chatlas_pr = type_string("chatlas PR number, e.g. '#380'"),
-  date = type_string("Date the chatlas PR was merged (YYYY-MM-DD)")
+  date = type_string("Date the chatlas PR was merged (YYYY-MM-DD)"),
+  already_covered = type_boolean(
+    "TRUE if ellmer's NEWS, NAMESPACE, or any listed issue/PR already covers this"
+  )
 )
 
 result_type <- type_object(
@@ -139,7 +167,11 @@ prompt <- paste0(
   "\n\n## Open ellmer issues\n\n",
   ellmer_issues_json,
   "\n\n## Recent ellmer PRs (open and merged)\n\n",
-  ellmer_prs_text
+  ellmer_prs_text,
+  "\n\n## ellmer NEWS.md (feature history, ground truth)\n\n",
+  ellmer_news,
+  "\n\n## ellmer NAMESPACE (exported functions, ground truth)\n\n",
+  ellmer_namespace
 )
 
 result <- tryCatch(
@@ -163,6 +195,11 @@ for (j in seq_len(nrow(updates))) {
   title <- updates$title[j]
   pr_num <- updates$chatlas_pr[j]
   pr_url <- paste0("https://github.com/posit-dev/chatlas/pull/", gsub("#", "", pr_num))
+
+  if (isTRUE(updates$already_covered[j])) {
+    message("  Covered, skipping: ", title)
+    next
+  }
 
   if (pr_url %in% parity$link) {
     message("  Already reported: ", title)
