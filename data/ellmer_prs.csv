@@ -1,7 +1,4 @@
 number,title,body,user,labels,state,draft,created_at,updated_at,url
-1079,Normalise Databricks responses when deviate from OpenAICompatible format,"Fixes #1078 
-
-Databricks' endpoint deviates a bit from the typical OpenAICompatible format for some models, putting the reasoning content in the wrong field; this PR implements a custom function which detects this and then normalizes it.",thisisnic,,open,FALSE,2026-08-10T12:43:36Z,2026-08-10T13:25:57Z,https://github.com/tidyverse/ellmer/pull/1079
 1077,Normalise tool results at invoke time,"Fixes #858 and also fixes #1060
 
 This PR restricts that values that can be returned from a tool to:
