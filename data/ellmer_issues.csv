@@ -1,4 +1,27 @@
 number,title,body,user,labels,state,created_at,updated_at,comments,url,linked_prs
+1083,Model metadata omits the context window,"The `models_*()` functions don't report how much context a model accepts, and nothing on `Chat` exposes it either. A caller can see how many tokens a conversation has accumulated, through `get_tokens()`, but not how close that is to the limit — leaving a hardcoded per-model table that goes stale with every release, or per-provider HTTP calls, as the only ways to find out. That is the work ellmer otherwise saves callers from doing.
+
+Most providers already return it, in a response ellmer parses and then discards. The table below is a brief overview gathered from their docs, so it may well have shifted by the time anyone acts on it.
+
+| Provider | Endpoint | Field |
+| --- | --- | --- |
+| Anthropic | `/v1/models` | `max_input_tokens`, `max_tokens` |
+| OpenRouter | `/api/v1/models` | `context_length` |
+| Gemini | `/models` | `inputTokenLimit`, `outputTokenLimit` |
+| Mistral | `/v1/models` | `max_context_length` |
+| vLLM | `/v1/models` | `max_model_len` |
+| LM Studio | `/v1/models` | `max_context_length` |
+| Ollama | `api/show` | `<arch>.context_length`, not in the `api/tags` ellmer calls |
+| OpenAI | `/v1/models` | Absent |
+| Bedrock | `ListFoundationModels` | Absent |
+| Portkey | `/models` | Absent; normalised to the OpenAI shape before it reaches ellmer |
+
+Five of those are a parser widening — the Anthropic parser keeps `id`, `display_name` and `created_at`, and the vLLM and LM Studio parsers keep `id` alone. Ollama needs a second call. For the last three there is nothing to read, which is what `NA` is for. OpenAI's model object is only `id`, `object`, `created` and `owned_by`, so everyone keeps their own table — including OpenAI, whose Codex CLI [added a `max_context_window` field to its own model metadata](https://github.com/openai/codex/pull/18382) in April.
+
+Suggestion: add it to the `models_*()` data frames as `max_input_tokens`, or whatever name generalises best, `NA` where the provider doesn't report it. Exposing it on `Chat` too would pair naturally with `get_tokens()`, and would give the compaction hook in #1051 the number it needs to decide.
+
+Happy to send a PR if you'd like one.
+",nbenn,feature,open,2026-08-12T04:51:59Z,2026-08-12T06:03:47Z,0,https://github.com/tidyverse/ellmer/issues/1083,
 1074,consider a Chat field describing whether thinking is enabled,"A couple times in dependent packages, I've thought it would be useful to know whether a given ellmer Chat had thinking enabled or not. This is admittedly a hard problem, e.g. some models have thinking enabled by default but most don't, different models $x$ providers have different ways of parameterizing thinking, etc. That said, to be able to quickly reach for a best-guess `thinking` field with `c(""yes"", ""no"", NA_character_)` would be helpful.
 
 [One example in commons](https://github.com/posit-dev/commons/issues/14).
