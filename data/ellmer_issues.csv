@@ -1,4 +1,77 @@
 number,title,body,user,labels,state,created_at,updated_at,comments,url,linked_prs
+1085,AWS Bedrock doesn't handle empty thinking correctly,"I think what's happening in the reprex below is that reasoning isn't actually enabled so no reasoning content comes back from the API, leading to the ellmer error. It doesn't bring down the chat, but it shows up in the console and in shinychat.
+
+``` r
+library(ellmer)
+chat <- chat_aws_bedrock(model = ""us.anthropic.claude-sonnet-5"")
+chat$chat(""Think for a bit and then tell me a good knock-knock joke"")
+#> Knock knock.
+#> 
+#> Who's there?
+#> 
+#> Interrupting cow.
+#> 
+#> Interrupting cow wh—
+#> Error:
+#> ! <ellmer::ContentThinking> object properties are invalid:
+#> - @thinking must be <character>, not <NULL>
+
+chat
+#> <Chat AWS/Bedrock/us.anthropic.claude-sonnet-5 turns=2 input=0 output=0 cost=$0.00>
+#> ── user ────────────────────────────────────────────────────────────────────────
+#> Think for a bit and then tell me a good knock-knock joke
+#> ── assistant [interrupted] ─────────────────────────────────────────────────────
+#> Knock knock.
+#> 
+#> Who's there?
+#> 
+#> Interrupting cow.
+#> 
+#> Interrupting cow wh—
+#> 
+#> **MOO!**
+
+chat$chat(""Tell me another one, but think harder this time"")
+#> Knock knock.
+#> 
+#> Who's there?
+#> 
+#> Nobel.
+#> 
+#> Nobel who?
+#> 
+#> No bell — that's why I
+#> Error:
+#> ! <ellmer::ContentThinking> object properties are invalid:
+#> - @thinking must be <character>, not <NULL>
+```
+",gadenbuie,,open,2026-08-12T21:12:10Z,2026-08-12T21:12:10Z,0,https://github.com/tidyverse/ellmer/issues/1085,
+1084,Error Using Tool With Databricks As Model Provider,"Hi Ellmer Team, 
+
+I am running into an error that says Bad request: ""parameters"" is a required property for ""function"" object in parameter ""tools"" when I ran querychat along with ellmer using databricks model provider. The following is the code that I ran that can be used to reproduce the error. Is it happening due to ellmer::tool since querychat uses it under the hood (i.e. https://github.com/posit-dev/querychat/blob/bfd59f636af33778b291fcaa590ca385126188a5/pkg-r/R/querychat_tools.R#L29) ? 
+
+I am using a free version of Databricks and have a personal access token generated as mentioned under the section Create personal access tokens for workspace users at this link (https://docs.databricks.com/aws/en/dev-tools/auth/pat). 
+
+Please help! @thisisnic 
+
+library(querychat)
+library(palmerpenguins)
+
+databricks_client <- ellmer::chat_databricks(
+    workspace = ""https://dbc-6daebf39-7148.cloud.databricks.com"",
+    model = ""databricks-meta-llama-3-3-70b-instruct"",
+    token = ""secret_key""
+)
+
+querychat_app(penguins, client = databricks_client)
+
+Warning: Error in req_perform_connection: HTTP 400 Bad Request.
+ℹ Bad request: ""parameters"" is a required property for ""function"" object in parameter ""tools""
+
+Thanks so much! 
+
+Best, 
+Kola",kolabearafk,,open,2026-08-12T07:29:06Z,2026-08-12T07:29:06Z,0,https://github.com/tidyverse/ellmer/issues/1084,
 1083,Model metadata omits the context window,"The `models_*()` functions don't report how much context a model accepts, and nothing on `Chat` exposes it either. A caller can see how many tokens a conversation has accumulated, through `get_tokens()`, but not how close that is to the limit — leaving a hardcoded per-model table that goes stale with every release, or per-provider HTTP calls, as the only ways to find out. That is the work ellmer otherwise saves callers from doing.
 
 Most providers already return it, in a response ellmer parses and then discards. The table below is a brief overview gathered from their docs, so it may well have shifted by the time anyone acts on it.
@@ -21,7 +94,7 @@ Five of those are a parser widening — the Anthropic parser keeps `id`, `displa
 Suggestion: add it to the `models_*()` data frames as `max_input_tokens`, or whatever name generalises best, `NA` where the provider doesn't report it. Exposing it on `Chat` too would pair naturally with `get_tokens()`, and would give the compaction hook in #1051 the number it needs to decide.
 
 Happy to send a PR if you'd like one.
-",nbenn,feature,open,2026-08-12T04:51:59Z,2026-08-12T06:03:47Z,0,https://github.com/tidyverse/ellmer/issues/1083,
+",nbenn,feature,open,2026-08-12T04:51:59Z,2026-08-12T19:09:54Z,2,https://github.com/tidyverse/ellmer/issues/1083,
 1074,consider a Chat field describing whether thinking is enabled,"A couple times in dependent packages, I've thought it would be useful to know whether a given ellmer Chat had thinking enabled or not. This is admittedly a hard problem, e.g. some models have thinking enabled by default but most don't, different models $x$ providers have different ways of parameterizing thinking, etc. That said, to be able to quickly reach for a best-guess `thinking` field with `c(""yes"", ""no"", NA_character_)` would be helpful.
 
 [One example in commons](https://github.com/posit-dev/commons/issues/14).
