@@ -1,4 +1,13 @@
 number,title,body,user,labels,state,created_at,updated_at,comments,url,linked_prs
+1091,Implement provider files API,See https://github.com/posit-dev/chatlas/pull/334 for the equivalent in Chatlas,thisisnic,feature,open,2026-08-13T14:45:36Z,2026-08-13T14:46:24Z,0,https://github.com/tidyverse/ellmer/issues/1091,
+1090,Add `content_document_file()` and `content_document_url()` for text/CSV/code file inputs,See https://github.com/posit-dev/chatlas/pull/345 for the equivalent in Chatlas,thisisnic,feature,open,2026-08-13T14:43:09Z,2026-08-13T14:43:09Z,0,https://github.com/tidyverse/ellmer/issues/1090,
+1088,Assorted provider gaps found while auditing feature support,"While auditing feature support across the official providers, 🤖 found a few apparent bugs. I need to look into them more to confirm them.
+
+- `chat_deepseek()` silently drops non-text user content: `as_json(Turn)` (R/provider-deepseek.R:99) keeps only `ContentText`, so images and PDFs are discarded without a warning and the model never sees them. Other providers error instead.
+- `chat_snowflake()` never sets `finish_reason` in `value_turn()` (R/provider-snowflake.R:273), so the truncation warnings added in 0.4.2 (#867) can't fire. It also aborts on any content type other than text and tool use.
+- `chat_aws_bedrock()` doesn't stream thinking: `stream_content()` (R/provider-aws.R:344) only emits `ContentText` live, with reasoning content only appearing in the completed turn. Claude, OpenAI, and Gemini all stream thinking, which matters for downstream use in shinychat.
+- `chat_posit()` inherits `has_batch_support = TRUE` from the Anthropic provider, so `batch_chat()` will POST to `{gateway}/anthropic/v1/messages/batches` without any verification that the Posit gateway supports that endpoint.
+- `google_upload()` is hardcoded to the Gemini endpoint (R/provider-google-upload.R:31), so Vertex users can't send audio or video even though the underlying models support it.",thisisnic,,open,2026-08-13T14:30:24Z,2026-08-13T14:31:08Z,0,https://github.com/tidyverse/ellmer/issues/1088,
 1085,AWS Bedrock doesn't handle empty thinking correctly,"I think what's happening in the reprex below is that reasoning isn't actually enabled so no reasoning content comes back from the API, leading to the ellmer error. It doesn't bring down the chat, but it shows up in the console and in shinychat.
 
 ``` r
@@ -94,7 +103,7 @@ Five of those are a parser widening — the Anthropic parser keeps `id`, `displa
 Suggestion: add it to the `models_*()` data frames as `max_input_tokens`, or whatever name generalises best, `NA` where the provider doesn't report it. Exposing it on `Chat` too would pair naturally with `get_tokens()`, and would give the compaction hook in #1051 the number it needs to decide.
 
 Happy to send a PR if you'd like one.
-",nbenn,feature,open,2026-08-12T04:51:59Z,2026-08-12T19:09:54Z,2,https://github.com/tidyverse/ellmer/issues/1083,
+",nbenn,feature,open,2026-08-12T04:51:59Z,2026-08-12T19:09:54Z,2,https://github.com/tidyverse/ellmer/issues/1083,1089
 1074,consider a Chat field describing whether thinking is enabled,"A couple times in dependent packages, I've thought it would be useful to know whether a given ellmer Chat had thinking enabled or not. This is admittedly a hard problem, e.g. some models have thinking enabled by default but most don't, different models $x$ providers have different ways of parameterizing thinking, etc. That said, to be able to quickly reach for a best-guess `thinking` field with `c(""yes"", ""no"", NA_character_)` would be helpful.
 
 [One example in commons](https://github.com/posit-dev/commons/issues/14).
