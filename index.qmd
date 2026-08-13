@@ -29,6 +29,21 @@ read_if_exists <- function(path) {
 reported <- read_if_exists("reported.csv")
 parity <- read_if_exists("chatlas_parity.csv")
 
+# Manually-maintained triage statuses, keyed by issue/PR number.
+# Lives outside data/ so the daily CI fetch never overwrites it.
+triage <- read_if_exists("triage.csv")
+if (is.null(triage)) {
+  triage <- tibble(number = character(), status = character())
+}
+add_triage <- function(df) {
+  df |>
+    left_join(
+      triage |> select(number, triage_status = status),
+      by = "number"
+    ) |>
+    mutate(triage_status = coalesce(triage_status, ""))
+}
+
 link_title <- function(url, title) {
   paste0('<a target="_blank" href="', url, '">', title, "</a>")
 }
@@ -87,13 +102,15 @@ suggestions <- bind_rows(
 ```{r}
 #| title: !expr paste0("Open issues (", nrow(issues), ")")
 issues |>
+  add_triage() |>
   arrange(desc(updated_at)) |>
   transmute(
-    issue = link_title(url, title),
+    issue = link_title(url, paste0("#", number, " ", title)),
     labels = labels,
     comments = comments,
     updated = substr(updated_at, 1, 10),
-    status = pr_links(linked_prs)
+    status = triage_status,
+    linked = pr_links(linked_prs)
   ) |>
   datatable(
     escape = FALSE,
@@ -107,13 +124,14 @@ issues |>
 ```{r}
 #| title: !expr paste0("Open PRs (", nrow(prs), ")")
 prs |>
+  add_triage() |>
   arrange(desc(updated_at)) |>
   transmute(
     pr = link_title(url, paste0("#", number, " ", title)),
     author = user,
     draft = draft,
     updated = substr(updated_at, 1, 10),
-    status = ""
+    status = triage_status
   ) |>
   datatable(
     escape = FALSE,

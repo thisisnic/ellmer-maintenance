@@ -1,4 +1,9 @@
 number,title,body,user,labels,state,draft,created_at,updated_at,url
+1086,Always include `parameters` in Databricks tool definitions,"Fixes #1084 
+
+Registering a tool with no arguments caused `chat_databricks()` to error as we omitted the `parameters` field entirely from the request when tools have no arguments, as a precaution in #549, which doesn't appear to be needed any more.  
+
+I compared against other models with tools registered with/without parameters and all ran find after this fix. It also brings us in line with chatlas.",thisisnic,,open,FALSE,2026-08-13T13:48:17Z,2026-08-13T13:48:29Z,https://github.com/tidyverse/ellmer/pull/1086
 1082,Support output schemas in tool definitions,"## Summary
 
 Adds an optional `output_schema` argument to `tool()` and stores it on `ToolDef` as a `TypeObject`.
@@ -13,18 +18,6 @@ Related downstream issue: https://github.com/posit-dev/mcptools/issues/103
 - Verified existing positional `ToolDef(..., convert, annotations)` construction still maps arguments correctly and leaves `output_schema = NULL`.
 - `git diff --check` passes.
 - A broader local suite run reached the affected `tools-def` tests successfully; unrelated provider tests in the isolated container require optional packages and credentials that are not configured there.",alesanGreat,,open,FALSE,2026-08-11T18:00:47Z,2026-08-11T18:00:47Z,https://github.com/tidyverse/ellmer/pull/1082
-1077,Normalise tool results at invoke time,"Fixes #858 and also fixes #1060
-
-This PR restricts that values that can be returned from a tool to:
-- a character string
-- an atomic vector
-- a JSON string
-- a `Content` object or list of `Content` objects
-- `NULL`
-
-Returning complex objects (e.g. data frames, lists) from tool functions is deprecated.
-
-Tool results are now normalised immediately after the tool has been invoked, in order to surface errors sooner.",thisisnic,,open,FALSE,2026-08-09T16:41:59Z,2026-08-11T21:05:08Z,https://github.com/tidyverse/ellmer/pull/1077
 1075,Explore contents_trajectory(): serialize chats to trajectory-v1,"## Summary
 
 This is an exploratory draft. The implementation is in solid shape, but there's no pressure to merge this — it's here to spark discussion about whether this fits ellmer's scope. It's inspired by [letta-ai/trajectory](https://github.com/letta-ai/trajectory), a schema/toolkit for normalizing raw agent transcripts (Claude Code, Codex, etc.) into a common `trajectory-v1` JSON shape. ellmer already holds a fully structured `Chat`/`Round`/`Turn`/`Content` object graph in memory, so the parsing problem that project solves doesn't apply here — this PR asks a narrower question: does ellmer's internal model map cleanly onto that shape, and is a native R serializer worth having?
@@ -50,99 +43,6 @@ jsonlite::toJSON(trajectory, auto_unbox = TRUE, null = ""null"", pretty = TRUE)
 ```
 
 See `tests/testthat/test-content-trajectory.R` for coverage of tool calls/results, reasoning content, mixed-content assistant turns, built-in web search/fetch tools, and `Round`-level conversion.",gadenbuie,,open,TRUE,2026-08-04T23:35:13Z,2026-08-06T18:31:21Z,https://github.com/tidyverse/ellmer/pull/1075
-1068,feat: citation content,"## Overview
-
-When a model answers using web search or fetch tools, ellmer now surfaces *which sources back the answer* and *which words each source grounds*, normalized across OpenAI, Anthropic, and Google. Grounded answers carry their citations through to turns uniformly, both progressively during `stream = ""content""` and on the final turn.
-
-## Motivation
-
-Citation information used to be dropped: OpenAI annotations were discarded, Anthropic citation deltas never reached normalized content, and Google's grounding metadata was ignored entirely. Each provider exposes this information differently, so there was no portable way to build a UI that shows sources.
-
-This PR gives ellmer one citation model so a downstream consumer, notably Shiny Chat, can render inline citation pills, a message-level Sources control, web-search activity, and fetch status without touching raw provider payloads. It brings ellmer in line with chatlas's citation content model and unblocks the R support described in posit-dev/shinychat#280.
-
-## Public API
-
-- **`ContentCitation`** is a first-class content type representing a source that grounds part of an assistant's answer:
-  - `source` identifies the evidence with a typed `Source`, or is `NULL` when the provider supplies no resolvable source.
-  - `grounded_span` is the answer-side text the citation supports, suitable for attaching a footnote marker or highlight.
-  - `cited_quote` is the source-side evidence quoted by the provider, when available.
-  - `extra` retains the provider-specific citation payload.
-- **`Source`** identifies a piece of evidence. Today its concrete subtype is **`WebSource`**, with a URL and optional title; document or RAG sources can be added later without redesigning `ContentCitation`.
-- **Web activity content** records provider-managed searches and fetches:
-  - `ContentToolRequestSearch` / `ContentToolResponseSearch`
-  - `ContentToolRequestFetch` / `ContentToolResponseFetch`
-
-`ContentToolResponseSearch` now carries `WebSource` objects rather than bare URLs, and fetch responses include a normalized success/error status.
-
-## Behavior
-
-- `ContentCitation` records are placed beside the text they ground in a turn's contents.
-- With `stream = ""content""`, citations and web activity are yielded alongside text; `stream = ""text""` continues to yield text only.
-- Completed turns preserve the same citation and web-activity records, so live rendering, history, and replay share one shape.
-- Citations are client-side metadata and are not sent back to providers. Native web-tool annotations are replayed only to the provider that produced them, keeping turns portable across providers.
-- `contents_record()` and `contents_replay()` retain the new content types.
-- Console echo now renders citation markers and a deduplicated source list; `echo = ""all""` also summarizes web-search and fetch activity.
-
-## Runnable example
-
-This app requires an `ANTHROPIC_API_KEY`. Web search must be enabled for the
-Anthropic organization. Save it as `app.R`, then run it from an ellmer and
-shinychat checkout where both development packages are installed.
-
-<details>
-<summary>R Shiny app</summary>
-
-```r
-library(bslib)
-library(ellmer)
-library(shiny)
-library(shinychat)
-
-ui <- page_fillable(
-  title = ""Web citation rendering"",
-  chat_ui(
-    ""chat"",
-    height = ""100%"",
-    placeholder = ""Ask a question that needs current web sources..."",
-    enable_cancel = TRUE
-  )
-)
-
-server <- function(input, output, session) {
-  client <- chat_anthropic(
-    system_prompt = paste(
-      ""You are a concise research assistant."",
-      ""Use web search for current facts and web fetch for supplied URLs."",
-      ""Cite every factual claim supported by a web source.""
-    )
-  )
-  client$register_tool(claude_tool_web_search())
-  client$register_tool(claude_tool_web_fetch(citations = TRUE))
-
-  chat_server(
-    ""chat"",
-    client,
-    greeting = paste(
-      ""Ask me to research a current topic, or summarize a URL."",
-      ""Search activity, fetched pages, inline citations, and sources"",
-      ""will appear in the response.""
-    ),
-    history = FALSE
-  )
-}
-
-shinyApp(ui, server)
-```
-</details>
-
-## Testing
-
-- Content-model tests for sources, citations, normalized fetch status, and record/replay.
-- Provider tests for OpenAI, Anthropic, and Google in both streaming and completed responses.
-- Cross-provider serialization tests that preserve native replay where supported and exclude incompatible provider annotations.
-- Console rendering tests for citation markers, source deduplication, web activity, and cancelled streams.
-
-Closes #775",cpsievert,,open,FALSE,2026-07-31T22:58:46Z,2026-08-12T00:24:45Z,https://github.com/tidyverse/ellmer/pull/1068
 1067,Support ChatGPT subscription authentication,"## Summary
 
 Adds an opt-in ChatGPT subscription authentication path to `chat_openai()`. It reuses file-backed credentials maintained by the installed OpenAI CLI. API-key authentication remains the default.

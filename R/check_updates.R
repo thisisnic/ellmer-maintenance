@@ -148,6 +148,15 @@ for (i in seq_len(nrow(sources))) {
       next
     }
 
+    # The system prompt asks for recent updates only, but the model sometimes
+    # extracts old entries from pages that list their full history — enforce
+    # the cutoff deterministically here.
+    parsed_date <- suppressWarnings(as.Date(date))
+    if (!is.na(parsed_date) && parsed_date < Sys.Date() - 30) {
+      message("  Too old (", date, "), skipping: ", title)
+      next
+    }
+
     new_reports <- c(new_reports, list(tibble(
       provider = provider,
       title = title,
