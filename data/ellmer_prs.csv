@@ -19,18 +19,7 @@ The `Chat$get_context_window()` method resolves the current model through `model
 Verified live: Gemini 36/36 models, Mistral 55/55, Groq 15/15, Ollama Cloud 18/18, Posit 10/10, LM Studio against a local server. Anthropic comes from the existing `anthropic-list-models` cassette and vLLM from vLLM's source. Vertex publishes no token limit anywhere in `publisherModels`, in either projection, so it falls through to `NA`. For LM Studio, its OpenAI-compatible `/v1/models` carries only `id`, `object` and `owned_by`, so the window is joined from the native `/api/v1/models` by model key, and a server without that route degrades to `NA`. The `test_models()` helper now checks the column, and checks it is populated for the providers that report one.
 
 Fixes #1083
-",nbenn,,open,TRUE,2026-08-13T14:37:54Z,2026-08-14T05:52:44Z,https://github.com/tidyverse/ellmer/pull/1089
-1087,Update check to use native structured output for Claude models >= 5,"The check for whether Anthropic models support native structured output (as opposed to the tool hack) incorrectly returns `FALSE` for models such as sonnet 5, the default. The regex used to check the model name needs updating - which is done in this PR.  It also checks for different possible formulations of model names that have been used.
-
-TODO:
-- [ ] Double-check AI generated code (and original bug itself)
-- [ ] Open issue (+ maybe PR) on chatlas for equivalent code
-- [ ] Re-record vcr cassettes when the Anthropic API stops being weird (returning HTTP 529 ""Overloaded"")",thisisnic,,open,TRUE,2026-08-13T14:26:16Z,2026-08-13T14:27:40Z,https://github.com/tidyverse/ellmer/pull/1087
-1086,Always include `parameters` in Databricks tool definitions,"Fixes #1084 
-
-Registering a tool with no arguments caused `chat_databricks()` to error as we omitted the `parameters` field entirely from the request when tools have no arguments, as a precaution in #549, which doesn't appear to be needed any more.  
-
-I compared against other models with tools registered with/without parameters and all ran find after this fix. It also brings us in line with chatlas.",thisisnic,,open,FALSE,2026-08-13T13:48:17Z,2026-08-13T14:30:26Z,https://github.com/tidyverse/ellmer/pull/1086
+",nbenn,,open,FALSE,2026-08-13T14:37:54Z,2026-08-14T19:58:51Z,https://github.com/tidyverse/ellmer/pull/1089
 1082,Support output schemas in tool definitions,"## Summary
 
 Adds an optional `output_schema` argument to `tool()` and stores it on `ToolDef` as a `TypeObject`.

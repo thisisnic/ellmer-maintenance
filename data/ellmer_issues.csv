@@ -1,13 +1,15 @@
 number,title,body,user,labels,state,created_at,updated_at,comments,url,linked_prs
-1091,Implement provider files API,See https://github.com/posit-dev/chatlas/pull/334 for the equivalent in Chatlas,thisisnic,feature,open,2026-08-13T14:45:36Z,2026-08-13T14:46:24Z,0,https://github.com/tidyverse/ellmer/issues/1091,
-1090,Add `content_document_file()` and `content_document_url()` for text/CSV/code file inputs,See https://github.com/posit-dev/chatlas/pull/345 for the equivalent in Chatlas,thisisnic,feature,open,2026-08-13T14:43:09Z,2026-08-13T14:43:09Z,0,https://github.com/tidyverse/ellmer/issues/1090,
+1093,fix(openai): correct web citation grounding metadata,Port https://github.com/posit-dev/chatlas/pull/388 to ellmer,thisisnic,bug,open,2026-08-14T09:33:36Z,2026-08-14T09:36:20Z,0,https://github.com/tidyverse/ellmer/issues/1093,
+1092,fix(google): keep streamed citations adjacent to text,Port https://github.com/posit-dev/chatlas/pull/385 to ellmer,thisisnic,bug,open,2026-08-14T09:20:29Z,2026-08-14T09:36:35Z,0,https://github.com/tidyverse/ellmer/issues/1092,
+1091,Implement provider files API,See https://github.com/posit-dev/chatlas/pull/334 for the equivalent in Chatlas,thisisnic,feature,open,2026-08-13T14:45:36Z,2026-08-14T09:36:56Z,0,https://github.com/tidyverse/ellmer/issues/1091,
+1090,Add `content_document_file()` and `content_document_url()` for text/CSV/code file inputs,See https://github.com/posit-dev/chatlas/pull/345 for the equivalent in Chatlas,thisisnic,feature,open,2026-08-13T14:43:09Z,2026-08-14T09:37:03Z,0,https://github.com/tidyverse/ellmer/issues/1090,
 1088,Assorted provider gaps found while auditing feature support,"While auditing feature support across the official providers, 🤖 found a few apparent bugs. I need to look into them more to confirm them.
 
 - `chat_deepseek()` silently drops non-text user content: `as_json(Turn)` (R/provider-deepseek.R:99) keeps only `ContentText`, so images and PDFs are discarded without a warning and the model never sees them. Other providers error instead.
 - `chat_snowflake()` never sets `finish_reason` in `value_turn()` (R/provider-snowflake.R:273), so the truncation warnings added in 0.4.2 (#867) can't fire. It also aborts on any content type other than text and tool use.
 - `chat_aws_bedrock()` doesn't stream thinking: `stream_content()` (R/provider-aws.R:344) only emits `ContentText` live, with reasoning content only appearing in the completed turn. Claude, OpenAI, and Gemini all stream thinking, which matters for downstream use in shinychat.
 - `chat_posit()` inherits `has_batch_support = TRUE` from the Anthropic provider, so `batch_chat()` will POST to `{gateway}/anthropic/v1/messages/batches` without any verification that the Posit gateway supports that endpoint.
-- `google_upload()` is hardcoded to the Gemini endpoint (R/provider-google-upload.R:31), so Vertex users can't send audio or video even though the underlying models support it.",thisisnic,,open,2026-08-13T14:30:24Z,2026-08-13T14:31:08Z,0,https://github.com/tidyverse/ellmer/issues/1088,
+- `google_upload()` is hardcoded to the Gemini endpoint (R/provider-google-upload.R:31), so Vertex users can't send audio or video even though the underlying models support it.",thisisnic,bug,open,2026-08-13T14:30:24Z,2026-08-14T13:42:04Z,0,https://github.com/tidyverse/ellmer/issues/1088,
 1085,AWS Bedrock doesn't handle empty thinking correctly,"I think what's happening in the reprex below is that reasoning isn't actually enabled so no reasoning content comes back from the API, leading to the ellmer error. It doesn't bring down the chat, but it shows up in the console and in shinychat.
 
 ``` r
@@ -54,33 +56,7 @@ chat$chat(""Tell me another one, but think harder this time"")
 #> ! <ellmer::ContentThinking> object properties are invalid:
 #> - @thinking must be <character>, not <NULL>
 ```
-",gadenbuie,bug,open,2026-08-12T21:12:10Z,2026-08-13T12:33:23Z,0,https://github.com/tidyverse/ellmer/issues/1085,
-1084,Error Using Tool With Databricks As Model Provider,"Hi Ellmer Team, 
-
-I am running into an error that says Bad request: ""parameters"" is a required property for ""function"" object in parameter ""tools"" when I ran querychat along with ellmer using databricks model provider. The following is the code that I ran that can be used to reproduce the error. Is it happening due to ellmer::tool since querychat uses it under the hood (i.e. https://github.com/posit-dev/querychat/blob/bfd59f636af33778b291fcaa590ca385126188a5/pkg-r/R/querychat_tools.R#L29) ? 
-
-I am using a free version of Databricks and have a personal access token generated as mentioned under the section Create personal access tokens for workspace users at this link (https://docs.databricks.com/aws/en/dev-tools/auth/pat). 
-
-Please help! @thisisnic 
-
-library(querychat)
-library(palmerpenguins)
-
-databricks_client <- ellmer::chat_databricks(
-    workspace = ""https://dbc-6daebf39-7148.cloud.databricks.com"",
-    model = ""databricks-meta-llama-3-3-70b-instruct"",
-    token = ""secret_key""
-)
-
-querychat_app(penguins, client = databricks_client)
-
-Warning: Error in req_perform_connection: HTTP 400 Bad Request.
-ℹ Bad request: ""parameters"" is a required property for ""function"" object in parameter ""tools""
-
-Thanks so much! 
-
-Best, 
-Kola",kolabearafk,bug,open,2026-08-12T07:29:06Z,2026-08-13T13:37:20Z,1,https://github.com/tidyverse/ellmer/issues/1084,1086
+",gadenbuie,bug,open,2026-08-12T21:12:10Z,2026-08-14T09:37:25Z,0,https://github.com/tidyverse/ellmer/issues/1085,
 1083,Model metadata omits the context window,"The `models_*()` functions don't report how much context a model accepts, and nothing on `Chat` exposes it either. A caller can see how many tokens a conversation has accumulated, through `get_tokens()`, but not how close that is to the limit — leaving a hardcoded per-model table that goes stale with every release, or per-provider HTTP calls, as the only ways to find out. That is the work ellmer otherwise saves callers from doing.
 
 Most providers already return it, in a response ellmer parses and then discards. The table below is a brief overview gathered from their docs, so it may well have shifted by the time anyone acts on it.
@@ -126,7 +102,7 @@ chat$chat(""What's 1+1? Just give me the number"")
 
 The same issue likely applies to `chat_anthropic()` since its `as_json(ProviderClaude, ContentThinking)` has the same `return()` for empty thinking.
 
-Found while working on #1066 (bumping default models to `claude-sonnet-5`).",thisisnic,bug,open,2026-08-02T18:16:05Z,2026-08-09T18:47:50Z,1,https://github.com/tidyverse/ellmer/issues/1070,
+Found while working on #1066 (bumping default models to `claude-sonnet-5`).",thisisnic,bug,open,2026-08-02T18:16:05Z,2026-08-14T09:37:49Z,1,https://github.com/tidyverse/ellmer/issues/1070,
 1051,Feature request: callback before each model request in the tool loop (for mid-loop context compaction),"### Summary
 
 `Chat$chat()` / `Chat$chat_async()` (and `stream()/stream_async()`) run the tool loop internally (`chat_impl` / `chat_impl_async` in `R/chat.R`). There is currently **no callback that fires before each model request inside that loop**, so an application cannot inspect or rewrite the conversation **between tool rounds** within a single `chat()` call.
@@ -208,7 +184,7 @@ This would also need to support API key authentication (via `x-goog-api-key head
 * ellmer version: 0.4.1
 * R version: [your R version]
 * Gateway path format: /v1beta1/publishers/google/models/{model}:{method}
-* Auth: x-goog-api-key header with API key",Tazinho,feature,open,2026-07-03T08:20:40Z,2026-07-03T09:37:41Z,1,https://github.com/tidyverse/ellmer/issues/1050,
+* Auth: x-goog-api-key header with API key",Tazinho,feature,open,2026-07-03T08:20:40Z,2026-08-14T09:38:04Z,1,https://github.com/tidyverse/ellmer/issues/1050,
 1040,HuggingFace default model doesn't support function calling or json_schema structured output,"While running package tests today locally, the default HuggingFace model (`meta-llama/llama-3.1-8b-instruct`) fails on two tests due to missing feature support:
 
 **Tool use:**
@@ -225,7 +201,7 @@ Model 'meta-llama/llama-3.1-8b-instruct' does not support 'json_schema' response
 
 We should either:
 - Skip these tests for HuggingFace, or
-- Use a model that supports these features for the relevant tests",thisisnic,bug,open,2026-06-28T12:12:21Z,2026-08-03T14:23:36Z,1,https://github.com/tidyverse/ellmer/issues/1040,
+- Use a model that supports these features for the relevant tests",thisisnic,bug,open,2026-06-28T12:12:21Z,2026-08-14T09:38:57Z,1,https://github.com/tidyverse/ellmer/issues/1040,
 1017,"Tool definitions don't accept valid special characters for function names or arguments, such as ""ñ""","R functions that contain characters such as ""ñ"" (very common Spanish letter that produces a common problem in data science, as its used in the word _año_, meaning _year_) are completely valid in R, but they cause problems with `{ellmer}`
 
 Lets create a basic function that has `ñ` in its name and in its argument:
