@@ -1,4 +1,52 @@
 number,title,body,user,labels,state,draft,created_at,updated_at,url
+1095,Implement provider files API,"Fixes #1091
+
+TODO:
+- [x] Review AI generated code as it's being generated
+- [ ] Review code as a whole once it's all done
+- [ ] actually test out code to see it working
+- [ ] fully document all design decisions in PR description
+
+Mirrors chatlas's provider files API (posit-dev/chatlas#334). Today `content_pdf_file()` and `content_image_file()` re-send a file's bytes on every turn; this PR lets you upload a file to the provider once and reference it by id thereafter:
+
+```r
+chat <- chat_anthropic()
+
+report <- chat$file_upload(""quarterly-report.pdf"")
+chat$chat(report, ""Summarize the key findings."")
+chat$chat(""Now list the risks."")   # no re-upload
+
+chat$file_list()                   # data frame of hosted files
+chat$file_get(report)              # metadata as a named list
+chat$file_delete(report)
+```
+
+## What's included
+
+* Five experimental `Chat` methods (`$file_upload()`, `$file_list()`, `$file_get()`, `$file_download()`, `$file_delete()`), each wrapping an internal S7 generic that dispatches on provider (the same pattern as `$token_count()` / `count_tokens()`). Supported for `chat_openai()` (Responses API), `chat_anthropic()`, and `chat_google_gemini()`; every other provider gets a clear `not_implemented` error. `ProviderPositAnthropic` explicitly opts back out of what it would inherit from `ProviderAnthropic`, and Gemini-on-Vertex is caught with a runtime base-URL check (same class serves both) that points users at a `gs://` reference instead.
+* `claude_file_upload()`/`_list`/`_get`/`_download`/`_delete()` and `google_upload()` are soft-deprecated wrappers over the new methods, with no duplicated HTTP logic. This unifies what were previously two disconnected provider-specific experiments plus internal OpenAI batch plumbing.
+* `chat_anthropic()` now adds the `files-api-2025-04-14` beta header automatically whenever a request (chat, token counting, or batch) references an uploaded file, so users no longer need to pass `beta_headers` by hand.
+* `ContentUploaded` is exported and gains `provider` and `extra` properties (appended after the released ones, so positional construction and record/replay of old chats keep working).
+* Bug fixes along the way: Anthropic's `as_json()` for uploaded files silently produced an invalid block for unrecognized MIME types (missing `switch()` default) and was missing `...`; `claude_file_list()` silently returned only the first page (now paginates); RFC3339 timestamps were parsed with bare `as.POSIXct()`, which drops the time component and uses the local timezone (all file timestamps now parse explicitly and display in UTC across providers).
+
+## Design decisions to review
+
+* **Chat R6 methods rather than standalone functions.** chatlas uses a `chat.files.upload()` accessor; R6 has no accessor idiom, so these are flat methods (`$file_upload()`). We also considered standalone `file_upload(chat, path)` functions, but `batch_chat()` is standalone only because it clones the chat as a template, `$token_count()` is the closer precedent, and ellmer has no provider-account abstraction for file state to hang off. Pairing rule 7 (idioms diverge where they must) covers the divergence from chatlas.
+* **Deprecating the old functions** is a proposal, not a settled fact; happy to keep them indefinitely instead. `claude_file_get()` keeps its released contract (returns a `ContentUploaded`) while deprecated; `claude_file_list()` inherits the new normalized columns (`size` -> `size_bytes`, POSIXct `created_at`, new `expires_at`/`downloadable`).
+* **Return types**: `file_list()` returns a base data frame with normalized columns first (`id`, `filename`, `mime_type`, `size_bytes`, `created_at`, `expires_at`) and provider extras after; `file_get()` returns a named list. No exported `FileMetadata` class (chatlas has one; a data frame is the R idiom, cf. `models_list()`).
+* **Field-name divergence from chatlas**: ellmer's released `ContentUploaded@uri` stays (chatlas calls it `id`). Renaming would break saved chats.
+* **No cross-provider misuse check**: chatlas errors when a file uploaded to provider X is referenced from provider Y; ellmer deliberately omits this and lets the provider's own API error surface. Worth flagging this, the `uri`/`id` naming, and ellmer's richer Anthropic MIME mapping (csv/json/xlsx/xml serialize as `container_upload`; chatlas only does image/document) to the chatlas maintainers per the pairing conventions.
+
+## Notes
+
+* `$file_download()` only works for model-generated/batch files; all three providers refuse to serve back user uploads (documented, and asserted in the lifecycle tests).
+* Gemini: files expire after 48h; upload blocks until processing completes so the returned reference is always usable.
+* Uploaded OpenAI documents (not images) can also be referenced from `chat_openai_compatible()` against the Chat Completions API.
+* Testing: a shared `test_file_lifecycle()` helper runs the full upload/chat/list/get/download-fails/delete cycle against all three providers with new cassettes (`openai-files`, `anthropic-files`, `google-files`); the old wrapper tests replay their existing cassettes through the new implementation, confirming identical requests.
+",thisisnic,,open,TRUE,2026-08-15T11:34:26Z,2026-08-15T11:40:43Z,https://github.com/tidyverse/ellmer/pull/1095
+1094,Update huggingface default model,"Fixes #1040 
+
+Tests were failing locally; updated the model used as both default and in tests to one with more capabilities.",thisisnic,,open,FALSE,2026-08-15T08:20:33Z,2026-08-15T08:20:33Z,https://github.com/tidyverse/ellmer/pull/1094
 1089,Report the model's context window in `models_*()` and on `Chat`,"Most providers publish a model's context window in a response `models_list()` already parses and then discards. This adds a `context_window` column to the `models_*()` data frames, and `Chat$get_context_window()` to pair with `$get_tokens()`.
 
 | Provider | Field read |

@@ -1,7 +1,7 @@
 number,title,body,user,labels,state,created_at,updated_at,comments,url,linked_prs
 1093,fix(openai): correct web citation grounding metadata,Port https://github.com/posit-dev/chatlas/pull/388 to ellmer,thisisnic,bug,open,2026-08-14T09:33:36Z,2026-08-14T09:36:20Z,0,https://github.com/tidyverse/ellmer/issues/1093,
 1092,fix(google): keep streamed citations adjacent to text,Port https://github.com/posit-dev/chatlas/pull/385 to ellmer,thisisnic,bug,open,2026-08-14T09:20:29Z,2026-08-14T09:36:35Z,0,https://github.com/tidyverse/ellmer/issues/1092,
-1091,Implement provider files API,See https://github.com/posit-dev/chatlas/pull/334 for the equivalent in Chatlas,thisisnic,feature,open,2026-08-13T14:45:36Z,2026-08-14T09:36:56Z,0,https://github.com/tidyverse/ellmer/issues/1091,
+1091,Implement provider files API,See https://github.com/posit-dev/chatlas/pull/334 for the equivalent in Chatlas,thisisnic,feature,open,2026-08-13T14:45:36Z,2026-08-14T09:36:56Z,0,https://github.com/tidyverse/ellmer/issues/1091,1095
 1090,Add `content_document_file()` and `content_document_url()` for text/CSV/code file inputs,See https://github.com/posit-dev/chatlas/pull/345 for the equivalent in Chatlas,thisisnic,feature,open,2026-08-13T14:43:09Z,2026-08-14T09:37:03Z,0,https://github.com/tidyverse/ellmer/issues/1090,
 1088,Assorted provider gaps found while auditing feature support,"While auditing feature support across the official providers, 🤖 found a few apparent bugs. I need to look into them more to confirm them.
 
@@ -201,7 +201,7 @@ Model 'meta-llama/llama-3.1-8b-instruct' does not support 'json_schema' response
 
 We should either:
 - Skip these tests for HuggingFace, or
-- Use a model that supports these features for the relevant tests",thisisnic,bug,open,2026-06-28T12:12:21Z,2026-08-14T09:38:57Z,1,https://github.com/tidyverse/ellmer/issues/1040,
+- Use a model that supports these features for the relevant tests",thisisnic,bug,open,2026-06-28T12:12:21Z,2026-08-14T09:38:57Z,1,https://github.com/tidyverse/ellmer/issues/1040,1094
 1017,"Tool definitions don't accept valid special characters for function names or arguments, such as ""ñ""","R functions that contain characters such as ""ñ"" (very common Spanish letter that produces a common problem in data science, as its used in the word _año_, meaning _year_) are completely valid in R, but they cause problems with `{ellmer}`
 
 Lets create a basic function that has `ñ` in its name and in its argument:
