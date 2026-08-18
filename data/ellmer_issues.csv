@@ -1,4 +1,7 @@
 number,title,body,user,labels,state,created_at,updated_at,comments,url,linked_prs
+1098,Properly deprecate `Provider@model`,"`Provider@model` was removed rather than deprecated. We should properly deprecate it instead so existing code gets a lifecycle warning rather than an error.
+
+S7 now supports deprecating properties, see https://github.com/RConsortium/S7/pull/731/changes#diff-52f22287badc71ac8c60e1b80950ef68c26dc58fce21847a85d40d640cbacfe9R310",thisisnic,,open,2026-08-17T14:17:24Z,2026-08-17T17:52:10Z,0,https://github.com/tidyverse/ellmer/issues/1098,
 1093,fix(openai): correct web citation grounding metadata,Port https://github.com/posit-dev/chatlas/pull/388 to ellmer,thisisnic,bug,open,2026-08-14T09:33:36Z,2026-08-14T09:36:20Z,0,https://github.com/tidyverse/ellmer/issues/1093,1096
 1092,fix(google): keep streamed citations adjacent to text,Port https://github.com/posit-dev/chatlas/pull/385 to ellmer,thisisnic,bug,open,2026-08-14T09:20:29Z,2026-08-14T09:36:35Z,0,https://github.com/tidyverse/ellmer/issues/1092,1097
 1091,Implement provider files API,See https://github.com/posit-dev/chatlas/pull/334 for the equivalent in Chatlas,thisisnic,feature,open,2026-08-13T14:45:36Z,2026-08-14T09:36:56Z,0,https://github.com/tidyverse/ellmer/issues/1091,1095
