@@ -1,8 +1,22 @@
 number,title,body,user,labels,state,draft,created_at,updated_at,url
+1100,Handle empty thinking for AWS provider,"Fixes #1085 
+
+When AWS Bedrock returns empty thinking, ensure it's an empty string `""""` rather than `NULL`, to prevent errors",thisisnic,,open,FALSE,2026-08-19T11:27:55Z,2026-08-20T06:08:30Z,https://github.com/tidyverse/ellmer/pull/1100
+1099,Handle empty responses in AWS and Claude,"Fixes #1070
+
+`claude-sonnet-5` sometimes returns a completely empty response (no content blocks). This broke things in two ways:
+
+- `chat_anthropic()` errored when constructing the turn from the empty response.
+- `chat_aws_bedrock()` sent the empty turn back as part of the conversation history on the next request, and Bedrock rejects empty messages with HTTP 400.
+
+I checked whether the existing #376 workaround (replacing whitespace-only text with `[empty string]`) could be removed but it can't: both APIs still reject whitespace-only text and this is a different case, where there's no text at all.
+
+The fix that :robot: came up with is that when an assistant turn has no content, both providers now send a single `[empty string]` text block in its place. I had :robot: try dropping the turn entirely (which is what `chat_anthropic()` did before, from #711), but that leaves two user messages in a row and the model tends to treat them as one, so the earlier instruction carries over into the later question. With the placeholder, the model answers the follow-up question correctly most of the time. I verified the #711 tool-calling scenario still works on both providers.
+",thisisnic,,open,FALSE,2026-08-19T11:09:27Z,2026-08-19T11:16:25Z,https://github.com/tidyverse/ellmer/pull/1099
 1097,Keep streamed Google citations adjacent to text,"Fixes #1092 
 
 TODO:
-- [ ] Fully check over AI-generated code",thisisnic,,open,TRUE,2026-08-16T22:38:50Z,2026-08-16T22:38:50Z,https://github.com/tidyverse/ellmer/pull/1097
+- [ ] Fully check over AI-generated code (looks good overall, just check tests now)",thisisnic,,open,TRUE,2026-08-16T22:38:50Z,2026-08-20T06:11:29Z,https://github.com/tidyverse/ellmer/pull/1097
 1096,Don't populate `grounded_span` for OpenAI web-search citations,"Fixes #1093, porting a fix over from chatlas",thisisnic,,open,FALSE,2026-08-16T22:24:49Z,2026-08-16T22:25:39Z,https://github.com/tidyverse/ellmer/pull/1096
 1095,Implement provider files API,"Fixes #1091
 

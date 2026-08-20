@@ -6,13 +6,14 @@ S7 now supports deprecating properties, see https://github.com/RConsortium/S7/pu
 1092,fix(google): keep streamed citations adjacent to text,Port https://github.com/posit-dev/chatlas/pull/385 to ellmer,thisisnic,bug,open,2026-08-14T09:20:29Z,2026-08-14T09:36:35Z,0,https://github.com/tidyverse/ellmer/issues/1092,1097
 1091,Implement provider files API,See https://github.com/posit-dev/chatlas/pull/334 for the equivalent in Chatlas,thisisnic,feature,open,2026-08-13T14:45:36Z,2026-08-14T09:36:56Z,0,https://github.com/tidyverse/ellmer/issues/1091,1095
 1090,Add `content_document_file()` and `content_document_url()` for text/CSV/code file inputs,See https://github.com/posit-dev/chatlas/pull/345 for the equivalent in Chatlas,thisisnic,feature,open,2026-08-13T14:43:09Z,2026-08-14T09:37:03Z,0,https://github.com/tidyverse/ellmer/issues/1090,
-1088,Assorted provider gaps found while auditing feature support,"While auditing feature support across the official providers, 🤖 found a few apparent bugs. I need to look into them more to confirm them.
+1088,Assorted provider gaps found while auditing feature support,"While auditing feature support across the official providers, 🤖 found a few apparent bugs. Status after investigating each:
 
-- `chat_deepseek()` silently drops non-text user content: `as_json(Turn)` (R/provider-deepseek.R:99) keeps only `ContentText`, so images and PDFs are discarded without a warning and the model never sees them. Other providers error instead.
-- `chat_snowflake()` never sets `finish_reason` in `value_turn()` (R/provider-snowflake.R:273), so the truncation warnings added in 0.4.2 (#867) can't fire. It also aborts on any content type other than text and tool use.
-- `chat_aws_bedrock()` doesn't stream thinking: `stream_content()` (R/provider-aws.R:344) only emits `ContentText` live, with reasoning content only appearing in the completed turn. Claude, OpenAI, and Gemini all stream thinking, which matters for downstream use in shinychat.
-- `chat_posit()` inherits `has_batch_support = TRUE` from the Anthropic provider, so `batch_chat()` will POST to `{gateway}/anthropic/v1/messages/batches` without any verification that the Posit gateway supports that endpoint.
-- `google_upload()` is hardcoded to the Gemini endpoint (R/provider-google-upload.R:31), so Vertex users can't send audio or video even though the underlying models support it.",thisisnic,bug,open,2026-08-13T14:30:24Z,2026-08-14T13:42:04Z,0,https://github.com/tidyverse/ellmer/issues/1088,
+- **Confirmed:** `chat_deepseek()` silently drops non-text user content: `as_json(Turn)` (R/provider-deepseek.R:105) keeps only `ContentText`, so images and PDFs are discarded without a warning and the model never sees them. Verified empirically. Images are a documented limitation, but we should error (like Snowflake does) rather than silently drop. Straightforward fix.
+- **Confirmed, needs a live check:** `chat_snowflake()` never sets `finish_reason` in `value_turn()` (R/provider-snowflake.R:313) and has no `value_finish_reason` method, so the truncation warnings added in 0.4.2 (#867) can't fire. Caveat: chatlas has the same gap with a `# TODO: no finish_reason in Snowflake?` comment for the same `inference:complete` endpoint, and Snowflake's docs suggest support is patchy (absent entirely for Claude models). Needs a live test to see what the API actually returns before wiring anything up.
+- **Confirmed:** `chat_aws_bedrock()` doesn't stream thinking: `stream_content()` (R/provider-aws.R:344) only emits `ContentText` live; `reasoningContent` deltas are accumulated in `stream_merge_chunks()` but never emitted, so thinking only appears in the completed turn. Inconsistent with the direct Claude provider, which streams `ContentThinking` (R/provider-claude.R:323). Straightforward fix.
+- **Confirmed unverified inheritance:** `chat_posit()` inherits `has_batch_support = TRUE` from `ProviderAnthropic`, so `batch_chat()` will POST to `{gateway}/anthropic/v1/messages/batches` with no verification that the gateway supports that endpoint. chatlas notes the gateway doesn't proxy the beta Files API, so incomplete endpoint coverage is plausible; chatlas appears to have the same inheritance. Needs a live test against the gateway (or confirmation from Posit folks); if unsupported the fix is a one-line override.
+- **Feature gap, not a bug:** `google_upload()` is hardcoded to the Gemini endpoint (R/provider-google-upload.R:31), and this is more than parameterization: Vertex has no Files API equivalent and expects Cloud Storage URIs instead, so Vertex audio/video support is new functionality (e.g. accepting `gs://` URIs). The docs already note it's Gemini specific. Should be split into a separate feature request.
+",thisisnic,bug,open,2026-08-13T14:30:24Z,2026-08-20T06:16:06Z,0,https://github.com/tidyverse/ellmer/issues/1088,
 1085,AWS Bedrock doesn't handle empty thinking correctly,"I think what's happening in the reprex below is that reasoning isn't actually enabled so no reasoning content comes back from the API, leading to the ellmer error. It doesn't bring down the chat, but it shows up in the console and in shinychat.
 
 ``` r
@@ -59,7 +60,7 @@ chat$chat(""Tell me another one, but think harder this time"")
 #> ! <ellmer::ContentThinking> object properties are invalid:
 #> - @thinking must be <character>, not <NULL>
 ```
-",gadenbuie,bug,open,2026-08-12T21:12:10Z,2026-08-14T09:37:25Z,0,https://github.com/tidyverse/ellmer/issues/1085,
+",gadenbuie,bug,open,2026-08-12T21:12:10Z,2026-08-14T09:37:25Z,0,https://github.com/tidyverse/ellmer/issues/1085,1100
 1083,Model metadata omits the context window,"The `models_*()` functions don't report how much context a model accepts, and nothing on `Chat` exposes it either. A caller can see how many tokens a conversation has accumulated, through `get_tokens()`, but not how close that is to the limit — leaving a hardcoded per-model table that goes stale with every release, or per-provider HTTP calls, as the only ways to find out. That is the work ellmer otherwise saves callers from doing.
 
 Most providers already return it, in a response ellmer parses and then discards. The table below is a brief overview gathered from their docs, so it may well have shifted by the time anyone acts on it.
@@ -105,7 +106,7 @@ chat$chat(""What's 1+1? Just give me the number"")
 
 The same issue likely applies to `chat_anthropic()` since its `as_json(ProviderClaude, ContentThinking)` has the same `return()` for empty thinking.
 
-Found while working on #1066 (bumping default models to `claude-sonnet-5`).",thisisnic,bug,open,2026-08-02T18:16:05Z,2026-08-14T09:37:49Z,1,https://github.com/tidyverse/ellmer/issues/1070,
+Found while working on #1066 (bumping default models to `claude-sonnet-5`).",thisisnic,bug,open,2026-08-02T18:16:05Z,2026-08-14T09:37:49Z,1,https://github.com/tidyverse/ellmer/issues/1070,1099
 1051,Feature request: callback before each model request in the tool loop (for mid-loop context compaction),"### Summary
 
 `Chat$chat()` / `Chat$chat_async()` (and `stream()/stream_async()`) run the tool loop internally (`chat_impl` / `chat_impl_async` in `R/chat.R`). There is currently **no callback that fires before each model request inside that loop**, so an application cannot inspect or rewrite the conversation **between tool rounds** within a single `chat()` call.
