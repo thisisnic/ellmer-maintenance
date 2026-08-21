@@ -1,4 +1,20 @@
 number,title,body,user,labels,state,draft,created_at,updated_at,url
+1102,feat: stream structured output,"## Why this matters
+`Chat$stream()` and `Chat$stream_async()` can now stream provider-native structured output as it is generated, enabling callers to render JSON-backed artifacts and other structured responses incrementally. This follows the public API and orchestration precedent from [Chatlas PR #262](https://github.com/posit-dev/chatlas/pull/262).
+
+## What changes
+- Add `type` support to synchronous and asynchronous streaming.
+- Preserve raw JSON fragments in text mode and `Content` chunks in content mode, while saving the completed response as `ContentJson`.
+- Suppress registered tools for structured requests and reject provider/model/type combinations that require tool-based structured output.
+- Cover OpenAI root-schema wrapping, Anthropic and Bedrock fallback rejection, tool behavior, and streaming modes.
+
+## Verification
+- `Rscript -e 'devtools::test(""."", filter = ""chat"")'` (`614` passing)\n- `air format R/chat.R R/chat-structured.R tests/testthat/test-chat.R`\n- `devtools::document()`",cpsievert,,open,FALSE,2026-08-20T17:07:26Z,2026-08-20T17:31:04Z,https://github.com/tidyverse/ellmer/pull/1102
+1101,Add `content_document_file()` and `content_document_url()`,"Closes #1090
+
+TODO:
+- [x] Review code iteratively as generated
+- [ ] Review tests holistically",thisisnic,,open,TRUE,2026-08-20T13:14:26Z,2026-08-20T13:18:17Z,https://github.com/tidyverse/ellmer/pull/1101
 1100,Handle empty thinking for AWS provider,"Fixes #1085 
 
 When AWS Bedrock returns empty thinking, ensure it's an empty string `""""` rather than `NULL`, to prevent errors",thisisnic,,open,FALSE,2026-08-19T11:27:55Z,2026-08-20T06:08:30Z,https://github.com/tidyverse/ellmer/pull/1100
@@ -15,8 +31,7 @@ The fix that :robot: came up with is that when an assistant turn has no content,
 ",thisisnic,,open,FALSE,2026-08-19T11:09:27Z,2026-08-19T11:16:25Z,https://github.com/tidyverse/ellmer/pull/1099
 1097,Keep streamed Google citations adjacent to text,"Fixes #1092 
 
-TODO:
-- [ ] Fully check over AI-generated code (looks good overall, just check tests now)",thisisnic,,open,TRUE,2026-08-16T22:38:50Z,2026-08-20T06:11:29Z,https://github.com/tidyverse/ellmer/pull/1097
+This PR ports https://github.com/posit-dev/chatlas/pull/385 to ellmer and adds/update relevant tests.",thisisnic,,open,FALSE,2026-08-16T22:38:50Z,2026-08-20T08:44:00Z,https://github.com/tidyverse/ellmer/pull/1097
 1096,Don't populate `grounded_span` for OpenAI web-search citations,"Fixes #1093, porting a fix over from chatlas",thisisnic,,open,FALSE,2026-08-16T22:24:49Z,2026-08-16T22:25:39Z,https://github.com/tidyverse/ellmer/pull/1096
 1095,Implement provider files API,"Fixes #1091
 
