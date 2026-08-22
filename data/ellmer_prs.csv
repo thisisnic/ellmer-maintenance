@@ -1,4 +1,11 @@
 number,title,body,user,labels,state,draft,created_at,updated_at,url
+1105,forward viewer session token to Connect's LLM gateway,"When chat traffic on Posit Connect goes through Connect's LLM gateway, this forwards the viewer's session token as a `Posit-Connect-User-Session-Token` header so Connect can attribute the call to the viewer. The header is added in `chat_perform()` and `parallel_turns()`. It's only added when running on Connect, and only sent to Connect's own gateway URL.
+
+For now this is specific to shiny sessions running on Connect as it retrieves the user session token from the shiny session via `getDefaultReactiveDomain()`. I didn't attach the header in `batch_chat()` as my understanding is batch jobs, being async and resumed across sessions, wouldn't make sense to run in an individual user's shiny session. Let me know if that doesn't sound right, though.
+",karawoo,,open,FALSE,2026-08-21T22:06:17Z,2026-08-21T22:06:17Z,https://github.com/tidyverse/ellmer/pull/1105
+1104,Default base_url to `ANTHROPIC_BASE_URL` and `AWS_ENDPOINT_URL_BEDROCK_RUNTIME`,"Fixes #1103.
+
+`chat_anthropic()` and `chat_aws_bedrock()` now default `base_url` to the `ANTHROPIC_BASE_URL` and `AWS_ENDPOINT_URL_BEDROCK_RUNTIME` environment variables when they're set, matching the official SDKs. Setting the variable is enough to route anthropic or bedrock through a proxy or gateway, so you don't have to pass `base_url` on every call.",karawoo,,open,FALSE,2026-08-21T20:55:58Z,2026-08-21T20:55:58Z,https://github.com/tidyverse/ellmer/pull/1104
 1102,feat: stream structured output,"## Why this matters
 `Chat$stream()` and `Chat$stream_async()` can now stream provider-native structured output as it is generated, enabling callers to render JSON-backed artifacts and other structured responses incrementally. This follows the public API and orchestration precedent from [Chatlas PR #262](https://github.com/posit-dev/chatlas/pull/262).
 
@@ -115,7 +122,7 @@ Related downstream issue: https://github.com/posit-dev/mcptools/issues/103
 - `tests/testthat/test-tools-def.R` passes with the new storage/type-check tests.
 - Verified existing positional `ToolDef(..., convert, annotations)` construction still maps arguments correctly and leaves `output_schema = NULL`.
 - `git diff --check` passes.
-- A broader local suite run reached the affected `tools-def` tests successfully; unrelated provider tests in the isolated container require optional packages and credentials that are not configured there.",alesanGreat,,open,FALSE,2026-08-11T18:00:47Z,2026-08-17T04:52:28Z,https://github.com/tidyverse/ellmer/pull/1082
+- A broader local suite run reached the affected `tools-def` tests successfully; unrelated provider tests in the isolated container require optional packages and credentials that are not configured there.",alesanGreat,,open,FALSE,2026-08-11T18:00:47Z,2026-08-21T21:29:09Z,https://github.com/tidyverse/ellmer/pull/1082
 1075,Explore contents_trajectory(): serialize chats to trajectory-v1,"## Summary
 
 This is an exploratory draft. The implementation is in solid shape, but there's no pressure to merge this — it's here to spark discussion about whether this fits ellmer's scope. It's inspired by [letta-ai/trajectory](https://github.com/letta-ai/trajectory), a schema/toolkit for normalizing raw agent transcripts (Claude Code, Codex, etc.) into a common `trajectory-v1` JSON shape. ellmer already holds a fully structured `Chat`/`Round`/`Turn`/`Content` object graph in memory, so the parsing problem that project solves doesn't apply here — this PR asks a narrower question: does ellmer's internal model map cleanly onto that shape, and is a native R serializer worth having?
