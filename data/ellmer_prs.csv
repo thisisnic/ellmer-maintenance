@@ -1,4 +1,47 @@
 number,title,body,user,labels,state,draft,created_at,updated_at,url
+1108,Don't send the unsupported `strict` field in Databricks tool definitions,"## The problem
+
+`chat_databricks()` sends `strict = TRUE` in tool definitions again, which Databricks does not support. Once enough tools are registered, **every** request fails with:
+
+```
+HTTP 400 Bad Request
+Compiled grammar size (486.7MB) exceeds maximum allowed size (300MB)
+```
+
+This is a regression of #548. #1086 removed the `as_json(list(ProviderDatabricks, ToolDef))` method so that `parameters` is always sent (fixing #1084), but removing it made `ProviderDatabricks` inherit `ProviderOpenAICompatible`'s encoding, which hardcodes `strict = TRUE`. The removed method existed only to omit that field, and said so in a comment that went with it:
+
+> It seems that Databricks doesn't support the ""strict"" field, despite what their documentation says. It *is* supported for structured outputs, though. I suspect a copy & paste error in their docs.
+
+## Why this wasn't caught
+
+**The failure changed shape since #548 was filed.** Back then Databricks rejected the field outright (`tools.0.custom.strict: Extra inputs are not permitted`). It now *accepts* it and compiles the tool schema into a sampling grammar instead.
+
+So `strict = TRUE` looks harmless on a small tool set — #1086's updated snapshot expecting `strict = TRUE` passes, and so does everything in the test suite. The cost is per model-choosable property against a 300 MB grammar budget, so only a large enough tool set crosses the threshold. And because grammar compilation happens *before* generation, once you cross it every request fails, not just the ones using the offending tool. An agent with 20 tools / 30 properties went from working to answering nothing, with no failing test anywhere.
+
+Measured against a real 20-tool, 30-property set on `databricks-claude-sonnet-4-6`:
+
+| Tool encoding | Result |
+|---|---|
+| as shipped (`strict = TRUE`) | HTTP 400, 486.7 MB grammar |
+| `strict = FALSE` | answers |
+| `strict` omitted | answers |
+
+For what it's worth, tool count is not the axis: 30 trivial synthetic tools compile fine, while 20 real ones do not. `ProviderVllm` and `ProviderGroq` already omit `strict`, so Databricks joining them is consistent with existing practice.
+
+## The fix
+
+Restores the method, **keeping #1086's behaviour**: `parameters` is always included, including for tools with no arguments (#1084). The only difference from the inherited encoding is the absent `strict`.
+
+Also adds a regression test asserting `strict` is absent and `parameters` present, for both a zero-argument and an argument-taking tool — so the behaviour is pinned by a test rather than resting on a comment that can be removed along with the method. The comment now explains the newer failure mode too.
+
+`testthat::test_file(""tests/testthat/test-provider-databricks.R"")`: 29 passed, 0 failed, 4 skipped.
+",SokolovAnatoliy,,open,FALSE,2026-08-26T19:07:09Z,2026-08-26T19:07:21Z,https://github.com/tidyverse/ellmer/pull/1108
+1107,Deprecate the model property instead of removing it,"Fixes #1098 
+
+We removed `Provider@model` in #1053 but we need to use a proper deprecation cycle for it so this PR intorduces warning instead of completely removing functions immediately.
+
+TODO:
+- [ ] Fully check code before requesting review",thisisnic,,open,TRUE,2026-08-26T16:38:38Z,2026-08-26T16:58:38Z,https://github.com/tidyverse/ellmer/pull/1107
 1106,Add `conversation_id` active binding to `Chat`,"Part of posit-dev/shinychat#307. Python equivalent: posit-dev/chatlas#398. Downstream consumer: posit-dev/shinychat#343.
 
 ## Summary
@@ -18,7 +61,7 @@ chat$conversation_id <- NULL        # clear (e.g., starting a new conversation)
 ```
 
 Tests in `tests/testthat/test-otel.R` cover: attribute present on both span types when set, absent by default, and binding round-trip/validation.
-",cpsievert,,open,FALSE,2026-08-25T16:46:55Z,2026-08-25T16:54:15Z,https://github.com/tidyverse/ellmer/pull/1106
+",cpsievert,,open,FALSE,2026-08-25T16:46:55Z,2026-08-27T13:50:54Z,https://github.com/tidyverse/ellmer/pull/1106
 1105,forward viewer session token to Connect's LLM gateway,"When chat traffic on Posit Connect goes through Connect's LLM gateway, this forwards the viewer's session token as a `Posit-Connect-User-Session-Token` header so Connect can attribute the call to the viewer. The header is added in `chat_perform()` and `parallel_turns()`. It's only added when running on Connect, and only sent to Connect's own gateway URL.
 
 For now this is specific to shiny sessions running on Connect as it retrieves the user session token from the shiny session via `getDefaultReactiveDomain()`. I didn't attach the header in `batch_chat()` as my understanding is batch jobs, being async and resumed across sessions, wouldn't make sense to run in an individual user's shiny session. Let me know if that doesn't sound right, though.
@@ -36,7 +79,7 @@ For now this is specific to shiny sessions running on Connect as it retrieves th
 - Cover OpenAI root-schema wrapping, Anthropic and Bedrock fallback rejection, tool behavior, and streaming modes.
 
 ## Verification
-- `Rscript -e 'devtools::test(""."", filter = ""chat"")'` (`614` passing)\n- `air format R/chat.R R/chat-structured.R tests/testthat/test-chat.R`\n- `devtools::document()`",cpsievert,,open,FALSE,2026-08-20T17:07:26Z,2026-08-20T17:31:04Z,https://github.com/tidyverse/ellmer/pull/1102
+- `Rscript -e 'devtools::test(""."", filter = ""chat"")'` (`614` passing)\n- `air format R/chat.R R/chat-structured.R tests/testthat/test-chat.R`\n- `devtools::document()`",cpsievert,,open,FALSE,2026-08-20T17:07:26Z,2026-08-26T14:22:03Z,https://github.com/tidyverse/ellmer/pull/1102
 1101,Add `content_document_file()` and `content_document_url()`,"Closes #1090
 
 TODO:
@@ -44,7 +87,7 @@ TODO:
 - [ ] Review tests holistically",thisisnic,,open,TRUE,2026-08-20T13:14:26Z,2026-08-20T13:18:17Z,https://github.com/tidyverse/ellmer/pull/1101
 1100,Handle empty thinking for AWS provider,"Fixes #1085 
 
-When AWS Bedrock returns empty thinking, ensure it's an empty string `""""` rather than `NULL`, to prevent errors",thisisnic,,open,FALSE,2026-08-19T11:27:55Z,2026-08-20T06:08:30Z,https://github.com/tidyverse/ellmer/pull/1100
+When AWS Bedrock returns empty thinking, ensure it's an empty string `""""` rather than `NULL`, to prevent errors",thisisnic,,open,FALSE,2026-08-19T11:27:55Z,2026-08-26T13:07:08Z,https://github.com/tidyverse/ellmer/pull/1100
 1099,Handle empty responses in AWS and Claude,"Fixes #1070
 
 `claude-sonnet-5` sometimes returns a completely empty response (no content blocks). This broke things in two ways:
@@ -55,7 +98,7 @@ When AWS Bedrock returns empty thinking, ensure it's an empty string `""""` rath
 I checked whether the existing #376 workaround (replacing whitespace-only text with `[empty string]`) could be removed but it can't: both APIs still reject whitespace-only text and this is a different case, where there's no text at all.
 
 The fix that :robot: came up with is that when an assistant turn has no content, both providers now send a single `[empty string]` text block in its place. I had :robot: try dropping the turn entirely (which is what `chat_anthropic()` did before, from #711), but that leaves two user messages in a row and the model tends to treat them as one, so the earlier instruction carries over into the later question. With the placeholder, the model answers the follow-up question correctly most of the time. I verified the #711 tool-calling scenario still works on both providers.
-",thisisnic,,open,FALSE,2026-08-19T11:09:27Z,2026-08-19T11:16:25Z,https://github.com/tidyverse/ellmer/pull/1099
+",thisisnic,,open,FALSE,2026-08-19T11:09:27Z,2026-08-26T13:08:43Z,https://github.com/tidyverse/ellmer/pull/1099
 1097,Keep streamed Google citations adjacent to text,"Fixes #1092 
 
 This PR ports https://github.com/posit-dev/chatlas/pull/385 to ellmer and adds/update relevant tests.",thisisnic,,open,FALSE,2026-08-16T22:38:50Z,2026-08-20T08:44:00Z,https://github.com/tidyverse/ellmer/pull/1097
@@ -107,7 +150,7 @@ chat$file_delete(report)
 ",thisisnic,,open,TRUE,2026-08-15T11:34:26Z,2026-08-15T11:40:43Z,https://github.com/tidyverse/ellmer/pull/1095
 1094,Update huggingface default model,"Fixes #1040 
 
-Tests were failing locally; updated the model used as both default and in tests to one with more capabilities.",thisisnic,,open,FALSE,2026-08-15T08:20:33Z,2026-08-15T08:20:33Z,https://github.com/tidyverse/ellmer/pull/1094
+Tests were failing locally; updated the model used as both default and in tests to one with more capabilities.",thisisnic,,open,FALSE,2026-08-15T08:20:33Z,2026-08-26T13:09:39Z,https://github.com/tidyverse/ellmer/pull/1094
 1089,Report the model's context window in `models_*()` and on `Chat`,"Most providers publish a model's context window in a response `models_list()` already parses and then discards. This adds a `context_window` column to the `models_*()` data frames, and `Chat$get_context_window()` to pair with `$get_tokens()`.
 
 | Provider | Field read |
@@ -142,7 +185,7 @@ Related downstream issue: https://github.com/posit-dev/mcptools/issues/103
 - `tests/testthat/test-tools-def.R` passes with the new storage/type-check tests.
 - Verified existing positional `ToolDef(..., convert, annotations)` construction still maps arguments correctly and leaves `output_schema = NULL`.
 - `git diff --check` passes.
-- A broader local suite run reached the affected `tools-def` tests successfully; unrelated provider tests in the isolated container require optional packages and credentials that are not configured there.",alesanGreat,,open,FALSE,2026-08-11T18:00:47Z,2026-08-21T21:29:09Z,https://github.com/tidyverse/ellmer/pull/1082
+- A broader local suite run reached the affected `tools-def` tests successfully; unrelated provider tests in the isolated container require optional packages and credentials that are not configured there.",alesanGreat,,open,FALSE,2026-08-11T18:00:47Z,2026-08-26T15:30:21Z,https://github.com/tidyverse/ellmer/pull/1082
 1075,Explore contents_trajectory(): serialize chats to trajectory-v1,"## Summary
 
 This is an exploratory draft. The implementation is in solid shape, but there's no pressure to merge this — it's here to spark discussion about whether this fits ellmer's scope. It's inspired by [letta-ai/trajectory](https://github.com/letta-ai/trajectory), a schema/toolkit for normalizing raw agent transcripts (Claude Code, Codex, etc.) into a common `trajectory-v1` JSON shape. ellmer already holds a fully structured `Chat`/`Round`/`Turn`/`Content` object graph in memory, so the parsing problem that project solves doesn't apply here — this PR asks a narrower question: does ellmer's internal model map cleanly onto that shape, and is a native R serializer worth having?
@@ -186,50 +229,6 @@ Internally, this adds shared one-time reauthentication for synchronous, asynchro
 - Focused provider tests: 17 passing
 - Live synchronous, multi-turn, and asynchronous requests with `gpt-5.6-luna`
 ",t-kalinowski,,open,FALSE,2026-07-31T21:07:00Z,2026-08-03T20:57:30Z,https://github.com/tidyverse/ellmer/pull/1067
-1064,Add bedrock-mantle support to chat_aws_bedrock(),"
-AWS now serves Bedrock models from two endpoints. The original `bedrock-runtime` endpoint speaks the Converse API, which is what ellmer has always used. The newer `bedrock-mantle` endpoint speaks the Anthropic Messages and OpenAI Responses APIs instead, and hosts models that Converse can't reach at all — including the GPT-5 family, Grok 4.3, and Claude Mythos. Until now those models were simply unavailable through ellmer.
-
-`chat_aws_bedrock()` gains an `api` argument to choose between them. You rarely need to set it: ellmer picks the API from the model name and falls back to Converse for anything it doesn't recognise, so existing code behaves exactly as before.
-
-## Example
-
-```r
-# Frontier OpenAI models, which only exist on bedrock-mantle
-chat <- chat_aws_bedrock(model = ""openai.gpt-5.6-sol"")
-chat$chat(""What is 1 + 1? Just the number."")
-#> 2
-
-# Claude through the Anthropic Messages API rather than Converse
-chat <- chat_aws_bedrock(model = ""anthropic.claude-haiku-4-5"", api = ""messages"")
-```
-
-Passing a mantle-only model without an `api` used to fail with a bare ""The provided model identifier is invalid"". That error now suggests the fix.
-
-## Design decisions
-
-**The argument names the request format, not the endpoint.** `api` takes `""converse""`, `""messages""`, or `""responses""` rather than `""runtime""` and `""mantle""`, because one mantle endpoint serves three different request formats — naming the endpoint wouldn't say which one to send.
-
-**Chat Completions is deliberately not supported.** Every Bedrock model that speaks it also speaks either Converse or Responses, so it would add no model coverage.
-
-**The model lookup is generated, not hand-written.** `data-raw/prices.R` already fetches litellm's model metadata weekly, and that data records which models live only on mantle. It now also writes `R/provider-aws-api.R`, so the table refreshes on the existing schedule. It's a plain R file rather than binary data in `sysdata.rda` so the weekly diff is reviewable.
-
-**The table only lists models Converse can't serve.** Everything else falls through to Converse. This keeps a data refresh from silently moving a working call onto a different endpoint with different quotas — it can only ever turn a failure into a success. It also means an unfamiliar model id (a custom ARN, a new inference profile) keeps working as it does today rather than being rejected.
-
-## Not included
-
-* Bedrock pricing data is missing for all modern Claude ids, so `token_usage()` reports `NA` for them, including on mantle. That's a pre-existing bug in the same extraction script, tracked in #1063.
-* Claude Mythos is listed as mantle-only in AWS's docs but doesn't appear in our account's model listing, so those two entries are doc-derived and untested.
-
-## Verification
-
-Live-tested against a real AWS account: basic chat, streaming, tool calling, and structured data all work on `openai.gpt-5.6-sol` via `""responses""`, and on `anthropic.claude-haiku-4-5` via `""messages""`.
-
-That testing caught a bug worth flagging for review: mantle has two OpenAI-compatible paths that are disjoint rather than aliases. Newer models are served from `/openai/v1` and older open-weight ones like gpt-oss from `/v1`, and each rejects the other's models. AWS's API compatibility tables don't record this distinction — only the individual model cards mention it — so the first implementation used `/v1` and failed on exactly the models this PR is meant to unlock.
-
-Note that `test-provider-aws.R:229` currently fails. It's unrelated to this PR — it fails identically on `main`, and was previously invisible because it skips without AWS credentials.
-
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
-",hadley,,open,FALSE,2026-07-22T17:51:19Z,2026-07-27T19:14:16Z,https://github.com/tidyverse/ellmer/pull/1064
 1052,feat(Chat): `on_request_start()` and `on_request_end()` hooks,"### What
 Adds two paired `Chat` callbacks fired inside the tool loop, once per model request (whether or not it involves tools):
 - **`on_request_start(turns)`** — fires before each request; receives the complete outgoing request (history + the pending turn) for inspection. Compact mid-loop via `chat$set_turns(compact(chat$get_turns()))`.
