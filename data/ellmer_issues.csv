@@ -1,5 +1,5 @@
 number,title,body,user,labels,state,created_at,updated_at,comments,url,linked_prs
-1109,Send PRs to revdeps affected by moving arguments from Provider to new Model class,"We'll need to rerun revdepchecks once #1098 is merged (deprecating `provider@model`, `provider@params`, and `provider@extra_args` turns most of these from errors into warnings), but an initial list from the 2026-08-26 run:
+1109,Send issues/PRs to revdeps affected by moving arguments from Provider to new Model class,"We'll need to rerun revdepchecks once #1098 is merged (deprecating `provider@model`, `provider@params`, and `provider@extra_args` turns most of these from errors into warnings), but an initial list from the 2026-08-26 run:
 
 - [ ] [querychat](https://github.com/posit-dev/querychat): calls `Chat$new(Provider(...))` without a `model` argument, which is now required. Still errors after #1098.
 - [ ] [btw](https://github.com/posit-dev/btw): reads `chat$get_provider()@model` in tests. Should use `chat$get_model_object()@name`.
@@ -7,7 +7,7 @@ number,title,body,user,labels,state,created_at,updated_at,comments,url,linked_pr
 - [ ] [mini007](https://github.com/feddelegrand7/mini007): reads `provider@model`. Should use `chat$get_model_object()@name`.
 - [ ] [GitAI](https://github.com/r-world-devs/GitAI): passes `model`, `params`, and `extra_args` to `ProviderOpenAI()` in test mocks. Should pass a `Model` to `Chat$new()` instead.
 - [ ] [shidashi](https://github.com/dipterix/shidashi): passes `model = ""unknown""` to `ProviderAny()` in `get_mcp_provider()`. Can just drop the argument.
-",thisisnic,upkeep,open,2026-08-28T14:59:01Z,2026-08-28T15:55:29Z,0,https://github.com/tidyverse/ellmer/issues/1109,
+",thisisnic,upkeep,open,2026-08-28T14:59:01Z,2026-08-29T09:34:11Z,0,https://github.com/tidyverse/ellmer/issues/1109,
 1098,Properly deprecate `Provider@model`,"`Provider@model` was removed rather than deprecated. We should properly deprecate it instead so existing code gets a lifecycle warning rather than an error.
 
 S7 now supports deprecating properties, see https://github.com/RConsortium/S7/pull/731/changes#diff-52f22287badc71ac8c60e1b80950ef68c26dc58fce21847a85d40d640cbacfe9R310",thisisnic,,open,2026-08-17T14:17:24Z,2026-08-17T17:52:10Z,0,https://github.com/tidyverse/ellmer/issues/1098,1107

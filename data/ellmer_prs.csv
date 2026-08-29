@@ -3,7 +3,7 @@ number,title,body,user,labels,state,draft,created_at,updated_at,url
 
 We removed `Provider@model` in #1053 but we need to use a proper deprecation cycle for it so this PR introduces a warning instead of completely removing it immediately.
 
-This feels super ugly, but I'm not sure there's currently a better way to do this?",thisisnic,,open,FALSE,2026-08-26T16:38:38Z,2026-08-28T16:14:52Z,https://github.com/tidyverse/ellmer/pull/1107
+This feels super ugly, but I'm not sure there's currently a better way to do this?",thisisnic,,open,FALSE,2026-08-26T16:38:38Z,2026-08-29T09:47:04Z,https://github.com/tidyverse/ellmer/pull/1107
 1105,forward viewer session token to Connect's LLM gateway,"When chat traffic on Posit Connect goes through Connect's LLM gateway, this forwards the viewer's session token as a `Posit-Connect-User-Session-Token` header so Connect can attribute the call to the viewer. The header is added in `chat_perform()` and `parallel_turns()`. It's only added when running on Connect, and only sent to Connect's own gateway URL.
 
 For now this is specific to shiny sessions running on Connect as it retrieves the user session token from the shiny session via `getDefaultReactiveDomain()`. I didn't attach the header in `batch_chat()` as my understanding is batch jobs, being async and resumed across sessions, wouldn't make sense to run in an individual user's shiny session. Let me know if that doesn't sound right, though.
