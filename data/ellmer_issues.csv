@@ -6,8 +6,8 @@ number,title,body,user,labels,state,created_at,updated_at,comments,url,linked_pr
 - [ ] [vitals](https://github.com/tidyverse/vitals): reads `chat$get_provider()@params$max_tokens`. Should use `chat$get_model_object()@params`.
 - [ ] [mini007](https://github.com/feddelegrand7/mini007): reads `provider@model`. Should use `chat$get_model_object()@name`.
 - [ ] [GitAI](https://github.com/r-world-devs/GitAI): passes `model`, `params`, and `extra_args` to `ProviderOpenAI()` in test mocks. Should pass a `Model` to `Chat$new()` instead.
-- [ ] [shidashi](https://github.com/dipterix/shidashi): passes `model = ""unknown""` to `ProviderAny()` in `get_mcp_provider()`. Can just drop the argument.
-",thisisnic,upkeep,open,2026-08-28T14:59:01Z,2026-08-29T09:34:11Z,0,https://github.com/tidyverse/ellmer/issues/1109,
+- [x] [shidashi](https://github.com/dipterix/shidashi): https://github.com/dipterix/shidashi/issues/7
+",thisisnic,upkeep,open,2026-08-28T14:59:01Z,2026-08-31T10:38:18Z,0,https://github.com/tidyverse/ellmer/issues/1109,
 1098,Properly deprecate `Provider@model`,"`Provider@model` was removed rather than deprecated. We should properly deprecate it instead so existing code gets a lifecycle warning rather than an error.
 
 S7 now supports deprecating properties, see https://github.com/RConsortium/S7/pull/731/changes#diff-52f22287badc71ac8c60e1b80950ef68c26dc58fce21847a85d40d640cbacfe9R310",thisisnic,,open,2026-08-17T14:17:24Z,2026-08-17T17:52:10Z,0,https://github.com/tidyverse/ellmer/issues/1098,1107
@@ -20,7 +20,7 @@ S7 now supports deprecating properties, see https://github.com/RConsortium/S7/pu
 - **Confirmed:** `chat_aws_bedrock()` doesn't stream thinking: `stream_content()` (R/provider-aws.R:344) only emits `ContentText` live; `reasoningContent` deltas are accumulated in `stream_merge_chunks()` but never emitted, so thinking only appears in the completed turn. Inconsistent with the direct Claude provider, which streams `ContentThinking` (R/provider-claude.R:323). Straightforward fix.
 - **Confirmed unverified inheritance:** `chat_posit()` inherits `has_batch_support = TRUE` from `ProviderAnthropic`, so `batch_chat()` will POST to `{gateway}/anthropic/v1/messages/batches` with no verification that the gateway supports that endpoint. chatlas notes the gateway doesn't proxy the beta Files API, so incomplete endpoint coverage is plausible; chatlas appears to have the same inheritance. Needs a live test against the gateway (or confirmation from Posit folks); if unsupported the fix is a one-line override.
 - **Feature gap, not a bug:** `google_upload()` is hardcoded to the Gemini endpoint (R/provider-google-upload.R:31), and this is more than parameterization: Vertex has no Files API equivalent and expects Cloud Storage URIs instead, so Vertex audio/video support is new functionality (e.g. accepting `gs://` URIs). The docs already note it's Gemini specific. Should be split into a separate feature request.
-",thisisnic,bug,open,2026-08-13T14:30:24Z,2026-08-20T06:16:06Z,0,https://github.com/tidyverse/ellmer/issues/1088,
+",thisisnic,bug,open,2026-08-13T14:30:24Z,2026-08-31T10:18:38Z,0,https://github.com/tidyverse/ellmer/issues/1088,
 1085,AWS Bedrock doesn't handle empty thinking correctly,"I think what's happening in the reprex below is that reasoning isn't actually enabled so no reasoning content comes back from the API, leading to the ellmer error. It doesn't bring down the chat, but it shows up in the console and in shinychat.
 
 ``` r
@@ -195,7 +195,7 @@ This would also need to support API key authentication (via `x-goog-api-key head
 * ellmer version: 0.4.1
 * R version: [your R version]
 * Gateway path format: /v1beta1/publishers/google/models/{model}:{method}
-* Auth: x-goog-api-key header with API key",Tazinho,feature,open,2026-07-03T08:20:40Z,2026-08-14T09:38:04Z,1,https://github.com/tidyverse/ellmer/issues/1050,
+* Auth: x-goog-api-key header with API key",Tazinho,feature,open,2026-07-03T08:20:40Z,2026-08-31T10:18:16Z,1,https://github.com/tidyverse/ellmer/issues/1050,
 1040,HuggingFace default model doesn't support function calling or json_schema structured output,"While running package tests today locally, the default HuggingFace model (`meta-llama/llama-3.1-8b-instruct`) fails on two tests due to missing feature support:
 
 **Tool use:**
