@@ -1,13 +1,12 @@
 number,title,body,user,labels,state,draft,created_at,updated_at,url
+1111,Update tests and docs referring to Mantle/Converse,"Fixes #1110 
+
+A change to which endpoint served a particular model led to a failing test; this PR updates tests to use local mocked bindings to prevent this happening again, and also updates the docs so that we're not mentioning particular models only being available on Mantle/Converse, as this changes.",thisisnic,,open,FALSE,2026-09-01T09:19:55Z,2026-09-01T09:20:00Z,https://github.com/tidyverse/ellmer/pull/1111
 1107,Deprecate the model property instead of removing it,"Fixes #1098 
 
 We removed `Provider@model` in #1053 but we need to use a proper deprecation cycle for it so this PR introduces a warning instead of completely removing it immediately.
 
 This feels super ugly, but I'm not sure there's currently a better way to do this?",thisisnic,,open,FALSE,2026-08-26T16:38:38Z,2026-08-29T09:47:04Z,https://github.com/tidyverse/ellmer/pull/1107
-1105,forward viewer session token to Connect's LLM gateway,"When chat traffic on Posit Connect goes through Connect's LLM gateway, this forwards the viewer's session token as a `Posit-Connect-User-Session-Token` header so Connect can attribute the call to the viewer. The header is added in `chat_perform()` and `parallel_turns()`. It's only added when running on Connect, and only sent to Connect's own gateway URL.
-
-For now this is specific to shiny sessions running on Connect as it retrieves the user session token from the shiny session via `getDefaultReactiveDomain()`. I didn't attach the header in `batch_chat()` as my understanding is batch jobs, being async and resumed across sessions, wouldn't make sense to run in an individual user's shiny session. Let me know if that doesn't sound right, though.
-",karawoo,,open,FALSE,2026-08-21T22:06:17Z,2026-08-28T09:22:03Z,https://github.com/tidyverse/ellmer/pull/1105
 1102,feat: stream structured output,"## Why this matters
 `Chat$stream()` and `Chat$stream_async()` can now stream provider-native structured output as it is generated, enabling callers to render JSON-backed artifacts and other structured responses incrementally. This follows the public API and orchestration precedent from [Chatlas PR #262](https://github.com/posit-dev/chatlas/pull/262).
 
@@ -19,11 +18,9 @@ For now this is specific to shiny sessions running on Connect as it retrieves th
 
 ## Verification
 - `Rscript -e 'devtools::test(""."", filter = ""chat"")'` (`614` passing)\n- `air format R/chat.R R/chat-structured.R tests/testthat/test-chat.R`\n- `devtools::document()`",cpsievert,,open,FALSE,2026-08-20T17:07:26Z,2026-08-26T14:22:03Z,https://github.com/tidyverse/ellmer/pull/1102
-1101,Add `content_document_file()` and `content_document_url()`,"Closes #1090
+1101,Add `content_document_file()` and `content_document_url()`,"Closes #1090 - implements `content_document_file()` and `content_document_url()`
 
-TODO:
-- [x] Review code iteratively as generated
-- [ ] Review tests holistically",thisisnic,,open,TRUE,2026-08-20T13:14:26Z,2026-08-28T13:59:09Z,https://github.com/tidyverse/ellmer/pull/1101
+",thisisnic,,open,FALSE,2026-08-20T13:14:26Z,2026-09-01T10:39:40Z,https://github.com/tidyverse/ellmer/pull/1101
 1100,Handle empty thinking for AWS provider,"Fixes #1085 
 
 When AWS Bedrock returns empty thinking, ensure it's an empty string `""""` rather than `NULL`, to prevent errors",thisisnic,,open,FALSE,2026-08-19T11:27:55Z,2026-08-26T13:07:08Z,https://github.com/tidyverse/ellmer/pull/1100

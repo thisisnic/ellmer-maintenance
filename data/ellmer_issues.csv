@@ -1,4 +1,16 @@
 number,title,body,user,labels,state,created_at,updated_at,comments,url,linked_prs
+1110,Bedrock API lookup table can silently lose entries when litellm adds Converse inference profiles,"Summarised by :robot: based on a failing test after the price refresh on main:
+
+The weekly model data refresh (a64f94e6, 2026-08-31) removed `openai.gpt-5.6-luna`, `openai.gpt-5.6-sol`, and `openai.gpt-5.6-terra` from `aws_bedrock_model_apis`. Those models now route to Converse, and `chat_aws_bedrock(model = ""openai.gpt-5.6-sol"")` fails with a 400 asking for an inference profile ID. This is the example in the #1064 docs, and the corresponding test broke too (#1105 works around it by testing `openai.gpt-5.4` instead).
+
+This happened because litellm started listing these models under `bedrock_converse` as `us.openai.gpt-5.6-sol` and `global.openai.gpt-5.6-sol`. The generator in `data-raw/prices.R` only lists models Converse can't serve, so it correctly dropped them. I confirmed against Bedrock that the prefixed IDs work on Converse; the bare ID only works on the Responses API. That's the same situation as Claude models, where Converse needs `us.anthropic.claude-sonnet-5` rather than `anthropic.claude-sonnet-5`.
+
+So the routing is doing what it was designed to do, and I don't think the generator needs changing. What's left is:
+
+- The `chat_aws_bedrock()` docs say Responses is ""the only way to reach the GPT-5 family"", which is no longer true, and the example uses a bare ID that now only works with `api = ""responses""`.
+- A weekly refresh can change routing for an existing model with no signal. It would be worth having the generator warn or print a diff when entries are removed from `aws_bedrock_model_apis`, so this shows up in the refresh rather than in an unrelated PR's CI.
+- Optionally, ellmer could recognise Bedrock's ""retry with an inference profile"" error and suggest adding a region prefix.
+",thisisnic,,open,2026-09-01T08:18:59Z,2026-09-01T08:30:07Z,0,https://github.com/tidyverse/ellmer/issues/1110,1111
 1109,Send issues/PRs to revdeps affected by moving arguments from Provider to new Model class,"We'll need to rerun revdepchecks once #1098 is merged (deprecating `provider@model`, `provider@params`, and `provider@extra_args` turns most of these from errors into warnings), but an initial list from the 2026-08-26 run:
 
 - [ ] [querychat](https://github.com/posit-dev/querychat): calls `Chat$new(Provider(...))` without a `model` argument, which is now required. Still errors after #1098.
