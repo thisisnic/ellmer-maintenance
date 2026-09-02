@@ -1,49 +1,18 @@
 number,title,body,user,labels,state,draft,created_at,updated_at,url
+1115,Don't map `top_k` to `top_logprobs`,"Fixes #1113.
+
+`params(top_k = )` was sent as `top_logprobs`, which is a different setting: it controls how many alternative token probabilities the API returns, not sampling. Users setting `top_k` got either a 400 or no sampling change.
+
+`chat_openai_compatible()` and the providers built on it now pass `top_k` through unchanged, since many compatible backends accept it. `chat_openai()` and `chat_deepseek()` now warn that `top_k` is unsupported, since neither API has it.",thisisnic,,open,FALSE,2026-09-02T06:59:21Z,2026-09-02T07:01:34Z,https://github.com/tidyverse/ellmer/pull/1115
 1111,Update tests and docs referring to Mantle/Converse,"Fixes #1110 
 
 A change to which endpoint served a particular model led to a failing test; this PR updates tests to use local mocked bindings to prevent this happening again, and also updates the docs so that we're not mentioning particular models only being available on Mantle/Converse, as this changes.",thisisnic,,open,FALSE,2026-09-01T09:19:55Z,2026-09-01T09:20:00Z,https://github.com/tidyverse/ellmer/pull/1111
-1107,Deprecate the model property instead of removing it,"Fixes #1098 
-
-We removed `Provider@model` in #1053 but we need to use a proper deprecation cycle for it so this PR introduces a warning instead of completely removing it immediately.
-
-This feels super ugly, but I'm not sure there's currently a better way to do this?",thisisnic,,open,FALSE,2026-08-26T16:38:38Z,2026-08-29T09:47:04Z,https://github.com/tidyverse/ellmer/pull/1107
-1102,feat: stream structured output,"## Why this matters
-`Chat$stream()` and `Chat$stream_async()` can now stream provider-native structured output as it is generated, enabling callers to render JSON-backed artifacts and other structured responses incrementally. This follows the public API and orchestration precedent from [Chatlas PR #262](https://github.com/posit-dev/chatlas/pull/262).
-
-## What changes
-- Add `type` support to synchronous and asynchronous streaming.
-- Preserve raw JSON fragments in text mode and `Content` chunks in content mode, while saving the completed response as `ContentJson`.
-- Suppress registered tools for structured requests and reject provider/model/type combinations that require tool-based structured output.
-- Cover OpenAI root-schema wrapping, Anthropic and Bedrock fallback rejection, tool behavior, and streaming modes.
-
-## Verification
-- `Rscript -e 'devtools::test(""."", filter = ""chat"")'` (`614` passing)\n- `air format R/chat.R R/chat-structured.R tests/testthat/test-chat.R`\n- `devtools::document()`",cpsievert,,open,FALSE,2026-08-20T17:07:26Z,2026-08-26T14:22:03Z,https://github.com/tidyverse/ellmer/pull/1102
 1101,Add `content_document_file()` and `content_document_url()`,"Closes #1090 - implements `content_document_file()` and `content_document_url()`
 
-",thisisnic,,open,FALSE,2026-08-20T13:14:26Z,2026-09-01T10:39:40Z,https://github.com/tidyverse/ellmer/pull/1101
-1100,Handle empty thinking for AWS provider,"Fixes #1085 
+",thisisnic,,open,FALSE,2026-08-20T13:14:26Z,2026-09-01T21:15:44Z,https://github.com/tidyverse/ellmer/pull/1101
+1095,Implement provider files API,"Fixes #1091.
 
-When AWS Bedrock returns empty thinking, ensure it's an empty string `""""` rather than `NULL`, to prevent errors",thisisnic,,open,FALSE,2026-08-19T11:27:55Z,2026-08-26T13:07:08Z,https://github.com/tidyverse/ellmer/pull/1100
-1099,Handle empty responses in AWS and Claude,"Fixes #1070
-
-`claude-sonnet-5` sometimes returns a completely empty response (no content blocks). This broke things in two ways:
-
-- `chat_anthropic()` errored when constructing the turn from the empty response.
-- `chat_aws_bedrock()` sent the empty turn back as part of the conversation history on the next request, and Bedrock rejects empty messages with HTTP 400.
-
-I checked whether the existing #376 workaround (replacing whitespace-only text with `[empty string]`) could be removed but it can't: both APIs still reject whitespace-only text and this is a different case, where there's no text at all.
-
-The fix that :robot: came up with is that when an assistant turn has no content, both providers now send a single `[empty string]` text block in its place. I had :robot: try dropping the turn entirely (which is what `chat_anthropic()` did before, from #711), but that leaves two user messages in a row and the model tends to treat them as one, so the earlier instruction carries over into the later question. With the placeholder, the model answers the follow-up question correctly most of the time. I verified the #711 tool-calling scenario still works on both providers.
-",thisisnic,,open,FALSE,2026-08-19T11:09:27Z,2026-08-26T13:08:43Z,https://github.com/tidyverse/ellmer/pull/1099
-1095,Implement provider files API,"Fixes #1091
-
-TODO:
-- [x] Review AI generated code as it's being generated
-- [ ] Review code as a whole once it's all done
-- [ ] actually test out code to see it working
-- [ ] fully document all design decisions in PR description
-
-Mirrors chatlas's provider files API (posit-dev/chatlas#334). Today `content_pdf_file()` and `content_image_file()` re-send a file's bytes on every turn; this PR lets you upload a file to the provider once and reference it by id thereafter:
+Upload a file to the provider once and reference it by id, instead of re-sending its bytes on every turn:
 
 ```r
 chat <- chat_anthropic()
@@ -52,37 +21,20 @@ report <- chat$file_upload(""quarterly-report.pdf"")
 chat$chat(report, ""Summarize the key findings."")
 chat$chat(""Now list the risks."")   # no re-upload
 
-chat$file_list()                   # data frame of hosted files
-chat$file_get(report)              # metadata as a named list
+chat$file_list()
+chat$file_get(report)
 chat$file_delete(report)
 ```
 
-## What's included
+Five experimental `Chat` methods (`$file_upload()`, `$file_list()`, `$file_get()`, `$file_download()`, `$file_delete()`) wrapping internal S7 generics that dispatch on provider. Supported for `chat_openai()`, `chat_anthropic()`, and `chat_google_gemini()`; other providers error. `ContentUploaded` is exported and gains `provider` and `extra`.
 
-* Five experimental `Chat` methods (`$file_upload()`, `$file_list()`, `$file_get()`, `$file_download()`, `$file_delete()`), each wrapping an internal S7 generic that dispatches on provider (the same pattern as `$token_count()` / `count_tokens()`). Supported for `chat_openai()` (Responses API), `chat_anthropic()`, and `chat_google_gemini()`; every other provider gets a clear `not_implemented` error. `ProviderPositAnthropic` explicitly opts back out of what it would inherit from `ProviderAnthropic`, and Gemini-on-Vertex is caught with a runtime base-URL check (same class serves both) that points users at a `gs://` reference instead.
-* `claude_file_upload()`/`_list`/`_get`/`_download`/`_delete()` and `google_upload()` are soft-deprecated wrappers over the new methods, with no duplicated HTTP logic. This unifies what were previously two disconnected provider-specific experiments plus internal OpenAI batch plumbing.
-* `chat_anthropic()` now adds the `files-api-2025-04-14` beta header automatically whenever a request (chat, token counting, or batch) references an uploaded file, so users no longer need to pass `beta_headers` by hand.
-* `ContentUploaded` is exported and gains `provider` and `extra` properties (appended after the released ones, so positional construction and record/replay of old chats keep working).
-* Bug fixes along the way: Anthropic's `as_json()` for uploaded files silently produced an invalid block for unrecognized MIME types (missing `switch()` default) and was missing `...`; `claude_file_list()` silently returned only the first page (now paginates); RFC3339 timestamps were parsed with bare `as.POSIXct()`, which drops the time component and uses the local timezone (all file timestamps now parse explicitly and display in UTC across providers).
+Also fixes bugs in the existing code: Anthropic's `container_upload` block had the wrong shape, unrecognized MIME types produced an invalid block, `claude_file_list()` only returned the first page, and timestamps were parsed with bare `as.POSIXct()`.
 
-## Design decisions to review
+## Things to review
 
-* **Chat R6 methods rather than standalone functions.** chatlas uses a `chat.files.upload()` accessor; R6 has no accessor idiom, so these are flat methods (`$file_upload()`). We also considered standalone `file_upload(chat, path)` functions, but `batch_chat()` is standalone only because it clones the chat as a template, `$token_count()` is the closer precedent, and ellmer has no provider-account abstraction for file state to hang off. Pairing rule 7 (idioms diverge where they must) covers the divergence from chatlas.
-* **Deprecating the old functions** is a proposal, not a settled fact; happy to keep them indefinitely instead. `claude_file_get()` keeps its released contract (returns a `ContentUploaded`) while deprecated; `claude_file_list()` inherits the new normalized columns (`size` -> `size_bytes`, POSIXct `created_at`, new `expires_at`/`downloadable`).
-* **Return types**: `file_list()` returns a base data frame with normalized columns first (`id`, `filename`, `mime_type`, `size_bytes`, `created_at`, `expires_at`) and provider extras after; `file_get()` returns a named list. No exported `FileMetadata` class (chatlas has one; a data frame is the R idiom, cf. `models_list()`).
-* **Field-name divergence from chatlas**: ellmer's released `ContentUploaded@uri` stays (chatlas calls it `id`). Renaming would break saved chats.
-* **No cross-provider misuse check**: chatlas errors when a file uploaded to provider X is referenced from provider Y; ellmer deliberately omits this and lets the provider's own API error surface. Worth flagging this, the `uri`/`id` naming, and ellmer's richer Anthropic MIME mapping (csv/json/xlsx/xml serialize as `container_upload`; chatlas only does image/document) to the chatlas maintainers per the pairing conventions.
-
-## Notes
-
-* `$file_download()` only works for model-generated/batch files; all three providers refuse to serve back user uploads (documented, and asserted in the lifecycle tests).
-* Gemini: files expire after 48h; upload blocks until processing completes so the returned reference is always usable.
-* Uploaded OpenAI documents (not images) can also be referenced from `chat_openai_compatible()` against the Chat Completions API.
-* Testing: a shared `test_file_lifecycle()` helper runs the full upload/chat/list/get/download-fails/delete cycle against all three providers with new cassettes (`openai-files`, `anthropic-files`, `google-files`); the old wrapper tests replay their existing cassettes through the new implementation, confirming identical requests.
-",thisisnic,,open,TRUE,2026-08-15T11:34:26Z,2026-08-15T11:40:43Z,https://github.com/tidyverse/ellmer/pull/1095
-1094,Update huggingface default model,"Fixes #1040 
-
-Tests were failing locally; updated the model used as both default and in tests to one with more capabilities.",thisisnic,,open,FALSE,2026-08-15T08:20:33Z,2026-08-26T13:09:39Z,https://github.com/tidyverse/ellmer/pull/1094
+* **`claude_file_*()` and `google_upload()` are superseded, not deprecated.** They're now thin wrappers over the new generics and keep working without warnings, since they're the only way to manage files without first building a chat (cf. `models_*()`). Happy to deprecate or remove instead.
+* **Anthropic's Files API went GA on 2026-08-19**, after this branch started. This PR targets the GA API (no beta header, `next_page` pagination, `expires_at` populated).
+",thisisnic,,open,FALSE,2026-08-15T11:34:26Z,2026-09-02T07:55:39Z,https://github.com/tidyverse/ellmer/pull/1095
 1089,Report the model's context window in `models_*()` and on `Chat`,"Most providers publish a model's context window in a response `models_list()` already parses and then discards. This adds a `context_window` column to the `models_*()` data frames, and `Chat$get_context_window()` to pair with `$get_tokens()`.
 
 | Provider | Field read |
@@ -147,18 +99,6 @@ Internally, this adds shared one-time reauthentication for synchronous, asynchro
 - Focused provider tests: 17 passing
 - Live synchronous, multi-turn, and asynchronous requests with `gpt-5.6-luna`
 ",t-kalinowski,,open,FALSE,2026-07-31T21:07:00Z,2026-08-03T20:57:30Z,https://github.com/tidyverse/ellmer/pull/1067
-1052,feat(Chat): `on_request_start()` and `on_request_end()` hooks,"### What
-Adds two paired `Chat` callbacks fired inside the tool loop, once per model request (whether or not it involves tools):
-- **`on_request_start(turns)`** — fires before each request; receives the complete outgoing request (history + the pending turn) for inspection. Compact mid-loop via `chat$set_turns(compact(chat$get_turns()))`.
-- **`on_request_end(turn)`** — fires after each response, before its tool calls run; receives the assistant turn (an `AssistantPartialTurn` if the request was cancelled). Useful for latency/cost tracking.
-
-Both are observation-only (like `on_tool_request`/`on_tool_result`); history is rewritten through the existing public `set_turns()` / `get_turns()`.
-
-### Why
-Addresses #1051 — there was no hook firing *inside* the tool loop, once per request, independent of tools (needed for mid-loop context compaction).
-
-### Implementation
-Two `CallbackManager`s registered in `initialize()`, invoked at the top of the `while` loop and after `last_turn()` in both `chat_impl` / `chat_impl_async`. Tests cover the `set_turns()` rewrite contract and the async loop; NEWS + docs updated. Supersedes the original single `on_turn_start()` per @gadenbuie's review.",kaipingyang,,open,FALSE,2026-07-04T06:42:12Z,2026-08-05T13:44:35Z,https://github.com/tidyverse/ellmer/pull/1052
 1023,feat: Add tool_context() for tool-calling context,"Closes #871
 
 ## Summary
@@ -207,7 +147,7 @@ report_tool <- tool(
 chat <- chat_openai()
 chat\$register_tool(report_tool)
 chat\$chat(""Run the sales report."")
-\`\`\`",gadenbuie,,open,FALSE,2026-06-16T20:18:29Z,2026-08-05T17:04:19Z,https://github.com/tidyverse/ellmer/pull/1023
+\`\`\`",gadenbuie,,open,FALSE,2026-06-16T20:18:29Z,2026-09-01T17:57:02Z,https://github.com/tidyverse/ellmer/pull/1023
 991,Add `mcp_connector()` for provider-hosted MCP server connections,"Closes #985 (supersedes).
 
 ## Summary

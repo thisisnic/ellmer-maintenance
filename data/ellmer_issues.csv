@@ -1,4 +1,110 @@
 number,title,body,user,labels,state,created_at,updated_at,comments,url,linked_prs
+1113,params(top_k=) is sent as top_logprobs for OpenAI-compatible providers,"## Summary
+
+For OpenAI-compatible providers, `params(top_k = )` is sent on the wire as `top_logprobs`.
+Those are unrelated settings — `top_k` is a sampling cutoff, `top_logprobs` asks the API to
+return the *n* most likely alternatives per token — so a user setting `top_k` gets no sampling
+change, and either an error or silence depending on the value. I may be missing the rationale,
+so this is a question rather than a bug report.
+
+The mapping is in `chat_params()` for `ProviderOpenAICompatible` (ellmer 0.4.2):
+
+```r
+standardise_params(params, c(frequency_penalty = ""frequency_penalty"",
+                             top_logprobs = ""top_k"", top_p = ""top_p""))
+```
+
+## Reproducible
+
+Against Alibaba Model Studio's OpenAI-compatible endpoint, which serves Qwen. Qwen's
+documented recommendation for thinking mode is `temperature = 0.6, top_p = 0.95, top_k = 20`.
+
+```r
+library(ellmer)
+ch <- chat_openai_compatible(
+  base_url = ""https://dashscope-intl.aliyuncs.com/compatible-mode/v1"",
+  credentials = function() Sys.getenv(""DASHSCOPE_API_KEY""),
+  model = ""qwen-flash"",
+  params = params(temperature = 0.6, top_p = 0.95, top_k = 20)
+)
+ch$chat(""Say hi."")
+#> Error: HTTP 400 Bad Request.
+```
+
+The response body names the field actually sent:
+
+```json
+{""error"":{""message"":""<400> InternalError.Algo.InvalidParameter: Range of top_logprobs should be [0, 5]"",
+          ""type"":""invalid_request_error"",""code"":""invalid_parameter_error""}}
+```
+
+The quieter case is the one that concerns me. `top_logprobs` is valid in `[0, 5]`, so a `top_k`
+in that range is accepted and the sampling setting is silently discarded:
+
+```r
+ch <- chat_openai_compatible(..., params = params(temperature = 0.6, top_p = 0.95, top_k = 3))
+ch$chat(""Say hi in three words."")
+#> [1] ""Hello! How can I help you today?""    # accepted; top_k never applied
+```
+
+The user believes they have set top-k sampling. They have requested three log-probabilities
+per token, and the model sampled with whatever default the provider uses.
+
+## Question
+
+Is this deliberate — an approximation on the grounds that the OpenAI wire format has no `top_k`
+and `top_logprobs` is the nearest-named field? If so it would be worth documenting under
+`?params`, since the two are not substitutes and `top_k` is a standard, documented setting for
+several models served over OpenAI-compatible endpoints (Qwen, and others on the same gateways).
+
+If not, a couple of directions that would each fix the silent case:
+
+- Drop `top_k` from the OpenAI-compatible mapping and warn that it is unsupported, so callers
+  put it in `api_args` where it reaches the body intact.
+- Pass it through as `top_k`, which several OpenAI-compatible gateways accept even though
+  OpenAI itself does not.
+
+The workaround is straightforward once known — keep `temperature` and `top_p` in `params()`
+and put `top_k` in `api_args` — but it is not discoverable from the error, which names a field
+the user never mentioned.
+
+## Session info
+
+ellmer 0.4.2, R 4.6.1, macOS. Found while adding OpenAI-compatible provider support to
+[quallmer](https://github.com/quallmer/quallmer) (quallmer#134).
+",kbenoit,bug,open,2026-09-02T02:39:05Z,2026-09-02T07:01:17Z,1,https://github.com/tidyverse/ellmer/issues/1113,1115
+1112,Release ellmer 0.5.0,"Prepare for release:
+
+* [ ] `git pull`
+* [ ] [Close v0.5.0 milestone](../milestone/8)
+* [x] Check [current CRAN check results](https://cran.rstudio.org/web/checks/check_results_ellmer.html)
+* [ ] [Advance deprecations](https://lifecycle.r-lib.org/articles/communicate.html#gradual-deprecation), if needed
+* [ ] [Polish NEWS](https://style.tidyverse.org/news.html#news-release)
+* [ ] `urlchecker::url_check()`
+* [ ] `devtools::build_readme()`
+* [ ] `devtools::check(remote = TRUE, manual = TRUE)`
+* [ ] `devtools::check_win_devel()`
+* [ ] `revdepcheck::cloud_check()`
+* [ ] Update `cran-comments.md`
+* [ ] `git push`
+* [ ] Draft blog post
+
+Submit to CRAN:
+
+* [ ] `usethis::use_version('minor')`
+* [ ] `devtools::submit_cran()`
+* [ ] Approve email
+
+Wait for CRAN...
+
+* [ ] Accepted :tada:
+* [ ] Finish & publish blog post
+* [ ] Add link to blog post in pkgdown news menu
+* [ ] `usethis::use_github_release()`
+* [ ] `usethis::use_dev_version(push = TRUE)`
+* [ ] Share on social media
+* [ ] Slack link to blog post, bluesky, and linkedin in #open-source-comms
+",thisisnic,,open,2026-09-01T15:44:41Z,2026-09-01T15:45:03Z,0,https://github.com/tidyverse/ellmer/issues/1112,
 1110,Bedrock API lookup table can silently lose entries when litellm adds Converse inference profiles,"Summarised by :robot: based on a failing test after the price refresh on main:
 
 The weekly model data refresh (a64f94e6, 2026-08-31) removed `openai.gpt-5.6-luna`, `openai.gpt-5.6-sol`, and `openai.gpt-5.6-terra` from `aws_bedrock_model_apis`. Those models now route to Converse, and `chat_aws_bedrock(model = ""openai.gpt-5.6-sol"")` fails with a 400 asking for an inference profile ID. This is the example in the #1064 docs, and the corresponding test broke too (#1105 works around it by testing `openai.gpt-5.4` instead).
@@ -20,9 +126,6 @@ So the routing is doing what it was designed to do, and I don't think the genera
 - [ ] [GitAI](https://github.com/r-world-devs/GitAI): passes `model`, `params`, and `extra_args` to `ProviderOpenAI()` in test mocks. Should pass a `Model` to `Chat$new()` instead.
 - [x] [shidashi](https://github.com/dipterix/shidashi): https://github.com/dipterix/shidashi/issues/7
 ",thisisnic,upkeep,open,2026-08-28T14:59:01Z,2026-08-31T10:38:18Z,0,https://github.com/tidyverse/ellmer/issues/1109,
-1098,Properly deprecate `Provider@model`,"`Provider@model` was removed rather than deprecated. We should properly deprecate it instead so existing code gets a lifecycle warning rather than an error.
-
-S7 now supports deprecating properties, see https://github.com/RConsortium/S7/pull/731/changes#diff-52f22287badc71ac8c60e1b80950ef68c26dc58fce21847a85d40d640cbacfe9R310",thisisnic,,open,2026-08-17T14:17:24Z,2026-08-17T17:52:10Z,0,https://github.com/tidyverse/ellmer/issues/1098,1107
 1091,Implement provider files API,See https://github.com/posit-dev/chatlas/pull/334 for the equivalent in Chatlas,thisisnic,feature,open,2026-08-13T14:45:36Z,2026-08-14T09:36:56Z,0,https://github.com/tidyverse/ellmer/issues/1091,1095
 1090,Add `content_document_file()` and `content_document_url()` for text/CSV/code file inputs,See https://github.com/posit-dev/chatlas/pull/345 for the equivalent in Chatlas,thisisnic,feature,open,2026-08-13T14:43:09Z,2026-08-14T09:37:03Z,0,https://github.com/tidyverse/ellmer/issues/1090,1101
 1088,Assorted provider gaps found while auditing feature support,"While auditing feature support across the official providers, 🤖 found a few apparent bugs. Status after investigating each:
@@ -33,53 +136,6 @@ S7 now supports deprecating properties, see https://github.com/RConsortium/S7/pu
 - **Confirmed unverified inheritance:** `chat_posit()` inherits `has_batch_support = TRUE` from `ProviderAnthropic`, so `batch_chat()` will POST to `{gateway}/anthropic/v1/messages/batches` with no verification that the gateway supports that endpoint. chatlas notes the gateway doesn't proxy the beta Files API, so incomplete endpoint coverage is plausible; chatlas appears to have the same inheritance. Needs a live test against the gateway (or confirmation from Posit folks); if unsupported the fix is a one-line override.
 - **Feature gap, not a bug:** `google_upload()` is hardcoded to the Gemini endpoint (R/provider-google-upload.R:31), and this is more than parameterization: Vertex has no Files API equivalent and expects Cloud Storage URIs instead, so Vertex audio/video support is new functionality (e.g. accepting `gs://` URIs). The docs already note it's Gemini specific. Should be split into a separate feature request.
 ",thisisnic,bug,open,2026-08-13T14:30:24Z,2026-08-31T10:18:38Z,0,https://github.com/tidyverse/ellmer/issues/1088,
-1085,AWS Bedrock doesn't handle empty thinking correctly,"I think what's happening in the reprex below is that reasoning isn't actually enabled so no reasoning content comes back from the API, leading to the ellmer error. It doesn't bring down the chat, but it shows up in the console and in shinychat.
-
-``` r
-library(ellmer)
-chat <- chat_aws_bedrock(model = ""us.anthropic.claude-sonnet-5"")
-chat$chat(""Think for a bit and then tell me a good knock-knock joke"")
-#> Knock knock.
-#> 
-#> Who's there?
-#> 
-#> Interrupting cow.
-#> 
-#> Interrupting cow wh—
-#> Error:
-#> ! <ellmer::ContentThinking> object properties are invalid:
-#> - @thinking must be <character>, not <NULL>
-
-chat
-#> <Chat AWS/Bedrock/us.anthropic.claude-sonnet-5 turns=2 input=0 output=0 cost=$0.00>
-#> ── user ────────────────────────────────────────────────────────────────────────
-#> Think for a bit and then tell me a good knock-knock joke
-#> ── assistant [interrupted] ─────────────────────────────────────────────────────
-#> Knock knock.
-#> 
-#> Who's there?
-#> 
-#> Interrupting cow.
-#> 
-#> Interrupting cow wh—
-#> 
-#> **MOO!**
-
-chat$chat(""Tell me another one, but think harder this time"")
-#> Knock knock.
-#> 
-#> Who's there?
-#> 
-#> Nobel.
-#> 
-#> Nobel who?
-#> 
-#> No bell — that's why I
-#> Error:
-#> ! <ellmer::ContentThinking> object properties are invalid:
-#> - @thinking must be <character>, not <NULL>
-```
-",gadenbuie,bug,open,2026-08-12T21:12:10Z,2026-08-14T09:37:25Z,0,https://github.com/tidyverse/ellmer/issues/1085,1100
 1083,Model metadata omits the context window,"The `models_*()` functions don't report how much context a model accepts, and nothing on `Chat` exposes it either. A caller can see how many tokens a conversation has accumulated, through `get_tokens()`, but not how close that is to the limit — leaving a hardcoded per-model table that goes stale with every release, or per-provider HTTP calls, as the only ways to find out. That is the work ellmer otherwise saves callers from doing.
 
 Most providers already return it, in a response ellmer parses and then discards. The table below is a brief overview gathered from their docs, so it may well have shifted by the time anyone acts on it.
@@ -107,60 +163,6 @@ Happy to send a PR if you'd like one.
 
 [One example in commons](https://github.com/posit-dev/commons/issues/14).
 ",simonpcouch,feature,open,2026-08-03T14:29:04Z,2026-08-09T18:47:14Z,0,https://github.com/tidyverse/ellmer/issues/1074,
-1070,chat_aws_bedrock() fails after empty response from claude-sonnet-5,"With `claude-sonnet-5` on Bedrock, asking the model to respond with only blank lines can produce an assistant turn with an empty thinking block and no text content. The empty thinking block is dropped by `as_json(ProviderAWSBedrock, ContentThinking)` (returns `NULL` when thinking is `""""`), and `compact()` strips it, leaving `content = list()`. On the next turn, Bedrock rejects the empty content array with HTTP 400.
-
-The fix from #376 / PR #393 handles whitespace-only `ContentText`, but this is a different case: the content array is completely empty because the only content block (empty thinking) was dropped.
-
-## Reprex
-
-```r
-library(ellmer)
-chat <- chat_aws_bedrock(model = ""us.anthropic.claude-sonnet-5"")
-chat$chat(""Respond with only two blank lines"")
-chat$chat(""What's 1+1? Just give me the number"")
-#> Error in `req_perform()`: HTTP 400 Bad Request.
-#> The content field in the Message object at messages.1 is empty.
-#> Add a ContentBlock object to the content field and try again.
-```
-
-The same issue likely applies to `chat_anthropic()` since its `as_json(ProviderClaude, ContentThinking)` has the same `return()` for empty thinking.
-
-Found while working on #1066 (bumping default models to `claude-sonnet-5`).",thisisnic,bug,open,2026-08-02T18:16:05Z,2026-08-14T09:37:49Z,1,https://github.com/tidyverse/ellmer/issues/1070,1099
-1051,Feature request: callback before each model request in the tool loop (for mid-loop context compaction),"### Summary
-
-`Chat$chat()` / `Chat$chat_async()` (and `stream()/stream_async()`) run the tool loop internally (`chat_impl` / `chat_impl_async` in `R/chat.R`). There is currently **no callback that fires before each model request inside that loop**, so an application cannot inspect or rewrite the conversation **between tool rounds** within a single `chat()` call.
-
-The existing `on_tool_request(callback(request))` and `on_tool_result(callback(result))` hooks are tool-scoped: they receive only the request/result, don't fire when a turn has no tools (or before the first request), and there is no documented/safe contract for mutating `private$.turns` from them.
-
-### Use case: mid-loop context compaction
-
-I'm building an R coding agent on ellmer. To stay within the model's context window I need **automatic compaction between tool rounds** — exactly what Claude Code does by calling `autoCompactIfNeeded()` at the top of each iteration of its query loop. Because the tool loop is internal to ellmer, I can only compact **before** handing off to `chat()` (i.e. at user-turn boundaries). A single turn that triggers many large tool outputs (e.g. reading several big files) can blow the context limit mid-loop, with no opportunity to compact until the turn ends.
-
-### Where it would hook
-
-In `chat_impl` / `chat_impl_async`, at the top of `while (!is.null(user_turn)) { ... }`, before `private$submit_turns(user_turn, ...)`.
-
-### Proposed API (sketch — happy to follow your preferred shape)
-
-A callback fired before each model request in the loop, mirroring the existing `CallbackManager` pattern:
-
-```r
-# fires before each submit_turns() inside the tool loop
-cancel <- chat$on_turn_start(function() {
-  # app can inspect/rewrite history here, e.g. compact:
-  if (my_should_compact(chat)) chat$set_turns(my_compact(chat$get_turns()))
-})
-```
-
-Naming/signature is entirely yours to decide (`on_turn_start` / `on_request` / a `turn_transform` that returns turns, etc.). The key need is a **safe, documented point to rewrite conversation history between tool rounds**.
-
-### Alternatives considered
-
-- `on_tool_result` + a captured `chat` to call `set_turns()`: works only by luck, is undocumented, doesn't fire without tools, and risks orphaning `tool_use`/`tool_result` pairs.
-- Re-implementing the tool loop outside ellmer using lower-level primitives: `submit_turns()` is private, so there's no clean public way to drive one model turn + tools manually.
-
-I'd be glad to send a PR if you're open to the feature — just let me know the API shape you'd prefer.
-",kaipingyang,feature,open,2026-07-04T06:37:15Z,2026-07-09T13:08:00Z,2,https://github.com/tidyverse/ellmer/issues/1051,
 1050,Feature Request: Allow custom `base_url` in `chat_google_vertex()` for API gateway proxies,"Note: Steps so far were run locally and final issue was created with assistance of Opus 4.6
 
 ## Problem
@@ -208,23 +210,6 @@ This would also need to support API key authentication (via `x-goog-api-key head
 * R version: [your R version]
 * Gateway path format: /v1beta1/publishers/google/models/{model}:{method}
 * Auth: x-goog-api-key header with API key",Tazinho,feature,open,2026-07-03T08:20:40Z,2026-08-31T10:18:16Z,1,https://github.com/tidyverse/ellmer/issues/1050,
-1040,HuggingFace default model doesn't support function calling or json_schema structured output,"While running package tests today locally, the default HuggingFace model (`meta-llama/llama-3.1-8b-instruct`) fails on two tests due to missing feature support:
-
-**Tool use:**
-```
-HTTP 400 Bad Request.
-model features function calling not support
-```
-
-**Structured output:**
-```
-HTTP 400 Bad Request.
-Model 'meta-llama/llama-3.1-8b-instruct' does not support 'json_schema' response format. Supported formats: json_object.
-```
-
-We should either:
-- Skip these tests for HuggingFace, or
-- Use a model that supports these features for the relevant tests",thisisnic,bug,open,2026-06-28T12:12:21Z,2026-08-14T09:38:57Z,1,https://github.com/tidyverse/ellmer/issues/1040,1094
 1017,"Tool definitions don't accept valid special characters for function names or arguments, such as ""ñ""","R functions that contain characters such as ""ñ"" (very common Spanish letter that produces a common problem in data science, as its used in the word _año_, meaning _year_) are completely valid in R, but they cause problems with `{ellmer}`
 
 Lets create a basic function that has `ñ` in its name and in its argument:
