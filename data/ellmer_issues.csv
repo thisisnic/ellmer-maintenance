@@ -1,98 +1,252 @@
 number,title,body,user,labels,state,created_at,updated_at,comments,url,linked_prs
-1113,params(top_k=) is sent as top_logprobs for OpenAI-compatible providers,"## Summary
+1128,"Support `defer_loading` and tool search, now shipped by both Anthropic and OpenAI","An app with a large tool set pays for every tool schema on every request, and `ellmer` offers no way to avoid it short of registering and unregistering tools mid-conversation. That workaround is worse than the problem: tools render ahead of `system` and `messages`, so changing the tool set invalidates the prompt cache for the entire request — the manifest, the system prompt and every turn of history.
 
-For OpenAI-compatible providers, `params(top_k = )` is sent on the wire as `top_logprobs`.
-Those are unrelated settings — `top_k` is a sampling cutoff, `top_logprobs` asks the API to
-return the *n* most likely alternatives per token — so a user setting `top_k` gets no sampling
-change, and either an error or silence depending on the value. I may be missing the rationale,
-so this is a question rather than a bug report.
+## Both providers now solve this, and agree on the spelling
 
-The mapping is in `chat_params()` for `ProviderOpenAICompatible` (ellmer 0.4.2):
+Anthropic and OpenAI have each shipped deferred tool loading, using the same field name. A tool marked `defer_loading: true` is declared but its schema is not loaded into context; a search tool loads the ones the model actually needs.
 
-```r
-standardise_params(params, c(frequency_penalty = ""frequency_penalty"",
-                             top_logprobs = ""top_k"", top_p = ""top_p""))
+- Anthropic takes `defer_loading` as an optional property on a tool definition, alongside `cache_control`, `strict` and `allowed_callers`, paired with `tool_search_tool_regex_20251119` or the BM25 variant.
+- OpenAI takes the same `defer_loading: true` flag with `{""type"": ""tool_search""}` in the tools array, on the Responses API, for `gpt-5.4` and later.
+
+Both place the loaded definitions at the end of the context specifically to protect the cache. From Azure's write-up of the OpenAI feature: *""Both hosted and client-executed tool search load tools at the end of the model's context window. This placement preserves the model's cache between requests.""* Its troubleshooting table names the failure this issue is about — *""Prompt caching stops at a tool update … Keep prior items stable and append newly loaded tools at the end of the context.""*
+
+Google has no equivalent, so this covers two of the three major providers rather than all of them.
+
+## Most of the machinery is already there
+
+The search tool itself needs nothing new conceptually. A `ToolBuiltIn` already carries a raw `json` slot that the provider methods pass straight through — `as_json()` for `ToolBuiltIn` on Anthropic is just `x@json` — and `claude_tool_web_search()`, `openai_tool_web_search()` and `google_tool_web_fetch()` are that pattern in use. A `claude_tool_search()` / `openai_tool_search()` pair would be one more entry in the family.
+
+The missing half is the flag on ordinary tools. A `ToolDef` serialises to exactly `list(name, description, input_schema)` for Anthropic, with no channel for an extra field. The `annotations` slot exists but is not rendered, and `api_args` cannot reach it either: `modify_list()` is `utils::modifyList()`, so a `tools` key already set by `chat_body()` is merged rather than replaced, and the recursion over two unnamed lists is a silent no-op.
+
+## Why this is safe to expose in a cross-provider API
+
+A deferred tool is still declared and still callable — the flag governs only whether its schema is loaded up front. A provider that does not support deferral can ignore the flag and behave exactly as it does today, losing the token saving and nothing else. The abstraction therefore degrades honestly rather than becoming a no-op that quietly means something different per provider, which is the usual reason to keep a vendor feature out of a shared API.
+
+## Proposed shape
+
+A `defer_loading` argument on `tool()`, rendered by the providers that understand it and dropped by those that do not, plus `claude_tool_search()` and `openai_tool_search()` alongside the existing built-in tool constructors.
+
+If a per-tool passthrough is preferred over a named argument, that would also reach `cache_control`, `strict` and `allowed_callers`, which are unreachable today for the same reason — `ToolBuiltIn@json` is the precedent for what that would look like on a `ToolDef`.
+
+One implementation note: tool search introduces `tool_search_call` and `tool_search_output` items in the Responses output, so the turn parser needs to tolerate them. That overlaps with #928.
+
+Happy to open a PR if this is a direction you would take.
+",nbenn,,open,2026-09-03T08:53:23Z,2026-09-03T08:53:23Z,0,https://github.com/tidyverse/ellmer/issues/1128,
+1127,Make date format prompt unambiguous in `test_tools_simple()`,"Running the live Databricks tests with the new default model (`databricks-claude-sonnet-5`), the ""supports tool calling"" test failed because the model reformatted the tool result ""2024-01-01"" as ""2024-1-1"" in its reply. The `test_tools_simple()` helper in `tests/testthat/helper-provider.R` asks for the date ""in Y-M-D format"", which doesn't say anything about zero padding, but then uses `expect_match(result, ""2024-01-01"")`. Asking for ""YYYY-MM-DD format"" instead should make the expected output unambiguous without loosening the check.",thisisnic,upkeep,open,2026-09-03T08:01:11Z,2026-09-03T09:44:10Z,0,https://github.com/tidyverse/ellmer/issues/1127,
+1126,"`parallel_chat_structured()` returns an ordinary row, with no `.error`, for a response cut off at `max_tokens`","## Summary
+
+`chat_structured()` raises an error when a response is truncated (#867, since 0.4.2), via `check_finish_reason()`. `parallel_chat_structured()` and `batch_chat_structured()` do not. `parallel_turns()` builds the turns and `multi_convert()` converts them without looking at `turn@finish_reason`, so a response that hit `max_tokens` comes back as an ordinary row: `NA` scalars, or a zero-row tibble for an array property, no `.error`, and the request billed in full. The turns are then discarded, so the caller cannot recover the finish reason afterwards.
+
+The finish reason is available on the turn the whole time. Running the same request through `parallel_chat()` and reading `last_turn()@finish_reason` gives `""max_tokens""` in every case below.
+
+## Reprex
+
+Three providers, one prompt that cannot fit in 60 output tokens. For each: `parallel_chat_structured()` on the request, then the finish reason of the same request via `parallel_chat()`, then `chat_structured()` on it.
+
+``` r
+suppressPackageStartupMessages(library(ellmer))
+type <- type_object(items = type_array(type_object(name = type_string(), why = type_string())))
+prompt <- ""List 25 fruits, each with a two-sentence reason it is healthy.""
+probe <- function(chat_fn, label, ...) {
+  cat(""\n\n########"", label, ""########\n"")
+  ch <- chat_fn(..., params = params(max_tokens = 60))
+  res <- tryCatch(parallel_chat_structured(ch, list(prompt), type, include_tokens = TRUE),
+                  error = function(e) e)
+  if (inherits(res, ""error"")) cat(""ERROR:"", conditionMessage(res), ""\n"") else print(res)
+  chs <- parallel_chat(ch, list(prompt))
+  t <- chs[[1]]$last_turn(); cat(""finish_reason:"", t@finish_reason, "" tokens:"", t@tokens, ""\n"")
+  r <- tryCatch(ch$clone()$chat_structured(prompt, type = type), error = function(e) e)
+  if (inherits(r, ""condition"")) cat(class(r)[1], "":"", conditionMessage(r), ""\n"") else str(r)
+}
+probe(chat_anthropic, ""anthropic/claude-haiku-4-5"", model = ""claude-haiku-4-5"")
+#> 
+#> 
+#> ######## anthropic/claude-haiku-4-5 ########
+#> Warning: Failed to extract data from 1/1 turns
+#> * 1: parse error: premature EOF {""items"": [{""name"": ""Apple"", ""w (right here)
+#> ------^
+#> # A tibble: 1 × 4
+#>   items            input_tokens output_tokens cached_input_tokens
+#>   <list>                  <dbl>         <dbl>               <dbl>
+#> 1 <tibble [0 × 2]>          281            60                   0
+#> finish_reason: max_tokens  tokens: 24 60 0 
+#> rlang_error : Response was truncated because it hit the `max_tokens` limit.
+#> ℹ Increase `max_tokens` to allow the model to generate the full response.
+probe(chat_anthropic, ""anthropic/claude-sonnet-5"", model = ""claude-sonnet-5"")
+#> 
+#> 
+#> ######## anthropic/claude-sonnet-5 ########
+#> # A tibble: 1 × 4
+#>   items            input_tokens output_tokens cached_input_tokens
+#>   <list>                  <dbl>         <dbl>               <dbl>
+#> 1 <tibble [0 × 2]>          725            60                   0
+#> finish_reason: max_tokens  tokens: 30 60 0 
+#> rlang_error : Response was truncated because it hit the `max_tokens` limit.
+#> ℹ Increase `max_tokens` to allow the model to generate the full response.
+probe(chat_openai, ""openai/gpt-5-mini"", model = ""gpt-5-mini"")
+#> 
+#> 
+#> ######## openai/gpt-5-mini ########
+#> Warning: Failed to extract data from 1/1 turns
+#> * 1: Data extraction failed: no JSON responses found.
+#> # A tibble: 1 × 4
+#>   items            input_tokens output_tokens cached_input_tokens
+#>   <list>                  <dbl>         <dbl>               <dbl>
+#> 1 <tibble [0 × 2]>           79             0                   0
+#> finish_reason: max_tokens  tokens: 22 0 0 
+#> rlang_error : Response was truncated because it hit the `max_tokens` limit.
+#> ℹ Increase `max_tokens` to allow the model to generate the full response.
 ```
 
-## Reproducible
+<sup>Created on 2026-09-03 with [reprex v2.1.1](https://reprex.tidyverse.org)</sup>
 
-Against Alibaba Model Studio's OpenAI-compatible endpoint, which serves Qwen. Qwen's
-documented recommendation for thinking mode is `temperature = 0.6, top_p = 0.95, top_k = 20`.
+## What the run shows
+
+In all three cases the turn's finish reason is `max_tokens`, `chat_structured()` raises, and `parallel_chat_structured()` returns a one-row tibble with a zero-row `items` and no `.error` column. The details differ by provider, and none of them gives the caller a reliable signal:
+
+- **claude-haiku-4-5** warns ""Failed to extract data ... premature EOF"", because the cut-off JSON does not parse. The warning is the only trace; the row itself carries nothing.
+- **claude-sonnet-5** warns nothing at all. The truncated tool call arrives with an empty `input`, which converts cleanly to an empty array. (See the note on `has_claude_structured_output()` below for why this model takes the tool path.)
+- **gpt-5-mini** warns ""no JSON responses found"", and reports `output_tokens` of 0 because the budget went on reasoning, so even the token count does not reveal a cut.
+
+For a schema where an empty array is a legitimate answer, a truncated response is indistinguishable from ""nothing found"", and the inputs affected are systematically the longest ones. The same holds for `batch_chat_structured()`, which converts through the same `multi_convert()`.
+
+## Suggestion
+
+Apply the same per-turn check on the parallel and batch paths, with the outcome `on_error = ""continue""` already implies for a failed request: a turn whose finish reason is `max_tokens`, `context_window` or `content_filter` is treated as failed in `multi_convert()`, so the row gets `NA` values and an `.error` carrying the condition `check_finish_reason()` would have raised. Or, more generally, return the turns (or their finish reasons) alongside the converted table, so the caller can decide.
+
+This is a sibling of #1121, which asks for extraction failures to be recorded in `.error`. That change would cover the Haiku and OpenAI cases above, where extraction fails, but not the Sonnet case, where the truncated payload extracts cleanly, nor a response cut off just after producing valid JSON. Both changes need the same hook, the point in `multi_convert()` where the turns are still in hand.
+
+## A related observation
+
+`has_claude_structured_output()` matches `^claude-\w+-4-[5-9]`, so `claude-sonnet-5` and `claude-opus-5` take the forced-tool path rather than native structured output. That is why the truncated Sonnet response above produces an empty `input` rather than a parse error.
+
+Context: [quallmer](https://github.com/quallmer/quallmer) reports per-unit failures from `.error` and needed this for quallmer/quallmer#153. Our interim fix infers a cut from `include_tokens` when the caller declared `max_tokens` itself, which cannot see a provider default limit. Happy to send a PR if the direction is acceptable.
+
+Session info: ellmer 0.4.2, R 4.6.1, macOS.",kbenoit,,open,2026-09-03T06:59:39Z,2026-09-03T06:59:39Z,0,https://github.com/tidyverse/ellmer/issues/1126,
+1124,Add `release_bullets()` for ellmer-specific release tasks,"usethis::use_release_issue() picks up an unexported `release_bullets()` function and adds its items to the ""Prepare for release"" section of the release issue (see https://usethis.r-lib.org/reference/use_release_issue.html). We should add one to ellmer:
+
+```r
+release_bullets <- function() {
+  c(
+    ""Review the default model for each provider and update to a current, reasonably priced model where appropriate"",
+    ""Re-record VCR cassettes in `tests/testthat/_vcr/`, `tests/testthat/batch/`, `vignettes/_vcr/`, and `inst/_vcr/` if any default model changed""
+  )
+}
+```
+",thisisnic,upkeep,open,2026-09-03T05:18:39Z,2026-09-03T05:19:09Z,0,https://github.com/tidyverse/ellmer/issues/1124,
+1123,Advance deprecations for 0.6.0,"The following deprecations should move to `deprecate_stop()` in 0.6.0.
+
+Deprecated in 0.3.2:
+
+* `chat_azure_openai(deployment_id)` -> `chat_azure_openai(model)` (#699)
+
+Deprecated in 0.4.0:
+
+* `api_key` -> `credentials` across all providers (#799)
+* `chat_portkey(virtual_key)` -> `chat_portkey(model)` (#808)
+* `Chat$get_tokens(include_system_prompt)` (#824)
+
+Deprecated in 0.4.2:
+
+* `type_object(.additional_properties)` (#976)",thisisnic,upkeep,open,2026-09-03T05:12:42Z,2026-09-03T05:19:18Z,0,https://github.com/tidyverse/ellmer/issues/1123,
+1121,`multi_convert()` drops extraction failures instead of recording them in `.error`,"`parallel_chat_structured()` and `batch_chat_structured()` record request failures in an `.error` column, as documented: ""If the output is a data frame, and some requests error, an `.error` column will be added with the error objects."" But a request that *succeeds* and returns a turn from which no structured data can be extracted (a refusal in prose, a truncated response, a model that ignored the schema) is handled differently: `multi_convert()` reports it in a warning listing the affected rows, then drops the condition. The row comes back with `NA` scalars, or a zero-length cell for an array, and `.error` is `NULL` there.
+
+For scalar properties a caller can still infer the failure from the `NA`s. For a property that is a `type_array()`, they cannot: after conversion, a failed extraction and a valid empty array are the same zero-row tibble. The only record that anything went wrong is the text of a warning that has already been emitted.
+
+## Reprex
+
+Uses the internal `multi_convert()` directly so it runs offline, since that is where both kinds of failure meet. `ContentJson` is internal too; it stands in for what a successful structured response carries.
 
 ```r
 library(ellmer)
-ch <- chat_openai_compatible(
-  base_url = ""https://dashscope-intl.aliyuncs.com/compatible-mode/v1"",
-  credentials = function() Sys.getenv(""DASHSCOPE_API_KEY""),
-  model = ""qwen-flash"",
-  params = params(temperature = 0.6, top_p = 0.95, top_k = 20)
+packageVersion(""ellmer"")
+#> [1] '0.4.2'
+
+provider <- chat_openai(credentials = function() list(Authorization = ""Bearer x""))$get_provider()
+#> Using model = ""gpt-5.4"".
+
+type <- type_object(
+  assessments = type_array(items = type_object(item = type_string(), score = type_integer()))
 )
-ch$chat(""Say hi."")
-#> Error: HTTP 400 Bad Request.
+
+# Three turns: one good, one that came back as prose, one whose request failed
+good   <- AssistantTurn(contents = list(ellmer:::ContentJson(list(assessments = list(list(item = ""apples"", score = 2L))))))
+prose  <- AssistantTurn(contents = list(ContentText(""I am sorry, I cannot score this text."")))
+failed <- simpleError(""HTTP 429 Too Many Requests"")
+
+out <- ellmer:::multi_convert(provider, list(good, prose, failed), type)
+#> Warning message:
+#> Failed to extract data from 1/3 turns
+#> * 2: Data extraction failed: no JSON responses found.
+
+out
+#> # A tibble: 3 × 2
+#>   assessments      .error
+#>   <list>           <list>
+#> 1 <tibble [1 × 2]> <NULL>
+#> 2 <tibble [0 × 2]> <NULL>
+#> 3 <tibble [0 × 2]> <smplErrr>
+
+sapply(out$assessments, nrow)
+#> [1] 1 0 0
 ```
 
-The response body names the field actually sent:
+Row 3 (request failed) carries its error. Row 2 (request succeeded, extraction failed) is indistinguishable from a row whose model validly returned an empty array, and `.error` says nothing about it.
 
-```json
-{""error"":{""message"":""<400> InternalError.Algo.InvalidParameter: Range of top_logprobs should be [0, 5]"",
-          ""type"":""invalid_request_error"",""code"":""invalid_parameter_error""}}
-```
+## Where it happens
 
-The quieter case is the one that concerns me. `top_logprobs` is valid in `[0, 5]`, so a `top_k`
-in that range is accepted and the sampling setting is silently discarded:
+In `multi_convert()`, the extraction is wrapped in `safely()` and the condition is used only for the warning:
 
 ```r
-ch <- chat_openai_compatible(..., params = params(temperature = 0.6, top_p = 0.95, top_k = 3))
-ch$chat(""Say hi in three words."")
-#> [1] ""Hello! How can I help you today?""    # accepted; top_k never applied
+rows <- map(turns, function(turn) {
+  if (turn_failed(turn)) NULL
+  else safely(extract_data(turn = turn, type = ..., convert = FALSE, needs_wrapper = needs_wrapper))
+})
+is_err <- map_lgl(rows, function(x) !is.null(x$error))
+if (n_error > 0) {
+  msgs <- map(rows[is_err], function(x) conditionMessage(x$error))
+  cli::cli_warn(c(""Failed to extract data from {n_error}/{length(turns)} turns"", ...))
+}
+row_data <- map(rows, function(x) x$result)
+...
+is_error <- map_lgl(turns, turn_failed)   # only request failures reach .error
+if (any(is_error)) { errors[is_error] <- turns[is_error]; out$.error <- errors }
 ```
 
-The user believes they have set top-k sampling. They have requested three log-probabilities
-per token, and the model sampled with whatever default the provider uses.
+`rows[[i]]$error` is in hand at the point `.error` is built, so recording it there would be a small change.
 
-## Question
+## Suggestion
 
-Is this deliberate — an approximation on the grounds that the OpenAI wire format has no `top_k`
-and `top_logprobs` is the nearest-named field? If so it would be worth documenting under
-`?params`, since the two are not substitutes and `top_k` is a standard, documented setting for
-several models served over OpenAI-compatible endpoints (Qwen, and others on the same gateways).
+Populate `.error` for extraction failures as well as request failures, so the column means ""this row has no usable result, and here is why"" regardless of which stage failed. The warning can stay. Two details worth deciding:
 
-If not, a couple of directions that would each fix the silent case:
+- Keep the request error when both could apply (they cannot today, since a failed turn is never extracted, but the precedence is worth stating).
+- The same applies to `convert = FALSE` only insofar as `.error` is attached at all on that path; currently it is not, since the `.error`/tokens/cost block is inside `if (is.data.frame(out))`.
 
-- Drop `top_k` from the OpenAI-compatible mapping and warn that it is unsupported, so callers
-  put it in `api_args` where it reaches the body intact.
-- Pass it through as `top_k`, which several OpenAI-compatible gateways accept even though
-  OpenAI itself does not.
+Context: we hit this in [quallmer](https://github.com/quallmer/quallmer), which reports per-unit failures from `.error` (quallmer/quallmer#132). Our interim fix is a calling handler around the structured call that parses the `* <row>: <message>` lines of the warning back into `.error`, with a test pinned against `multi_convert()` so a format change fails our suite. That works, but it is a reconstruction of information ellmer already had. Happy to send a PR if the direction is acceptable.
 
-The workaround is straightforward once known — keep `temperature` and `top_p` in `params()`
-and put `top_k` in `api_args` — but it is not discoverable from the error, which names a field
-the user never mentioned.
-
-## Session info
-
-ellmer 0.4.2, R 4.6.1, macOS. Found while adding OpenAI-compatible provider support to
-[quallmer](https://github.com/quallmer/quallmer) (quallmer#134).
-",kbenoit,bug,open,2026-09-02T02:39:05Z,2026-09-02T07:01:17Z,1,https://github.com/tidyverse/ellmer/issues/1113,1115
+Session info: ellmer 0.4.2, R 4.6.1, macOS.",kbenoit,,open,2026-09-03T01:52:37Z,2026-09-03T01:52:37Z,0,https://github.com/tidyverse/ellmer/issues/1121,
 1112,Release ellmer 0.5.0,"Prepare for release:
 
-* [ ] `git pull`
-* [ ] [Close v0.5.0 milestone](../milestone/8)
+* [x] `git pull`
+* [x] [Close v0.5.0 milestone](../milestone/8)
+* [x] Bump default models where appropriate
+* [x] Update README
 * [x] Check [current CRAN check results](https://cran.rstudio.org/web/checks/check_results_ellmer.html)
-* [ ] [Advance deprecations](https://lifecycle.r-lib.org/articles/communicate.html#gradual-deprecation), if needed
-* [ ] [Polish NEWS](https://style.tidyverse.org/news.html#news-release)
-* [ ] `urlchecker::url_check()`
-* [ ] `devtools::build_readme()`
-* [ ] `devtools::check(remote = TRUE, manual = TRUE)`
-* [ ] `devtools::check_win_devel()`
-* [ ] `revdepcheck::cloud_check()`
-* [ ] Update `cran-comments.md`
-* [ ] `git push`
+* [x] [Advance deprecations](https://lifecycle.r-lib.org/articles/communicate.html#gradual-deprecation), if needed
+* [x] [Polish NEWS](https://style.tidyverse.org/news.html#news-release)
+* [x] `urlchecker::url_check()`
+* [x] `devtools::build_readme()`
+* [x] `devtools::check(remote = TRUE, manual = TRUE)`
+* [x] `devtools::check_win_devel()`
+* [x] `revdepcheck::cloud_check()`
+* [x] Update `cran-comments.md`
+* [x] `git push`
 * [ ] Draft blog post
 
 Submit to CRAN:
 
-* [ ] `usethis::use_version('minor')`
-* [ ] `devtools::submit_cran()`
+* [x] `usethis::use_version('minor')`
+* [x] `devtools::submit_cran()`
 * [ ] Approve email
 
 Wait for CRAN...
@@ -104,30 +258,7 @@ Wait for CRAN...
 * [ ] `usethis::use_dev_version(push = TRUE)`
 * [ ] Share on social media
 * [ ] Slack link to blog post, bluesky, and linkedin in #open-source-comms
-",thisisnic,,open,2026-09-01T15:44:41Z,2026-09-01T15:45:03Z,0,https://github.com/tidyverse/ellmer/issues/1112,
-1110,Bedrock API lookup table can silently lose entries when litellm adds Converse inference profiles,"Summarised by :robot: based on a failing test after the price refresh on main:
-
-The weekly model data refresh (a64f94e6, 2026-08-31) removed `openai.gpt-5.6-luna`, `openai.gpt-5.6-sol`, and `openai.gpt-5.6-terra` from `aws_bedrock_model_apis`. Those models now route to Converse, and `chat_aws_bedrock(model = ""openai.gpt-5.6-sol"")` fails with a 400 asking for an inference profile ID. This is the example in the #1064 docs, and the corresponding test broke too (#1105 works around it by testing `openai.gpt-5.4` instead).
-
-This happened because litellm started listing these models under `bedrock_converse` as `us.openai.gpt-5.6-sol` and `global.openai.gpt-5.6-sol`. The generator in `data-raw/prices.R` only lists models Converse can't serve, so it correctly dropped them. I confirmed against Bedrock that the prefixed IDs work on Converse; the bare ID only works on the Responses API. That's the same situation as Claude models, where Converse needs `us.anthropic.claude-sonnet-5` rather than `anthropic.claude-sonnet-5`.
-
-So the routing is doing what it was designed to do, and I don't think the generator needs changing. What's left is:
-
-- The `chat_aws_bedrock()` docs say Responses is ""the only way to reach the GPT-5 family"", which is no longer true, and the example uses a bare ID that now only works with `api = ""responses""`.
-- A weekly refresh can change routing for an existing model with no signal. It would be worth having the generator warn or print a diff when entries are removed from `aws_bedrock_model_apis`, so this shows up in the refresh rather than in an unrelated PR's CI.
-- Optionally, ellmer could recognise Bedrock's ""retry with an inference profile"" error and suggest adding a region prefix.
-",thisisnic,,open,2026-09-01T08:18:59Z,2026-09-01T08:30:07Z,0,https://github.com/tidyverse/ellmer/issues/1110,1111
-1109,Send issues/PRs to revdeps affected by moving arguments from Provider to new Model class,"We'll need to rerun revdepchecks once #1098 is merged (deprecating `provider@model`, `provider@params`, and `provider@extra_args` turns most of these from errors into warnings), but an initial list from the 2026-08-26 run:
-
-- [ ] [querychat](https://github.com/posit-dev/querychat): calls `Chat$new(Provider(...))` without a `model` argument, which is now required. Still errors after #1098.
-- [ ] [btw](https://github.com/posit-dev/btw): reads `chat$get_provider()@model` in tests. Should use `chat$get_model_object()@name`.
-- [ ] [vitals](https://github.com/tidyverse/vitals): reads `chat$get_provider()@params$max_tokens`. Should use `chat$get_model_object()@params`.
-- [ ] [mini007](https://github.com/feddelegrand7/mini007): reads `provider@model`. Should use `chat$get_model_object()@name`.
-- [ ] [GitAI](https://github.com/r-world-devs/GitAI): passes `model`, `params`, and `extra_args` to `ProviderOpenAI()` in test mocks. Should pass a `Model` to `Chat$new()` instead.
-- [x] [shidashi](https://github.com/dipterix/shidashi): https://github.com/dipterix/shidashi/issues/7
-",thisisnic,upkeep,open,2026-08-28T14:59:01Z,2026-08-31T10:38:18Z,0,https://github.com/tidyverse/ellmer/issues/1109,
-1091,Implement provider files API,See https://github.com/posit-dev/chatlas/pull/334 for the equivalent in Chatlas,thisisnic,feature,open,2026-08-13T14:45:36Z,2026-08-14T09:36:56Z,0,https://github.com/tidyverse/ellmer/issues/1091,1095
-1090,Add `content_document_file()` and `content_document_url()` for text/CSV/code file inputs,See https://github.com/posit-dev/chatlas/pull/345 for the equivalent in Chatlas,thisisnic,feature,open,2026-08-13T14:43:09Z,2026-08-14T09:37:03Z,0,https://github.com/tidyverse/ellmer/issues/1090,1101
+",thisisnic,upkeep,open,2026-09-01T15:44:41Z,2026-09-03T08:45:29Z,0,https://github.com/tidyverse/ellmer/issues/1112,
 1088,Assorted provider gaps found while auditing feature support,"While auditing feature support across the official providers, 🤖 found a few apparent bugs. Status after investigating each:
 
 - **Confirmed:** `chat_deepseek()` silently drops non-text user content: `as_json(Turn)` (R/provider-deepseek.R:105) keeps only `ContentText`, so images and PDFs are discarded without a warning and the model never sees them. Verified empirically. Images are a documented limitation, but we should error (like Snowflake does) rather than silently drop. Straightforward fix.
@@ -752,23 +883,11 @@ Then you could specify e.g. `chat_claude(model = ""small"")` (although we'd need
 * Clone
 * Reset turns
 * Set `echo = ""none""`",hadley,feature,open,2025-11-23T13:05:38Z,2026-05-13T17:49:19Z,0,https://github.com/tidyverse/ellmer/issues/879,
-871,Lazy question: how to achieve something like OpenAI sdk RunContext or hooks with ellmer,"Hi all,
-Thank you for this great package!
-
-This is s neophyte question, but I figure I should ask anyway ! 
-One interesting and usefull feature of the openai agent sdk is the concept of  RunContext and toolContext objects
-https://github.com/openai/openai-agents-python/blob/main/docs/context.md. 
-
-They basically provide objects that are accessible to all tool calls (or hooks) within a run of the model. This provides a way to get some private (likely complex objects) data accessible to tools calls, link to specific runs but not accessible to the model. This is also a way to have side effects (like logging)
-
-In the same vein, beside wrapping the tools calls ourselves with logging and other facilities, are they ways to have register hooks https://openai.github.io/openai-agents-js/openai/agents/classes/agenthooks/?
-
-Thank you in advance ",sounkou-bioinfo,feature,open,2025-11-19T03:08:38Z,2026-06-08T14:21:10Z,6,https://github.com/tidyverse/ellmer/issues/871,1023
 868,Add openAI files api,https://platform.openai.com/docs/api-reference/files/create,hadley,feature,open,2025-11-15T19:18:17Z,2026-05-13T17:06:54Z,0,https://github.com/tidyverse/ellmer/issues/868,
 864,Remove role hack,Then check revdeps and submit fixes to downstream packages.,hadley,upkeep,open,2025-11-14T19:40:03Z,2026-05-13T17:58:08Z,2,https://github.com/tidyverse/ellmer/issues/864,
 821,Subagent ideas,"* https://github.com/openai/openai-agents-python https://minusx.ai/blog/decoding-claude-code/#appendix
 * https://google.github.io/adk-docs/agents/workflow-agents/
-* https://gist.github.com/hadley/767de1b47dd2589d46a421416600fef6",hadley,feature,open,2025-10-31T16:30:04Z,2026-05-13T18:06:30Z,1,https://github.com/tidyverse/ellmer/issues/821,
+* https://gist.github.com/hadley/767de1b47dd2589d46a421416600fef6",hadley,feature,open,2025-10-31T16:30:04Z,2026-09-02T21:25:45Z,3,https://github.com/tidyverse/ellmer/issues/821,
 820,Agent vignette ideas,"* https://claude.ai/chat/f609e0d6-6797-495c-b8a4-3e89cbd2df23
 * https://github.com/feddelegrand7/mini007
 * https://ghuntley.com/agent/ 

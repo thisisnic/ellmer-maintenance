@@ -1,40 +1,41 @@
 number,title,body,user,labels,state,draft,created_at,updated_at,url
-1115,Don't map `top_k` to `top_logprobs`,"Fixes #1113.
+1122,Stream chunks as they arrive in `Chat$stream()`,"Hi,
 
-`params(top_k = )` was sent as `top_logprobs`, which is a different setting: it controls how many alternative token probabilities the API returns, not sampling. Users setting `top_k` got either a 400 or no sampling change.
-
-`chat_openai_compatible()` and the providers built on it now pass `top_k` through unchanged, since many compatible backends accept it. `chat_openai()` and `chat_deepseek()` now warn that `top_k` is unsupported, since neither API has it.",thisisnic,,open,FALSE,2026-09-02T06:59:21Z,2026-09-02T07:01:34Z,https://github.com/tidyverse/ellmer/pull/1115
-1111,Update tests and docs referring to Mantle/Converse,"Fixes #1110 
-
-A change to which endpoint served a particular model led to a failing test; this PR updates tests to use local mocked bindings to prevent this happening again, and also updates the docs so that we're not mentioning particular models only being available on Mantle/Converse, as this changes.",thisisnic,,open,FALSE,2026-09-01T09:19:55Z,2026-09-01T09:20:00Z,https://github.com/tidyverse/ellmer/pull/1111
-1101,Add `content_document_file()` and `content_document_url()`,"Closes #1090 - implements `content_document_file()` and `content_document_url()`
-
-",thisisnic,,open,FALSE,2026-08-20T13:14:26Z,2026-09-01T21:15:44Z,https://github.com/tidyverse/ellmer/pull/1101
-1095,Implement provider files API,"Fixes #1091.
-
-Upload a file to the provider once and reference it by id, instead of re-sending its bytes on every turn:
+When using `Chat$stream` events arrive in bursts instead of a consistent stream. Something like:
 
 ```r
-chat <- chat_anthropic()
+t0 <- Sys.time()
 
-report <- chat$file_upload(""quarterly-report.pdf"")
-chat$chat(report, ""Summarize the key findings."")
-chat$chat(""Now list the risks."")   # no re-upload
-
-chat$file_list()
-chat$file_get(report)
-chat$file_delete(report)
+coro::loop(for (chunk in chat$stream(""Write a long essay about R."")) {
+  print(Sys.time() - t0)
+})
 ```
 
-Five experimental `Chat` methods (`$file_upload()`, `$file_list()`, `$file_get()`, `$file_download()`, `$file_delete()`) wrapping internal S7 generics that dispatch on provider. Supported for `chat_openai()`, `chat_anthropic()`, and `chat_google_gemini()`; other providers error. `ContentUploaded` is exported and gains `provider` and `extra`.
+with a slow endpoint (or model?) would show this, though I can make a nicer repro if needed ':)
 
-Also fixes bugs in the existing code: Anthropic's `container_upload` block had the wrong shape, unrecognized MIME types produced an invalid block, `claude_file_list()` only returned the first page, and timestamps were parsed with bare `as.POSIXct()`.
+This run delivered ~300 chunks at once multiple times, with silences of 1-12 seconds in between. I tested the same endpoint with `curl -N` and it showed the server trickling continuously at 5-7KB/s.
 
-## Things to review
+I had an agent chase the call stack (then verified):
 
-* **`claude_file_*()` and `google_upload()` are superseded, not deprecated.** They're now thin wrappers over the new generics and keep working without warnings, since they're the only way to manage files without first building a chat (cf. `models_*()`). Happy to deprecate or remove instead.
-* **Anthropic's Files API went GA on 2026-08-19**, after this branch started. This PR targets the GA API (no beta header, `next_page` pagination, `expires_at` populated).
-",thisisnic,,open,FALSE,2026-08-15T11:34:26Z,2026-09-02T07:55:39Z,https://github.com/tidyverse/ellmer/pull/1095
+```
+chat_perform_stream
+  └─ chat_resp_stream(provider, resp)
+       └─ resp_stream_sse(resp)
+            └─ stream_pull(resp, ...)
+                 └─ resp$body$read(65536)
+                      └─ readBin(conn, ""raw"", 65536)
+```
+
+With 65536 being `stream_chunk_bytes` in {`httr2`}. So when `chat_perform_stream` calls `req_perform_connection` with `blocking = TRUE` (by default), `readBin` waits for the full 64KB which seems too coarse for tokenized LLM streams.
+
+This PR just changes the connection to be non-blocking (`Chat$stream` keeps being synchronous). Because non-blocking reads can find nothing, `NULL` in `chat_resp_stream` no longer implies end-of-stream so we check with `resp_stream_is_complete` following the pattern in the async generator. I thought `Sys.sleep(0.05)` was reasonable even if somewhat arbitrary since a sync consumer has nothing else to run while waiting.
+
+Running the loop with these changes produces much smoother streaming with no significant silences.
+
+Note I considered filing an issue to {`httr2`} instead but the surface here is much smaller. Though it might be worth a mention to the team whether the `stream_chunk_bytes` constant and related APIs are currently suitable for streaming functionality.
+
+Happy to discuss any details,
+Thanks!",hectorgray,,open,FALSE,2026-09-03T03:48:37Z,2026-09-03T03:48:37Z,https://github.com/tidyverse/ellmer/pull/1122
 1089,Report the model's context window in `models_*()` and on `Chat`,"Most providers publish a model's context window in a response `models_list()` already parses and then discards. This adds a `context_window` column to the `models_*()` data frames, and `Chat$get_context_window()` to pair with `$get_tokens()`.
 
 | Provider | Field read |
@@ -99,55 +100,6 @@ Internally, this adds shared one-time reauthentication for synchronous, asynchro
 - Focused provider tests: 17 passing
 - Live synchronous, multi-turn, and asynchronous requests with `gpt-5.6-luna`
 ",t-kalinowski,,open,FALSE,2026-07-31T21:07:00Z,2026-08-03T20:57:30Z,https://github.com/tidyverse/ellmer/pull/1067
-1023,feat: Add tool_context() for tool-calling context,"Closes #871
-
-## Summary
-
-Adds `tool_context()`, a dynamic-scope accessor that lets a tool function read
-its calling context during execution — the `ContentToolRequest` for the call and
-the conversation history so far — without adding anything to the tool's
-LLM-facing signature.
-
-**Key design decisions:**
-
-- **Read-only context.** `tool_context()` returns `$request` (the
-  `ContentToolRequest`) and `$turns` (conversation history up to the triggering
-  turn). It's a read-only view; nothing is mutated or stored in chat state.
-- **Dynamic scope over signature injection.** Unlike the OpenAI/PydanticAI SDKs
-  that inject context via a magic first parameter, `tool_context()` is opt-in by
-  *calling* — tools that don't need context declare nothing. This keeps the
-  tool's arguments purely model-facing and avoids asking authors to declare an
-  argument only to then hide it from the model.
-- **Shared state lives with the tools, not in ellmer.** An earlier iteration of
-  this PR added a mutable `chat\$store`; following review we dropped it. For tools
-  that need to share private state (a DB connection, an authenticated user, a
-  running tally), the tool-calling vignette documents an R6 tool-bundle pattern
-  where the state lives in an R6 object's fields and each tool is a method.
-- **Async: capture-before-await.** In async tools, `tool_context()` is valid only
-  during the synchronous prefix (before the first `await()`). Capture
-  `ctx <- tool_context()` at the top of the tool body.
-
-**New exports:** `tool_context()`, `with_tool_context()`, `local_tool_context()`
-
-## Verification
-
-\`\`\`r
-library(ellmer)
-
-report_tool <- tool(
-  function(query) {
-    ctx <- tool_context()
-    cli::cli_alert_info(""Running report for request {ctx\$request@id}"")
-    run_report(query)
-  },
-  description = ""Run a report for the given query."",
-  arguments = list(query = type_string(""The report query.""))
-)
-
-chat <- chat_openai()
-chat\$register_tool(report_tool)
-chat\$chat(""Run the sales report."")
-\`\`\`",gadenbuie,,open,FALSE,2026-06-16T20:18:29Z,2026-09-01T17:57:02Z,https://github.com/tidyverse/ellmer/pull/1023
 991,Add `mcp_connector()` for provider-hosted MCP server connections,"Closes #985 (supersedes).
 
 ## Summary
