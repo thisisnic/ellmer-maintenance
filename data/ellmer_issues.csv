@@ -1,4 +1,57 @@
 number,title,body,user,labels,state,created_at,updated_at,comments,url,linked_prs
+1129,parallel_chat_structured() silently drops include_tokens and include_cost for an array type,"## Summary
+
+`parallel_chat_structured(include_tokens = TRUE, include_cost = TRUE)` silently returns no token counts and no cost when `type` is a `type_array()`. Both flags are accepted and ignored.
+
+## Why
+
+`multi_convert()` attaches usage only when the converted result is a data frame:
+
+```r
+if (convert) {
+  out <- convert_from_type(row_data, type_array(type))
+}
+...
+if (is.data.frame(out)) {
+  ...
+  if (include_tokens) { out$input_tokens <- ...; out$output_tokens <- ...; out$cached_input_tokens <- ... }
+  if (include_cost)   { out$cost <- ... }
+}
+out
+```
+
+For an array `type`, `convert_from_type(row_data, type_array(type))` is a `type_array(type_array(...))` conversion and returns a plain list of tibbles, one per prompt, so `is.data.frame(out)` is `FALSE` and the block is skipped. There is no warning that the request could not be honoured. (`convert = FALSE` returns a bare list too, so it has the same gap.)
+
+## Reproducible shape, without a provider
+
+The branch is decided by what `convert_from_type()` returns:
+
+```r
+items <- type_object(text = type_string(), label = type_string())
+rows  <- list(list(list(text = ""a"", label = ""x"")), list(list(text = ""b"", label = ""y"")))
+
+is.data.frame(ellmer:::convert_from_type(rows, type_array(type_array(items = items))))
+#> FALSE   -> usage columns never attached
+
+wrapped <- type_object(items = type_array(items = items))
+rows2   <- lapply(rows, function(r) list(items = r))
+is.data.frame(ellmer:::convert_from_type(rows2, type_array(wrapped)))
+#> TRUE    -> usage columns attached beside a list-column
+```
+
+Live, `parallel_chat_structured(chat, prompts, type = type_array(items = items), include_cost = TRUE)` returns the list with no `cost` anywhere. ellmer 0.4.2.
+
+## Suggestions
+
+Either of these would do:
+
+- Attach usage for a list result as well, e.g. as attributes on the list, or by returning a tibble with a list-column for array types when usage is requested.
+- Or refuse the flags for array types with an error, so the caller learns at the call rather than by noticing an absence.
+
+## Context
+
+Found in quallmer (quallmer/quallmer#119), whose `qlm_segment()` asks for an array of segments per document and could not cost a run. Our workaround is to request `type_object(segments = type_array(...))` instead, which converts to one row per prompt with the usage beside the list-column, matching the wrapping ellmer does internally for providers that require an object at the top level.
+",kbenoit,,open,2026-09-03T22:42:20Z,2026-09-03T22:42:20Z,0,https://github.com/tidyverse/ellmer/issues/1129,
 1128,"Support `defer_loading` and tool search, now shipped by both Anthropic and OpenAI","An app with a large tool set pays for every tool schema on every request, and `ellmer` offers no way to avoid it short of registering and unregistering tools mid-conversation. That workaround is worse than the problem: tools render ahead of `system` and `messages`, so changing the tool set invalidates the prompt cache for the entire request — the manifest, the system prompt and every turn of history.
 
 ## Both providers now solve this, and agree on the spelling
@@ -247,18 +300,18 @@ Submit to CRAN:
 
 * [x] `usethis::use_version('minor')`
 * [x] `devtools::submit_cran()`
-* [ ] Approve email
+* [x] Approve email
 
 Wait for CRAN...
 
-* [ ] Accepted :tada:
+* [x] Accepted :tada:
 * [ ] Finish & publish blog post
 * [ ] Add link to blog post in pkgdown news menu
 * [ ] `usethis::use_github_release()`
 * [ ] `usethis::use_dev_version(push = TRUE)`
 * [ ] Share on social media
 * [ ] Slack link to blog post, bluesky, and linkedin in #open-source-comms
-",thisisnic,upkeep,open,2026-09-01T15:44:41Z,2026-09-03T08:45:29Z,0,https://github.com/tidyverse/ellmer/issues/1112,
+",thisisnic,upkeep,open,2026-09-01T15:44:41Z,2026-09-04T09:42:32Z,0,https://github.com/tidyverse/ellmer/issues/1112,
 1088,Assorted provider gaps found while auditing feature support,"While auditing feature support across the official providers, 🤖 found a few apparent bugs. Status after investigating each:
 
 - **Confirmed:** `chat_deepseek()` silently drops non-text user content: `as_json(Turn)` (R/provider-deepseek.R:105) keeps only `ContentText`, so images and PDFs are discarded without a warning and the model never sees them. Verified empirically. Images are a documented limitation, but we should error (like Snowflake does) rather than silently drop. Straightforward fix.
@@ -887,7 +940,7 @@ Then you could specify e.g. `chat_claude(model = ""small"")` (although we'd need
 864,Remove role hack,Then check revdeps and submit fixes to downstream packages.,hadley,upkeep,open,2025-11-14T19:40:03Z,2026-05-13T17:58:08Z,2,https://github.com/tidyverse/ellmer/issues/864,
 821,Subagent ideas,"* https://github.com/openai/openai-agents-python https://minusx.ai/blog/decoding-claude-code/#appendix
 * https://google.github.io/adk-docs/agents/workflow-agents/
-* https://gist.github.com/hadley/767de1b47dd2589d46a421416600fef6",hadley,feature,open,2025-10-31T16:30:04Z,2026-09-02T21:25:45Z,3,https://github.com/tidyverse/ellmer/issues/821,
+* https://gist.github.com/hadley/767de1b47dd2589d46a421416600fef6",hadley,feature,open,2025-10-31T16:30:04Z,2026-09-03T15:43:51Z,4,https://github.com/tidyverse/ellmer/issues/821,
 820,Agent vignette ideas,"* https://claude.ai/chat/f609e0d6-6797-495c-b8a4-3e89cbd2df23
 * https://github.com/feddelegrand7/mini007
 * https://ghuntley.com/agent/ 
