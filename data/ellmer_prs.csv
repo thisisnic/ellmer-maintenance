@@ -35,7 +35,7 @@ Running the loop with these changes produces much smoother streaming with no sig
 Note I considered filing an issue to {`httr2`} instead but the surface here is much smaller. Though it might be worth a mention to the team whether the `stream_chunk_bytes` constant and related APIs are currently suitable for streaming functionality.
 
 Happy to discuss any details,
-Thanks!",hectorgray,,open,FALSE,2026-09-03T03:48:37Z,2026-09-03T03:48:37Z,https://github.com/tidyverse/ellmer/pull/1122
+Thanks!",hectorgray,,open,FALSE,2026-09-03T03:48:37Z,2026-09-04T22:55:14Z,https://github.com/tidyverse/ellmer/pull/1122
 1089,Report the model's context window in `models_*()` and on `Chat`,"Most providers publish a model's context window in a response `models_list()` already parses and then discards. This adds a `context_window` column to the `models_*()` data frames, and `Chat$get_context_window()` to pair with `$get_tokens()`.
 
 | Provider | Field read |
