@@ -1,4 +1,98 @@
 number,title,body,user,labels,state,draft,created_at,updated_at,url
+1133,Fix image detail serialisation for OpenAI providers,"Fixes #1132.
+
+## Summary
+
+`content_image_url()` accepts `detail`, but the value was omitted from
+OpenAI requests. This change forwards it through the OpenAI Responses
+and OpenAI-compatible Chat Completions serialisers.
+
+- Preserve `detail` for regular and data URLs.
+- Default both image constructors to `""auto""` and omit that value from
+  requests, preserving existing default behaviour.
+- Clarify provider support in the documentation and add a NEWS entry.
+
+## Validation
+
+- Added network-free serialisation tests covering `""low""`, `""high""`,
+  and `""auto""` for regular and data URLs.
+- Focused tests: 180 passed, 16 credential-dependent tests skipped.
+
+## Demonstration
+
+``` r
+library(""ellmer"")
+
+img <- content_image_url(
+  ""https://www.r-project.org/Rlogo.png"",
+  detail = ""high""
+)
+
+chat <- chat_openai(model = ""gpt-4o-mini"")
+
+# Verify that detail reaches the request payload
+str(ellmer:::as_json(chat$get_provider(), img))
+#> List of 2
+#>  $ role   : chr ""user""
+#>  $ content:List of 1
+#>   ..$ :List of 3
+#>   .. ..$ type     : chr ""input_image""
+#>   .. ..$ image_url: chr ""https://www.r-project.org/Rlogo.png""
+#>   .. ..$ detail   : chr ""high""
+
+# Make a real request (requires OPENAI_API_KEY)
+chat$chat(""Describe this image in one sentence."", img)
+#> The image features a stylized logo consisting of a grey oval surrounding a bold
+#> blue letter ""R.""
+
+
+pkgload::load_all(""/Users/kbenoit/GitHub/ellmer"")
+#> ℹ Loading ellmer
+
+url <- paste0(
+  ""https://upload.wikimedia.org/wikipedia/commons/e/e5/NewYorkTribune-Titanic-1912-4-16.jpg""
+)
+
+prompt <- ""
+Read this newspaper page using only the image.
+Transcribe the sub-heading under the CROWD BESIEGES WHITE STAR OFFICE headline.
+Mark anything you cannot read as illegible; do not guess.
+""
+
+details <- c(""low"", ""high"", ""auto"")
+answers <- setNames(vector(""list"", length(details)), details)
+
+for (detail in details) {
+  # Separate conversations prevent answers influencing later runs.
+  chat <- chat_openai(
+    model = ""gpt-4o-mini"",
+    params = params(temperature = 0)
+  )
+  answers[[detail]] <- chat$chat(
+    prompt,
+    content_image_url(url, detail = detail),
+    echo = ""none""
+  )
+}
+
+answers
+#> $low
+#> I can't read the sub-heading under the ""CROWD BESIEGES WHITE STAR OFFICE"" 
+#> headline. It appears to be illegible.
+#> 
+#> $high
+#> The sub-heading under the ""CROWD BESIEGES WHITE STAR OFFICE"" headline reads:
+#> 
+#> ""VINCENT ASTOR SEEKS NEWS""
+#> 
+#> $auto
+#> The sub-heading under the ""CROWD BESIEGES WHITE STAR OFFICE"" headline reads:
+#> 
+#> ""VINCENT ASTOR SEEKS NEWS""
+```
+
+<sup>Created on 2026-09-05 with [reprex v2.1.1](https://reprex.tidyverse.org)</sup>
+  ",kbenoit,,open,FALSE,2026-09-05T12:02:24Z,2026-09-05T14:32:31Z,https://github.com/tidyverse/ellmer/pull/1133
 1122,Stream chunks as they arrive in `Chat$stream()`,"Hi,
 
 When using `Chat$stream` events arrive in bursts instead of a consistent stream. Something like:

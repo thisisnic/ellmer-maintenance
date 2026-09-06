@@ -1,4 +1,90 @@
 number,title,body,user,labels,state,created_at,updated_at,comments,url,linked_prs
+1132,`content_image_url()` accepts `detail` but no provider sends it,"### Summary
+
+`content_image_url()` takes `detail = c(""auto"", ""low"", ""high"")` and its documentation says it is passed on to OpenAI. The value is validated and stored on the `ContentImageRemote` object, but none of the `as_json()` methods for `ContentImageRemote` forward it, so it never reaches the request. The OpenAI Responses API accepts `detail` on an `input_image` part, and Chat Completions accepts it inside `image_url`, so it would take effect if sent.
+
+This has been the case since the argument was introduced (#61 in October 2024, where the OpenAI serializer already sent only the URL) and survived the Responses API rework (#832). The same output below comes from CRAN 0.4.2 and from the current main branch.
+
+The file-upload path in `provider-openai.R` hardcodes `detail = ""auto""` on `input_image` parts, which is where a fix for `ContentImageRemote` would slot in alongside.
+
+### Reprex
+
+``` r
+library(ellmer)
+packageVersion(""ellmer"")
+#> [1] '0.5.0.9000'
+
+img <- content_image_url(""https://example.com/cat.png"", detail = ""high"")
+img@detail
+#> [1] ""high""
+
+# What each provider actually sends for this image
+Sys.setenv(OPENAI_API_KEY = ""dummy"")
+openai <- chat_openai(model = ""gpt-4o-mini"")$get_provider()
+str(ellmer:::as_json(openai, img))
+#> List of 2
+#>  $ role   : chr ""user""
+#>  $ content:List of 1
+#>   ..$ :List of 2
+#>   .. ..$ type     : chr ""input_image""
+#>   .. ..$ image_url: chr ""https://example.com/cat.png""
+
+compat <- chat_openai_compatible(
+  base_url = ""https://example.com/v1"", model = ""m""
+)$get_provider()
+str(ellmer:::as_json(compat, img))
+#> List of 2
+#>  $ type     : chr ""image_url""
+#>  $ image_url:List of 1
+#>   ..$ url: chr ""https://example.com/cat.png""
+```
+
+### Expected
+
+For the OpenAI provider, something like:
+
+``` r
+list(type = ""input_image"", image_url = x@url, detail = x@detail)
+```
+
+and for OpenAI-compatible providers:
+
+``` r
+list(type = ""image_url"", image_url = list(url = x@url, detail = x@detail))
+```
+
+with `""auto""` either sent as-is or omitted, since it is the API default. Providers that have no equivalent (Claude, Gemini, Bedrock) can keep ignoring the field, but it would help to say so in the `content_image_url()` docs.
+",kbenoit,,open,2026-09-05T11:17:22Z,2026-09-05T11:17:22Z,0,https://github.com/tidyverse/ellmer/issues/1132,1133
+1131,get_tokens() fails with an unpaired user turn or partial assistant,"`Chat$get_tokens()` fails when the history has a user turn without a completed assistant response. I reproduced this with released ellmer 0.5.0; the same preview assignment is present on current main. No model call is needed:
+
+```r
+library(ellmer)
+chat <- chat_openai_compatible(
+  base_url = ""http://127.0.0.1:1"",
+  model = ""fixture"",
+  credentials = function() ""unused""
+)
+chat$set_turns(list(
+  UserTurn(""First""),
+  AssistantTurn(""Done"", tokens = c(input = 10, output = 5, cached_input = 0), cost = 0.001),
+  UserTurn(""Pending"")
+))
+chat$get_tokens()
+# Error: Assigned data `map_chr(user_turns, turn_contents_preview)` must be
+# compatible with existing data.
+# Existing data has 1 row. Assigned data has 2 rows.
+
+chat$set_turns(c(chat$get_turns(), list(AssistantPartialTurn())))
+chat$get_tokens()
+# Same error
+```
+
+`get_tokens()` selects completed assistant turns for the token/cost rows, but all user turns for `input_preview`. `token_count(include = ""complete"")` also fails before reaching the provider's token-counting method because it calls `get_tokens()`.
+
+Our concrete case is a completed tool round followed by an `on_request_start` callback that stops before the next provider dispatch. The callback receives the pending tool-result user turn before ellmer has stored it. We retain that real turn through public `set_turns()` so saving and resuming does not lose the completed result. That produces an intentionally unfinished conversation. Adding a later user/assistant pair still leaves the extra user turn and the table mismatch. A cancelled partial assistant produces the same mismatch because partial turns are excluded from the token rows.
+
+Expected: token rows and previews should correspond to completed assistant responses even when history is unfinished. Incomplete requests should not require an invented assistant response just to inspect usage. It would also be helpful for complete-context estimation to include retained content after the last completed response.
+",JamesHWade,,open,2026-09-05T11:14:07Z,2026-09-05T11:14:07Z,0,https://github.com/tidyverse/ellmer/issues/1131,
 1130,"`Chat$chat()` docs don't list possible `echo` values, and `$chat_structured()` recommends deprecated `echo = ""text""`","The `echo` parameter on `Chat$chat()` says ""whether to emit the response to stdout as it is received"" but doesn't list the possible values; they're only enumerated on the `Chat` constructor. `$chat_structured()` and `$chat_structured_async()` tell users to set `echo = ""text""`, which `check_echo()` has treated as deprecated in favour of `""output""` since 0.2.0. Suggest listing `""none""`, `""output""`, and `""all""` on `$chat()` and replacing `""text""` with `""output""` in the structured methods.",thisisnic,,open,2026-09-04T16:23:58Z,2026-09-04T16:23:58Z,0,https://github.com/tidyverse/ellmer/issues/1130,
 1129,parallel_chat_structured() silently drops include_tokens and include_cost for an array type,"## Summary
 
