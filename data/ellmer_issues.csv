@@ -1,4 +1,41 @@
 number,title,body,user,labels,state,created_at,updated_at,comments,url,linked_prs
+1134,Support Gemini agentic video understanding,"Gemini recently added [Agentic Video Understanding](https://blog.google/innovation-and-ai/models-and-research/gemini-models/introducing-agentic-video-in-gemini/), which allows supported models to dynamically inspect relevant portions of a video instead of relying only on static video processing.
+
+For the Gemini GenerateContent API, this is enabled per video `Part` by setting:
+
+```json
+{
+  ""fileData"": {
+    ""mimeType"": ""video/mp4"",
+    ""fileUri"": ""...""
+  },
+  ""mediaProcessing"": ""AGENTIC""
+}
+```
+
+See the [`MediaProcessing` API reference](https://ai.google.dev/api/generate-content#MediaProcessing).
+
+It would be useful if ellmer provided a way to opt into this mode for video content passed to `Chat$chat()`.
+
+For example, the current workflow might look like:
+
+```r
+chat <- chat_google_gemini()
+video <- chat$file_upload(""video.mp4"")
+
+chat$chat(
+  video,
+  ""Describe the important events in this video with timestamps.""
+)
+```
+
+I would like some way to request `mediaProcessing = ""AGENTIC""` for that video part.
+
+I don't have a strong preference about where this option should live in the ellmer API. For example, it could potentially be associated with the uploaded content, specified through a content helper, or exposed in some other way that fits ellmer's content model.
+
+As far as I can tell, `api_args` does not provide an easy workaround because `mediaProcessing` belongs to the individual video `Part`, rather than to the top-level GenerateContent request.
+
+Thanks for considering it!",paithiov909,,open,2026-09-06T15:29:27Z,2026-09-07T00:37:40Z,1,https://github.com/tidyverse/ellmer/issues/1134,
 1132,`content_image_url()` accepts `detail` but no provider sends it,"### Summary
 
 `content_image_url()` takes `detail = c(""auto"", ""low"", ""high"")` and its documentation says it is passed on to OpenAI. The value is validated and stored on the `ContentImageRemote` object, but none of the `as_json()` methods for `ContentImageRemote` forward it, so it never reaches the request. The OpenAI Responses API accepts `detail` on an `input_image` part, and Chat Completions accepts it inside `image_url`, so it would take effect if sent.

@@ -1,4 +1,30 @@
 number,title,body,user,labels,state,draft,created_at,updated_at,url
+1135,fix: keep optional tool args out of `required` for Posit models,"## Summary
+
+`chat_posit()` routes non-Claude models through `ProviderPositOpenAI`, which inherited OpenAI's strict-mode tool schema: every property listed in `required`, with optional ones made nullable. Gateway-hosted models that aren't OpenAI (Gemma, zai-org, etc.) don't follow that convention, so optional tool arguments were effectively mandatory.
+
+`ProviderPositOpenAI` now has a `strict` property, set in `chat_posit()` from an `openai/` prefix on the model id. When `FALSE`, the provider uses the standard `TypeObject` serialization (optional args stay out of `required`), omits `strict` from tool definitions, and strips `strict` from structured-output `response_format` bodies. When `TRUE`, behavior is unchanged from the inherited OpenAI-compatible path.
+
+The prefix check is a best guess about how the gateway might hypothetically name OpenAI-routed models; it's marked as such in a comment.
+
+## Verification
+
+```r
+tool_def <- tool(
+  function(x, y = 1) x + y,
+  ""Add numbers"",
+  arguments = list(
+    x = type_number(""First""),
+    y = type_number(""Second"", required = FALSE)
+  )
+)
+provider <- chat_posit(model = ""google/gemma-4-26B-A4B-it"")$get_provider()
+as_json(provider, tool_def)$`function`$parameters$required
+#> [[1]]
+#> [1] ""x""
+```
+
+`devtools::test(filter = ""provider-posit"")` passes (19 tests), including new coverage for both the strict and non-strict branches.",gadenbuie,,open,FALSE,2026-09-06T18:15:38Z,2026-09-06T20:06:44Z,https://github.com/tidyverse/ellmer/pull/1135
 1133,Fix image detail serialisation for OpenAI providers,"Fixes #1132.
 
 ## Summary
