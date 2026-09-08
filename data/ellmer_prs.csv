@@ -1,4 +1,44 @@
 number,title,body,user,labels,state,draft,created_at,updated_at,url
+1139,`chat_posit()$set_model()` now switches model families,"Fixes #1138
+
+## Summary
+
+`chat_posit()` picks its provider class from the model name: Claude models get `ProviderPositAnthropic` (pointing at `{base_url}/anthropic/v1`), everything else gets `ProviderPositOpenAI` (pointing at `{base_url}/openai/v1`). But `Chat$set_model()` only updated the model name, so switching to a model from the other family sent a request with the wrong wire format to the wrong endpoint.
+
+This adds a `provider_set_model(provider, name)` S7 hook that `Chat$set_model()` consults. The default method returns the provider unchanged, so no other provider is affected. `ProviderPositAnthropic` and `ProviderPositOpenAI` override it to swap in their sibling class when the new model name belongs to the other family, carrying over credentials, `extra_headers`, and the gateway base URL (recovered via `posit_gateway_url()`).
+
+Design notes:
+
+- The `params()` argument of `chat_posit()` is provider-agnostic (each provider's `chat_params()` translates standard names to API-specific ones), so the `Model` object carries over untouched.
+- The Claude-only `cache` setting survives family switches via an inert `cache` property on `ProviderPositOpenAI`, so `cache = ""1h""` still applies after a round trip through OpenAI models. A chat that starts on an OpenAI model stores its `cache` argument too, so switching to Claude honors it. The property is hidden from `print()` for `ProviderPositOpenAI` since it's unused there.
+- A unified `ProviderPosit` class that picks the wire format per request was considered, but S7 dispatches on class and it would need ~30 thin wrapper methods that can drift from upstream; the hook gives the same result in ~20 lines.
+
+## Verification
+
+```r
+chat <- chat_posit(model = ""claude-sonnet-5"")
+chat$chat(""Hi"")  # works
+
+chat$set_model(""zai-org/GLM-5.3-Flash"")
+chat$chat(""Hi"")  # now works: request goes to /openai/v1
+```
+
+New tests in `test-provider-posit.R` cover family swaps in both directions, no-op within a family, credentials/header carryover, cache preservation, and the hidden print field.",gadenbuie,,open,FALSE,2026-09-07T17:02:17Z,2026-09-07T19:30:28Z,https://github.com/tidyverse/ellmer/pull/1139
+1137,Fix partial argument and element matches,"## Problem
+
+`chat_posit(model = ""zai-org/GLM-5.3-Flash"")` (and any OpenAI-compatible model that returns `reasoning_content`) triggers:
+
+```
+In message$reasoning : partial match of 'reasoning' to 'reasoning_content'
+```
+
+The test suite had a similar warning: `partial argument match of 'status' to 'status_code'` in test helpers.
+
+## Changes
+
+- `R/provider-openai-compatible.R`: read `message[[""reasoning""]] %||% message[[""reasoning_content""]]` with exact matching instead of `$` partial matching.
+- `tests/testthat/test-provider-posit.R`: `response_json()` is `httr2::response_json()`, whose argument is `status_code`; use the full argument name in all three calls.
+",gadenbuie,,open,FALSE,2026-09-07T15:44:32Z,2026-09-07T15:47:07Z,https://github.com/tidyverse/ellmer/pull/1137
 1135,fix: keep optional tool args out of `required` for Posit models,"## Summary
 
 `chat_posit()` routes non-Claude models through `ProviderPositOpenAI`, which inherited OpenAI's strict-mode tool schema: every property listed in `required`, with optional ones made nullable. Gateway-hosted models that aren't OpenAI (Gemma, zai-org, etc.) don't follow that convention, so optional tool arguments were effectively mandatory.
@@ -24,7 +64,7 @@ as_json(provider, tool_def)$`function`$parameters$required
 #> [1] ""x""
 ```
 
-`devtools::test(filter = ""provider-posit"")` passes (19 tests), including new coverage for both the strict and non-strict branches.",gadenbuie,,open,FALSE,2026-09-06T18:15:38Z,2026-09-06T20:06:44Z,https://github.com/tidyverse/ellmer/pull/1135
+`devtools::test(filter = ""provider-posit"")` passes (19 tests), including new coverage for both the strict and non-strict branches.",gadenbuie,,open,FALSE,2026-09-06T18:15:38Z,2026-09-07T16:35:47Z,https://github.com/tidyverse/ellmer/pull/1135
 1133,Fix image detail serialisation for OpenAI providers,"Fixes #1132.
 
 ## Summary

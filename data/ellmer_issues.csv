@@ -1,4 +1,131 @@
 number,title,body,user,labels,state,created_at,updated_at,comments,url,linked_prs
+1138,`chat_posit()` and `$set_model()` can't switch between Anthropic and OpenAI model families,"### The problem
+
+`chat_posit()` picks the provider class based on the model name. Claude models get a `ProviderPositAnthropic` pointing at `{base_url}/anthropic/v1`; everything else gets a `ProviderPositOpenAI` pointing at `{base_url}/openai/v1`.
+
+https://github.com/tidyverse/ellmer/blob/d92a1b3e52a83048260b38d2c9350f1c48e1e2fb/R/provider-posit.R#L65-L80
+
+This works fine at construction time. But `Chat$set_model()` only updates the model name. It never re-evaluates the provider choice. So when a Posit user switches to a model from the other family, they get an OpenAI-shaped request going to an Anthropic endpoint, or vice versa, which fails.
+
+https://github.com/tidyverse/ellmer/blob/d92a1b3e52a83048260b38d2c9350f1c48e1e2fb/R/chat.R#L156-L161
+
+For example:
+
+```r
+chat <- chat_posit(model = ""claude-sonnet-5"")
+chat$chat(""Hi"")  # works
+chat$set_model(""zai-org/GLM-5.3-Flash"")
+chat$chat(""Hi"")  # fails: Anthropic-shaped request hits /openai/v1
+```
+
+This is unique to `chat_posit()`. Every other `chat_*()` function has a one-to-one mapping between its provider class and the set of models it can reach, so this bug can't happen anywhere else.
+
+### Proposed fix: `provider_set_model()` hook
+
+Add an S7 generic, `provider_set_model(provider, name)`, consulted by `Chat$set_model()` to optionally return an updated provider. The default method returns the provider unchanged, so no other provider is affected. `Chat$set_model()` gains one dispatch call:
+
+```r
+set_model = function(model) {
+  check_string(model)
+  private$model@name <- model
+  private$provider <- provider_set_model(private$provider, model)
+  provider_model(private$provider) <- private$model
+  invisible(self)
+}
+```
+
+`ProviderPositAnthropic` and `ProviderPositOpenAI` override it to swap in their sibling class, carrying over `credentials`, `extra_headers`, and the base URL (recoverable via `posit_gateway_url()`):
+
+```r
+method(provider_set_model, ProviderPositAnthropic) <- function(provider, name) {
+  if (is_claude_model(name)) {
+    provider
+  } else {
+    ProviderPositOpenAI(...)
+  }
+}
+```
+
+One design note: the `params()` argument of `chat_posit()` is already provider-agnostic. It uses standard names (`temperature`, `max_tokens`, ...) that each provider's `chat_params()` method translates to API-specific names, with a warning for unsupported parameters rather than an error. So the `Model` object carries over untouched when the provider swaps.
+
+### Alternatives considered
+
+The other idea was a unified `ProviderPosit` class holding both base URLs and picking the wire format per-request based on the current model name. S7 dispatches on an object's class, and a class can't change at runtime, so this would mean either:
+
+1.  A `ProviderPosit` that internally delegates to an ""active"" Anthropic or OpenAI view, re-implementing every one of those family's ~30 methods as a thin wrapper. That includes all the `as_json(provider, Content*)` multi-dispatches, since every call site passes the provider object directly. Roughly 200 lines of boilerplate that can drift as methods are added upstream.
+2.  Restructuring the provider architecture around a separate ""wire format"" concept that both families share. A much larger refactor that touches every provider.
+
+The `provider_set_model()` hook gives users the same result with roughly 20 lines and no new abstraction. The only behavior note is that `cache` (Claude-only, lives on `ProviderPositAnthropic`) is silently lost when switching away from Claude models; the override should warn when that happens.",gadenbuie,,open,2026-09-07T16:34:26Z,2026-09-07T16:34:26Z,0,https://github.com/tidyverse/ellmer/issues/1138,1139
+1136,`ContentToolResult` doesn't collapse value into a scalar string,"ellmer collapses a plain character-vector return into a single string, but a `ContentToolResult` returned by a tool is used as-is. When its `value` has more than one element, the OpenAI serializer emits `output = [""line one"", ""line two""]` – an array of bare strings – which the Responses API rejects with HTTP 400. This probably affects other providers as well.
+
+Verified with ellmer 0.5.0.
+
+``` r
+library(ellmer)
+```
+
+### Works: tool returns a bare character vector
+
+``` r
+tool_bare <- ellmer::tool(
+  function() c(""line one"", ""line two""),
+  name = ""return_vector"",
+  description = ""Returns a character vector""
+)
+
+chat <- chat_openai(echo = FALSE)
+#> Using model = ""gpt-5.6-terra"".
+chat$register_tools(list(tool_bare))
+chat$chat(""Call the return_vector tool, then summarize the result."")
+#> The tool returned a two-line character vector:
+#> 
+#> - line one
+#> - line two
+
+contents <- unlist(lapply(chat$get_turns(), function(t) t@contents), recursive = FALSE)
+res <- Filter(function(x) inherits(x, ""ellmer::ContentToolResult""), contents)[[1]]
+res@value
+#> [1] ""line one\nline two""
+```
+
+### Fails: tool returns a ContentToolResult with a vector value
+
+``` r
+tool_result <- ellmer::tool(
+  function() ellmer::ContentToolResult(value = c(""line one"", ""line two"")),
+  name = ""return_result_vector"",
+  description = ""Returns a ContentToolResult whose value is a character vector""
+)
+```
+
+With `echo = FALSE` the API rejection surfaces directly:
+
+``` r
+chat2 <- chat_openai(echo = FALSE)
+#> Using model = ""gpt-5.6-terra"".
+chat2$register_tools(list(tool_result))
+
+chat2$chat(""Call the return_result_vector tool."")
+#> Error in `req_perform()`:
+#> ! HTTP 400 Bad Request.
+#> ℹ Invalid type for 'input[3].output[0]': expected an object, but got a string
+#>   instead.
+```
+
+### Fails differently with echo enabled
+
+With echo enabled (the default), the same failure happens even earlier, in ellmer’s cli display of the tool result, before the request is replayed. The display code assumes `value` is a single string:
+
+``` r
+chat3 <- chat_openai()
+#> Using model = ""gpt-5.6-terra"".
+chat3$register_tools(list(tool_result))
+
+chat3$chat(""Call the return_result_vector tool."")
+#> ◯ [tool call] return_result_vector()
+#> Error in `if (grepl(""\n"", value)) ...`:
+#> ! the condition has length > 1
+```",gadenbuie,,open,2026-09-07T13:46:31Z,2026-09-07T13:55:19Z,0,https://github.com/tidyverse/ellmer/issues/1136,
 1134,Support Gemini agentic video understanding,"Gemini recently added [Agentic Video Understanding](https://blog.google/innovation-and-ai/models-and-research/gemini-models/introducing-agentic-video-in-gemini/), which allows supported models to dynamically inspect relevant portions of a video instead of relying only on static video processing.
 
 For the Gemini GenerateContent API, this is enabled per video `Part` by setting:
