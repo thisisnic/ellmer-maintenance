@@ -23,22 +23,7 @@ chat$set_model(""zai-org/GLM-5.3-Flash"")
 chat$chat(""Hi"")  # now works: request goes to /openai/v1
 ```
 
-New tests in `test-provider-posit.R` cover family swaps in both directions, no-op within a family, credentials/header carryover, cache preservation, and the hidden print field.",gadenbuie,,open,FALSE,2026-09-07T17:02:17Z,2026-09-07T19:30:28Z,https://github.com/tidyverse/ellmer/pull/1139
-1137,Fix partial argument and element matches,"## Problem
-
-`chat_posit(model = ""zai-org/GLM-5.3-Flash"")` (and any OpenAI-compatible model that returns `reasoning_content`) triggers:
-
-```
-In message$reasoning : partial match of 'reasoning' to 'reasoning_content'
-```
-
-The test suite had a similar warning: `partial argument match of 'status' to 'status_code'` in test helpers.
-
-## Changes
-
-- `R/provider-openai-compatible.R`: read `message[[""reasoning""]] %||% message[[""reasoning_content""]]` with exact matching instead of `$` partial matching.
-- `tests/testthat/test-provider-posit.R`: `response_json()` is `httr2::response_json()`, whose argument is `status_code`; use the full argument name in all three calls.
-",gadenbuie,,open,FALSE,2026-09-07T15:44:32Z,2026-09-07T15:47:07Z,https://github.com/tidyverse/ellmer/pull/1137
+New tests in `test-provider-posit.R` cover family swaps in both directions, no-op within a family, credentials/header carryover, cache preservation, and the hidden print field.",gadenbuie,,open,FALSE,2026-09-07T17:02:17Z,2026-09-09T02:14:26Z,https://github.com/tidyverse/ellmer/pull/1139
 1135,fix: keep optional tool args out of `required` for Posit models,"## Summary
 
 `chat_posit()` routes non-Claude models through `ProviderPositOpenAI`, which inherited OpenAI's strict-mode tool schema: every property listed in `required`, with optional ones made nullable. Gateway-hosted models that aren't OpenAI (Gemma, zai-org, etc.) don't follow that convention, so optional tool arguments were effectively mandatory.

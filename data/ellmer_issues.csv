@@ -1,4 +1,35 @@
 number,title,body,user,labels,state,created_at,updated_at,comments,url,linked_prs
+1141,OrcaRouter provider support for ellmer,"ellmer answers a real gap for R users: a maintained way to call large language models from inside an analysis. With a stateful chat object you can stream a response to the console, hand the model an image via `content_image_url()`, or swap Anthropic's Claude for OpenAI in one function call — with tool calling and structured data extraction available across providers. That abstraction keeps data scientists and R package authors in R.
+
+Provider choice is central to ellmer's design — official providers like `chat_anthropic()` sit alongside community ones like `chat_openrouter()` and Groq — and users already pick the gateway that fits their cost, privacy, or model needs. A new optional provider slots into that same pattern and adds a lever for those users, without changing how any existing provider behaves.
+
+I'm an engineer on the OrcaRouter team, and I'd like to propose adding [OrcaRouter](https://www.orcarouter.ai) as an optional provider for ellmer. OrcaRouter exposes an OpenAI-compatible API and uses standard API-key authentication, so it would follow the same integration pattern as the existing community providers such as `chat_openrouter()` or `chat_groq()` — for instance, a `chat_orcarouter()` factory that passes a base URL and an `api_key` read from an environment variable, as the README recommends. Nothing about the current providers would change, and no code exists yet; this is a request for maintainers' thoughts.
+
+For ellmer's users, a few OrcaRouter capabilities stand out:
+
+- **Access to many models through one endpoint**: chat, reasoning, and image models behind a single API key — convenient when comparing models during exploratory analysis without provisioning several accounts.
+- **Automatic model routing and provider failover**: for scheduled R scripts or deployed reports, a request can fall back to another provider instead of failing when one is overloaded.
+- **Usage tracking and budgets**: useful when an analysis pipeline is consuming API credits steadily and you want visibility into cost.
+
+OrcaRouter is already used in the broader open-source ecosystem — for example with RAGFlow, Dify, promptfoo, and NocoBase — and we maintain an integration list at https://www.orcarouter.ai/built-with.
+
+One transparent note: OrcaRouter runs an optional open-source partner program through which approved OSS projects can receive a 5% revenue share from OrcaRouter usage attributed to their integration. Participation is not a precondition for an integration; we are happy to follow whatever disclosure or governance rules the ellmer maintainers prefer.
+
+I'd welcome your thoughts on whether an OrcaRouter provider would be valuable here, and if so, I'd be glad to contribute it as an implementation PR following ellmer's contributor guidance.
+",zsanig22-dotcom,,open,2026-09-09T00:53:52Z,2026-09-09T00:53:52Z,0,https://github.com/tidyverse/ellmer/issues/1141,
+1140,Include more OpenAI built-in tools,"Image gen at a minimum:
+
+```R
+  image_tool <- ellmer:::ToolBuiltIn(
+    name = ""image_gen"",
+    json = list(
+      type = ""image_generation"",
+      model = image_spec$model,
+      size = openai_size(image_spec$`aspect-ratio`, image_spec$resolution),
+      output_format = ""png""
+    )
+  )
+```",hadley,,open,2026-09-08T22:53:24Z,2026-09-08T22:53:24Z,0,https://github.com/tidyverse/ellmer/issues/1140,
 1138,`chat_posit()` and `$set_model()` can't switch between Anthropic and OpenAI model families,"### The problem
 
 `chat_posit()` picks the provider class based on the model name. Claude models get a `ProviderPositAnthropic` pointing at `{base_url}/anthropic/v1`; everything else gets a `ProviderPositOpenAI` pointing at `{base_url}/openai/v1`.
@@ -125,7 +156,7 @@ chat3$chat(""Call the return_result_vector tool."")
 #> ◯ [tool call] return_result_vector()
 #> Error in `if (grepl(""\n"", value)) ...`:
 #> ! the condition has length > 1
-```",gadenbuie,,open,2026-09-07T13:46:31Z,2026-09-07T13:55:19Z,0,https://github.com/tidyverse/ellmer/issues/1136,
+```",gadenbuie,,open,2026-09-07T13:46:31Z,2026-09-08T16:11:52Z,2,https://github.com/tidyverse/ellmer/issues/1136,
 1134,Support Gemini agentic video understanding,"Gemini recently added [Agentic Video Understanding](https://blog.google/innovation-and-ai/models-and-research/gemini-models/introducing-agentic-video-in-gemini/), which allows supported models to dynamically inspect relevant portions of a video instead of relying only on static video processing.
 
 For the Gemini GenerateContent API, this is enabled per video `Part` by setting:
