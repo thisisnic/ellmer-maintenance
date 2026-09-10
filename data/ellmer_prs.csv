@@ -23,7 +23,7 @@ chat$set_model(""zai-org/GLM-5.3-Flash"")
 chat$chat(""Hi"")  # now works: request goes to /openai/v1
 ```
 
-New tests in `test-provider-posit.R` cover family swaps in both directions, no-op within a family, credentials/header carryover, cache preservation, and the hidden print field.",gadenbuie,,open,FALSE,2026-09-07T17:02:17Z,2026-09-09T02:14:26Z,https://github.com/tidyverse/ellmer/pull/1139
+New tests in `test-provider-posit.R` cover family swaps in both directions, no-op within a family, credentials/header carryover, cache preservation, and the hidden print field.",gadenbuie,,open,FALSE,2026-09-07T17:02:17Z,2026-09-09T13:18:10Z,https://github.com/tidyverse/ellmer/pull/1139
 1135,fix: keep optional tool args out of `required` for Posit models,"## Summary
 
 `chat_posit()` routes non-Claude models through `ProviderPositOpenAI`, which inherited OpenAI's strict-mode tool schema: every property listed in `required`, with optional ones made nullable. Gateway-hosted models that aren't OpenAI (Gemma, zai-org, etc.) don't follow that convention, so optional tool arguments were effectively mandatory.
@@ -49,7 +49,7 @@ as_json(provider, tool_def)$`function`$parameters$required
 #> [1] ""x""
 ```
 
-`devtools::test(filter = ""provider-posit"")` passes (19 tests), including new coverage for both the strict and non-strict branches.",gadenbuie,,open,FALSE,2026-09-06T18:15:38Z,2026-09-07T16:35:47Z,https://github.com/tidyverse/ellmer/pull/1135
+`devtools::test(filter = ""provider-posit"")` passes (19 tests), including new coverage for both the strict and non-strict branches.",gadenbuie,,open,FALSE,2026-09-06T18:15:38Z,2026-09-09T19:02:26Z,https://github.com/tidyverse/ellmer/pull/1135
 1133,Fix image detail serialisation for OpenAI providers,"Fixes #1132.
 
 ## Summary
