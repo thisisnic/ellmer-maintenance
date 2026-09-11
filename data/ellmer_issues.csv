@@ -1,4 +1,46 @@
 number,title,body,user,labels,state,created_at,updated_at,comments,url,linked_prs
+1146,OpenTelemetry: should the `invoke_agent` span be kind `client` or `internal`?,"@shikokuchuo we'd like your take on this.
+
+ellmer's `invoke_agent` span (the parent of the per-request `chat <model>` spans and `execute_tool` spans) is currently kind `client`. While adding the GenAI metrics in #1143 the question came up whether it should be `internal` instead. We've left it as `client` in that PR so the decision can be made here.
+
+## Context
+
+The [GenAI semantic conventions](https://github.com/open-telemetry/semantic-conventions-genai/blob/main/model/gen-ai/spans.yaml) define two `invoke_agent` span variants:
+
+- **`gen_ai.invoke_agent.client`** (kind `client`): ""Describes GenAI agent invocation over a remote service."" Examples given: OpenAI Assistants API, AWS Bedrock Agents.
+- **`gen_ai.invoke_agent.internal`** (kind `internal`): ""Describes GenAI agent invocation within the same process."" Examples given: LangChain agents, CrewAI agents.
+
+The `gen_ai.invoke_agent.duration` metric notes that when it ""is reported alongside a `gen_ai.invoke_agent.internal` span, the metric value SHOULD be the same as the span duration.""
+
+## Case for `client` (current behavior)
+
+- The whole point of the span is that we are calling a remote model server. From the user's perspective `chat$chat()` is an outbound request, and `client` communicates that at a glance.
+- Every child of the span is remote work (the `chat` spans and the HTTP `POST` spans beneath them). Tool execution is the only local work, and it is triggered by the remote model.
+- It is what ellmer has shipped since OpenTelemetry support was added, so changing it is a user-visible change for anyone with dashboards keyed on span kind.
+
+## Case for `internal`
+
+- ellmer's agent loop runs in-process: the `while` loop, tool dispatch, and turn accumulation are all R code. The remote calls are already represented by the child `chat <model>` spans, which are kind `client`, and the HTTP spans beneath those. Marking the parent `client` too describes the agent itself as running remotely.
+- The spec's `client` variant is explicitly for hosted agents (Assistants API, Bedrock Agents) where a single remote call runs the loop on the provider's side. ellmer is structurally the LangChain/CrewAI case.
+- Some backends derive outbound dependency latency from `client` spans. A `client` parent wrapping `client` children double-counts the model calls in that view.
+- The new `gen_ai.invoke_agent.duration` metric is specified to pair with the `internal` span.
+
+## Questions
+
+1. Which kind should ellmer use?
+2. If `internal`, is the change worth a NEWS bullet / any deprecation consideration for users with existing dashboards?
+
+Related: #1142, #1143.",schloerke,,open,2026-09-10T15:38:43Z,2026-09-10T16:14:15Z,1,https://github.com/tidyverse/ellmer/issues/1146,1149
+1145,OpenTelemetry logging drops message history after rich tool results,"Rich content nested in a tool result can prevent ellmer from serializing `gen_ai.input.messages`. 
+
+For example, a plot returned as `ContentImageInline` causes `jsonlite` to error with `No method asJSON S3 class: S7_object`; ellmer suppresses the error and omits the entire attribute, including later text-only user messages because each span records the full conversation history. 
+
+https://github.com/tidyverse/ellmer/blob/92cfa7f48270048105ea1bfb44d23a2e59c2df6e/R/otel.R#L69-L83
+
+(FYI, when the above says ""break the chat"", it's referring to the live chat and not the OTel recording of it.)
+
+For the purposes of reading in conversations recorded with this functionality, it'd be nice if ellmer if provided placeholder ""(An image was here.)"" tool results (or something else, if semconv has a preferred way of doing this) so that the remaining messages are still recorded.
+",simonpcouch,,open,2026-09-10T15:12:00Z,2026-09-10T15:12:00Z,0,https://github.com/tidyverse/ellmer/issues/1145,
 1141,OrcaRouter provider support for ellmer,"ellmer answers a real gap for R users: a maintained way to call large language models from inside an analysis. With a stateful chat object you can stream a response to the console, hand the model an image via `content_image_url()`, or swap Anthropic's Claude for OpenAI in one function call — with tool calling and structured data extraction available across providers. That abstraction keeps data scientists and R package authors in R.
 
 Provider choice is central to ellmer's design — official providers like `chat_anthropic()` sit alongside community ones like `chat_openrouter()` and Groq — and users already pick the gateway that fits their cost, privacy, or model needs. A new optional provider slots into that same pattern and adds a lever for those users, without changing how any existing provider behaves.
