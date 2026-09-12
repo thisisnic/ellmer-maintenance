@@ -5,7 +5,7 @@ Per the discussion in #1146, the `invoke_agent` span is now kind `internal` rath
 
 - `R/otel.R`: span kind and comment.
 - `tests/testthat/test-otel.R`: updated kind assertion.
-- `NEWS.md`: bullet noting the change for anyone with dashboards keyed on span kind. No deprecation, since the GenAI semconv is still `stability: development`.",schloerke,,open,FALSE,2026-09-10T16:54:20Z,2026-09-10T17:12:53Z,https://github.com/tidyverse/ellmer/pull/1149
+- `NEWS.md`: bullet noting the change for anyone with dashboards keyed on span kind. No deprecation, since the GenAI semconv is still `stability: development`.",schloerke,,open,FALSE,2026-09-10T16:54:20Z,2026-09-11T12:49:25Z,https://github.com/tidyverse/ellmer/pull/1149
 1148,"Record server, output type, reasoning, and tool definition attributes on OpenTelemetry chat spans","Stacked on #1147.
 
 Adds the remaining spec-recommended attributes to the `chat <model>` span:
@@ -58,7 +58,7 @@ Testing: the internal `with_otel_record()` helper now shuts the meter provider d
 - `R/chat.R`: both sync and async streaming loops call it once, on the first non-empty text/thinking chunk.
 - Tests: offline mocked test plus assertions in the live stream tests.
 
-Follow-up in #1143 (stacked on this) broadens the trigger to tool calls and adds GenAI metrics.",schloerke,,open,FALSE,2026-09-10T14:24:31Z,2026-09-10T17:12:44Z,https://github.com/tidyverse/ellmer/pull/1142
+Follow-up in #1143 (stacked on this) broadens the trigger to tool calls and adds GenAI metrics.",schloerke,,open,FALSE,2026-09-10T14:24:31Z,2026-09-11T13:09:02Z,https://github.com/tidyverse/ellmer/pull/1142
 1139,`chat_posit()$set_model()` now switches model families,"Fixes #1138
 
 ## Summary

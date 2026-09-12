@@ -1,4 +1,28 @@
 number,title,body,user,labels,state,created_at,updated_at,comments,url,linked_prs
+1150,"Default max_tokens to each model's real output ceiling, not a flat 4096","### Problem
+
+`ProviderAnthropic`'s `chat_params()` hardcodes `params$max_tokens <- params$max_tokens %||% 4096` (`R/provider-claude.R`) regardless of which Claude model is in use. A model that supports 128,000 output tokens gets capped at 4,096 whenever the caller doesn't set `params(max_tokens = ...)` explicitly, causing silent truncation. Other providers set no default at all and just rely on whatever the provider's own API defaults to.
+
+### Proposed direction
+
+A three-tier resolution, applied uniformly across every provider (not just Anthropic):
+
+1. **Explicit `params(max_tokens = N)`** — unchanged, always wins.
+2. **Per-model ceiling from the pricing table.** `data-raw/prices.R` already fetches LiteLLM's `model_prices_and_context_window.json` for cost data (`get_token_cost()`); extend the same pipeline to also capture `max_output_tokens`, with a sibling lookup function.
+3. **Global fallback constant** for models not in the table (new/unlisted/self-hosted), overridable via an `ELLMER_MAX_TOKENS` env var. Scoped only to the lookup-miss case — never clamps a known table value, never overrides an explicit `params()` value.
+
+The resolver plugs in at each provider's `chat_body()` call site (where `model@name` is in scope, unlike `chat_params()`), which turns out to be only **7 files** — several providers share `ProviderOpenAICompatible`'s `chat_body()` method, so fixing that one covers Azure, Mistral, Groq, DeepSeek, OpenRouter, Perplexity, Portkey, GitHub, HuggingFace, Cloudflare, LM Studio, Ollama, and vLLM for free.
+
+One correctness note: adding a `max_output_tokens` column to `prices.json` requires bumping `schema_version` — `prices_cache_compatible()` hard-errors (`stopifnot`) on a same-version cache missing a bundled column, rather than the intended ""please refresh"" path.
+
+### Note to ourselves
+
+A full design doc and a task-by-task TDD implementation plan already exist locally at:
+
+- `docs/plans/2026-09-11-generous-max-output-tokens-design.md`
+- `docs/plans/2026-09-11-generous-max-output-tokens-implementation-plan.md`
+
+in the `ellmer` checkout (gitignored under `docs/`, not pushed — check there before starting fresh).",cpsievert,,open,2026-09-12T00:43:41Z,2026-09-12T00:43:41Z,0,https://github.com/tidyverse/ellmer/issues/1150,
 1146,OpenTelemetry: should the `invoke_agent` span be kind `client` or `internal`?,"@shikokuchuo we'd like your take on this.
 
 ellmer's `invoke_agent` span (the parent of the per-request `chat <model>` spans and `execute_tool` spans) is currently kind `client`. While adding the GenAI metrics in #1143 the question came up whether it should be `internal` instead. We've left it as `client` in that PR so the decision can be made here.
