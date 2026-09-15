@@ -1,4 +1,10 @@
 number,title,body,user,labels,state,created_at,updated_at,comments,url,linked_prs
+1152,Support for server-side provider-native compaction?,"I understand that `ellmer` does not support compaction, and instead provides an entry point for the user to write manual auto-compaction as a callback (#1051, #1052). For client-side compaction, it's an insightful and elegant solution, and I fully agree the approach. But for server-side compaction callable through provider APIs, would you be open to considering native support in `ellmer`? Examples:
+
+* https://platform.claude.com/docs/en/build-with-claude/compaction
+* https://developers.openai.com/api/docs/guides/compaction
+
+It would be super convenient to throw this into an `on_request_start()` or `on_request_end()` hook instead of having to go down that rabbit hole myself. It's so much easier to develop a harness when I only need to think about prompts and tools.",wlandau,,open,2026-09-15T03:02:03Z,2026-09-15T03:02:03Z,0,https://github.com/tidyverse/ellmer/issues/1152,
 1150,"Default max_tokens to each model's real output ceiling, not a flat 4096","### Problem
 
 `ProviderAnthropic`'s `chat_params()` hardcodes `params$max_tokens <- params$max_tokens %||% 4096` (`R/provider-claude.R`) regardless of which Claude model is in use. A model that supports 128,000 output tokens gets capped at 4,096 whenever the caller doesn't set `params(max_tokens = ...)` explicitly, causing silent truncation. Other providers set no default at all and just rely on whatever the provider's own API defaults to.
@@ -641,7 +647,7 @@ Session info: ellmer 0.4.2, R 4.6.1, macOS.",kbenoit,,open,2026-09-03T01:52:37Z,
 * [x] `revdepcheck::cloud_check()`
 * [x] Update `cran-comments.md`
 * [x] `git push`
-* [ ] Draft blog post
+* [x] Draft blog post
 
 Submit to CRAN:
 
@@ -652,13 +658,13 @@ Submit to CRAN:
 Wait for CRAN...
 
 * [x] Accepted :tada:
-* [ ] Finish & publish blog post
-* [ ] Add link to blog post in pkgdown news menu
+* [x] Finish & publish blog post
+* [x] Add link to blog post in pkgdown news menu
 * [x] `usethis::use_github_release()`
 * [x] `usethis::use_dev_version(push = TRUE)`
 * [ ] Share on social media
 * [ ] Slack link to blog post, bluesky, and linkedin in #open-source-comms
-",thisisnic,upkeep,open,2026-09-01T15:44:41Z,2026-09-04T13:15:32Z,0,https://github.com/tidyverse/ellmer/issues/1112,
+",thisisnic,upkeep,open,2026-09-01T15:44:41Z,2026-09-14T18:48:24Z,0,https://github.com/tidyverse/ellmer/issues/1112,
 1088,Assorted provider gaps found while auditing feature support,"While auditing feature support across the official providers, 🤖 found a few apparent bugs. Status after investigating each:
 
 - **Confirmed:** `chat_deepseek()` silently drops non-text user content: `as_json(Turn)` (R/provider-deepseek.R:105) keeps only `ContentText`, so images and PDFs are discarded without a warning and the model never sees them. Verified empirically. Images are a documented limitation, but we should error (like Snowflake does) rather than silently drop. Straightforward fix.
