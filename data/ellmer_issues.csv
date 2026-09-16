@@ -4,7 +4,7 @@ number,title,body,user,labels,state,created_at,updated_at,comments,url,linked_pr
 * https://platform.claude.com/docs/en/build-with-claude/compaction
 * https://developers.openai.com/api/docs/guides/compaction
 
-It would be super convenient to throw this into an `on_request_start()` or `on_request_end()` hook instead of having to go down that rabbit hole myself. It's so much easier to develop a harness when I only need to think about prompts and tools.",wlandau,,open,2026-09-15T03:02:03Z,2026-09-15T03:02:03Z,0,https://github.com/tidyverse/ellmer/issues/1152,
+It would be super convenient to throw this into an `on_request_start()` or `on_request_end()` hook instead of having to go down that rabbit hole myself. It's so much easier to develop a harness when I only need to think about prompts and tools.",wlandau,feature,open,2026-09-15T03:02:03Z,2026-09-15T16:35:05Z,0,https://github.com/tidyverse/ellmer/issues/1152,
 1150,"Default max_tokens to each model's real output ceiling, not a flat 4096","### Problem
 
 `ProviderAnthropic`'s `chat_params()` hardcodes `params$max_tokens <- params$max_tokens %||% 4096` (`R/provider-claude.R`) regardless of which Claude model is in use. A model that supports 128,000 output tokens gets capped at 4,096 whenever the caller doesn't set `params(max_tokens = ...)` explicitly, causing silent truncation. Other providers set no default at all and just rely on whatever the provider's own API defaults to.
@@ -27,7 +27,7 @@ A full design doc and a task-by-task TDD implementation plan already exist local
 
 - `docs/plans/2026-09-11-generous-max-output-tokens-design.md`
 - `docs/plans/2026-09-11-generous-max-output-tokens-implementation-plan.md`
-",cpsievert,,open,2026-09-12T00:43:41Z,2026-09-12T15:07:45Z,3,https://github.com/tidyverse/ellmer/issues/1150,
+",cpsievert,feature,open,2026-09-12T00:43:41Z,2026-09-15T16:34:55Z,3,https://github.com/tidyverse/ellmer/issues/1150,
 1146,OpenTelemetry: should the `invoke_agent` span be kind `client` or `internal`?,"@shikokuchuo we'd like your take on this.
 
 ellmer's `invoke_agent` span (the parent of the per-request `chat <model>` spans and `execute_tool` spans) is currently kind `client`. While adding the GenAI metrics in #1143 the question came up whether it should be `internal` instead. We've left it as `client` in that PR so the decision can be made here.
@@ -59,7 +59,7 @@ The `gen_ai.invoke_agent.duration` metric notes that when it ""is reported along
 1. Which kind should ellmer use?
 2. If `internal`, is the change worth a NEWS bullet / any deprecation consideration for users with existing dashboards?
 
-Related: #1142, #1143.",schloerke,,open,2026-09-10T15:38:43Z,2026-09-10T16:14:15Z,1,https://github.com/tidyverse/ellmer/issues/1146,1149
+Related: #1142, #1143.",schloerke,feature,open,2026-09-10T15:38:43Z,2026-09-15T16:33:45Z,1,https://github.com/tidyverse/ellmer/issues/1146,1149
 1145,OpenTelemetry logging drops message history after rich tool results,"Rich content nested in a tool result can prevent ellmer from serializing `gen_ai.input.messages`. 
 
 For example, a plot returned as `ContentImageInline` causes `jsonlite` to error with `No method asJSON S3 class: S7_object`; ellmer suppresses the error and omits the entire attribute, including later text-only user messages because each span records the full conversation history. 
@@ -69,25 +69,7 @@ https://github.com/tidyverse/ellmer/blob/92cfa7f48270048105ea1bfb44d23a2e59c2df6
 (FYI, when the above says ""break the chat"", it's referring to the live chat and not the OTel recording of it.)
 
 For the purposes of reading in conversations recorded with this functionality, it'd be nice if ellmer if provided placeholder ""(An image was here.)"" tool results (or something else, if semconv has a preferred way of doing this) so that the remaining messages are still recorded.
-",simonpcouch,,open,2026-09-10T15:12:00Z,2026-09-10T15:12:00Z,0,https://github.com/tidyverse/ellmer/issues/1145,
-1141,OrcaRouter provider support for ellmer,"ellmer answers a real gap for R users: a maintained way to call large language models from inside an analysis. With a stateful chat object you can stream a response to the console, hand the model an image via `content_image_url()`, or swap Anthropic's Claude for OpenAI in one function call — with tool calling and structured data extraction available across providers. That abstraction keeps data scientists and R package authors in R.
-
-Provider choice is central to ellmer's design — official providers like `chat_anthropic()` sit alongside community ones like `chat_openrouter()` and Groq — and users already pick the gateway that fits their cost, privacy, or model needs. A new optional provider slots into that same pattern and adds a lever for those users, without changing how any existing provider behaves.
-
-I'm an engineer on the OrcaRouter team, and I'd like to propose adding [OrcaRouter](https://www.orcarouter.ai) as an optional provider for ellmer. OrcaRouter exposes an OpenAI-compatible API and uses standard API-key authentication, so it would follow the same integration pattern as the existing community providers such as `chat_openrouter()` or `chat_groq()` — for instance, a `chat_orcarouter()` factory that passes a base URL and an `api_key` read from an environment variable, as the README recommends. Nothing about the current providers would change, and no code exists yet; this is a request for maintainers' thoughts.
-
-For ellmer's users, a few OrcaRouter capabilities stand out:
-
-- **Access to many models through one endpoint**: chat, reasoning, and image models behind a single API key — convenient when comparing models during exploratory analysis without provisioning several accounts.
-- **Automatic model routing and provider failover**: for scheduled R scripts or deployed reports, a request can fall back to another provider instead of failing when one is overloaded.
-- **Usage tracking and budgets**: useful when an analysis pipeline is consuming API credits steadily and you want visibility into cost.
-
-OrcaRouter is already used in the broader open-source ecosystem — for example with RAGFlow, Dify, promptfoo, and NocoBase — and we maintain an integration list at https://www.orcarouter.ai/built-with.
-
-One transparent note: OrcaRouter runs an optional open-source partner program through which approved OSS projects can receive a 5% revenue share from OrcaRouter usage attributed to their integration. Participation is not a precondition for an integration; we are happy to follow whatever disclosure or governance rules the ellmer maintainers prefer.
-
-I'd welcome your thoughts on whether an OrcaRouter provider would be valuable here, and if so, I'd be glad to contribute it as an implementation PR following ellmer's contributor guidance.
-",zsanig22-dotcom,,open,2026-09-09T00:53:52Z,2026-09-09T00:53:52Z,0,https://github.com/tidyverse/ellmer/issues/1141,
+",simonpcouch,bug,open,2026-09-10T15:12:00Z,2026-09-15T15:35:18Z,0,https://github.com/tidyverse/ellmer/issues/1145,
 1140,Include more OpenAI built-in tools,"Image gen at a minimum:
 
 ```R
@@ -100,7 +82,7 @@ I'd welcome your thoughts on whether an OrcaRouter provider would be valuable he
       output_format = ""png""
     )
   )
-```",hadley,,open,2026-09-08T22:53:24Z,2026-09-08T22:53:24Z,0,https://github.com/tidyverse/ellmer/issues/1140,
+```",hadley,feature,open,2026-09-08T22:53:24Z,2026-09-15T11:41:49Z,0,https://github.com/tidyverse/ellmer/issues/1140,
 1138,`chat_posit()` and `$set_model()` can't switch between Anthropic and OpenAI model families,"### The problem
 
 `chat_posit()` picks the provider class based on the model name. Claude models get a `ProviderPositAnthropic` pointing at `{base_url}/anthropic/v1`; everything else gets a `ProviderPositOpenAI` pointing at `{base_url}/openai/v1`.
@@ -157,7 +139,7 @@ The other idea was a unified `ProviderPosit` class holding both base URLs and pi
 1.  A `ProviderPosit` that internally delegates to an ""active"" Anthropic or OpenAI view, re-implementing every one of those family's ~30 methods as a thin wrapper. That includes all the `as_json(provider, Content*)` multi-dispatches, since every call site passes the provider object directly. Roughly 200 lines of boilerplate that can drift as methods are added upstream.
 2.  Restructuring the provider architecture around a separate ""wire format"" concept that both families share. A much larger refactor that touches every provider.
 
-The `provider_set_model()` hook gives users the same result with roughly 20 lines and no new abstraction. The only behavior note is that `cache` (Claude-only, lives on `ProviderPositAnthropic`) is silently lost when switching away from Claude models; the override should warn when that happens.",gadenbuie,,open,2026-09-07T16:34:26Z,2026-09-07T16:34:26Z,0,https://github.com/tidyverse/ellmer/issues/1138,1139
+The `provider_set_model()` hook gives users the same result with roughly 20 lines and no new abstraction. The only behavior note is that `cache` (Claude-only, lives on `ProviderPositAnthropic`) is silently lost when switching away from Claude models; the override should warn when that happens.",gadenbuie,bug,open,2026-09-07T16:34:26Z,2026-09-15T11:43:39Z,0,https://github.com/tidyverse/ellmer/issues/1138,1139
 1136,`ContentToolResult` doesn't collapse value into a scalar string,"ellmer collapses a plain character-vector return into a single string, but a `ContentToolResult` returned by a tool is used as-is. When its `value` has more than one element, the OpenAI serializer emits `output = [""line one"", ""line two""]` – an array of bare strings – which the Responses API rejects with HTTP 400. This probably affects other providers as well.
 
 Verified with ellmer 0.5.0.
@@ -227,7 +209,7 @@ chat3$chat(""Call the return_result_vector tool."")
 #> ◯ [tool call] return_result_vector()
 #> Error in `if (grepl(""\n"", value)) ...`:
 #> ! the condition has length > 1
-```",gadenbuie,,open,2026-09-07T13:46:31Z,2026-09-08T16:11:52Z,2,https://github.com/tidyverse/ellmer/issues/1136,
+```",gadenbuie,bug,open,2026-09-07T13:46:31Z,2026-09-15T16:32:34Z,2,https://github.com/tidyverse/ellmer/issues/1136,
 1134,Support Gemini agentic video understanding,"Gemini recently added [Agentic Video Understanding](https://blog.google/innovation-and-ai/models-and-research/gemini-models/introducing-agentic-video-in-gemini/), which allows supported models to dynamically inspect relevant portions of a video instead of relying only on static video processing.
 
 For the Gemini GenerateContent API, this is enabled per video `Part` by setting:
@@ -264,7 +246,7 @@ I don't have a strong preference about where this option should live in the ellm
 
 As far as I can tell, `api_args` does not provide an easy workaround because `mediaProcessing` belongs to the individual video `Part`, rather than to the top-level GenerateContent request.
 
-Thanks for considering it!",paithiov909,,open,2026-09-06T15:29:27Z,2026-09-07T00:37:40Z,1,https://github.com/tidyverse/ellmer/issues/1134,
+Thanks for considering it!",paithiov909,feature,open,2026-09-06T15:29:27Z,2026-09-15T11:43:56Z,1,https://github.com/tidyverse/ellmer/issues/1134,
 1132,`content_image_url()` accepts `detail` but no provider sends it,"### Summary
 
 `content_image_url()` takes `detail = c(""auto"", ""low"", ""high"")` and its documentation says it is passed on to OpenAI. The value is validated and stored on the `ContentImageRemote` object, but none of the `as_json()` methods for `ContentImageRemote` forward it, so it never reaches the request. The OpenAI Responses API accepts `detail` on an `input_image` part, and Chat Completions accepts it inside `image_url`, so it would take effect if sent.
@@ -320,7 +302,7 @@ list(type = ""image_url"", image_url = list(url = x@url, detail = x@detail))
 ```
 
 with `""auto""` either sent as-is or omitted, since it is the API default. Providers that have no equivalent (Claude, Gemini, Bedrock) can keep ignoring the field, but it would help to say so in the `content_image_url()` docs.
-",kbenoit,,open,2026-09-05T11:17:22Z,2026-09-05T11:17:22Z,0,https://github.com/tidyverse/ellmer/issues/1132,1133
+",kbenoit,feature,open,2026-09-05T11:17:22Z,2026-09-15T16:08:23Z,0,https://github.com/tidyverse/ellmer/issues/1132,1133
 1131,get_tokens() fails with an unpaired user turn or partial assistant,"`Chat$get_tokens()` fails when the history has a user turn without a completed assistant response. I reproduced this with released ellmer 0.5.0; the same preview assignment is present on current main. No model call is needed:
 
 ```r
@@ -350,8 +332,8 @@ chat$get_tokens()
 Our concrete case is a completed tool round followed by an `on_request_start` callback that stops before the next provider dispatch. The callback receives the pending tool-result user turn before ellmer has stored it. We retain that real turn through public `set_turns()` so saving and resuming does not lose the completed result. That produces an intentionally unfinished conversation. Adding a later user/assistant pair still leaves the extra user turn and the table mismatch. A cancelled partial assistant produces the same mismatch because partial turns are excluded from the token rows.
 
 Expected: token rows and previews should correspond to completed assistant responses even when history is unfinished. Incomplete requests should not require an invented assistant response just to inspect usage. It would also be helpful for complete-context estimation to include retained content after the last completed response.
-",JamesHWade,,open,2026-09-05T11:14:07Z,2026-09-05T11:14:07Z,0,https://github.com/tidyverse/ellmer/issues/1131,
-1130,"`Chat$chat()` docs don't list possible `echo` values, and `$chat_structured()` recommends deprecated `echo = ""text""`","The `echo` parameter on `Chat$chat()` says ""whether to emit the response to stdout as it is received"" but doesn't list the possible values; they're only enumerated on the `Chat` constructor. `$chat_structured()` and `$chat_structured_async()` tell users to set `echo = ""text""`, which `check_echo()` has treated as deprecated in favour of `""output""` since 0.2.0. Suggest listing `""none""`, `""output""`, and `""all""` on `$chat()` and replacing `""text""` with `""output""` in the structured methods.",thisisnic,,open,2026-09-04T16:23:58Z,2026-09-04T16:23:58Z,0,https://github.com/tidyverse/ellmer/issues/1130,
+",JamesHWade,bug,open,2026-09-05T11:14:07Z,2026-09-15T11:44:18Z,0,https://github.com/tidyverse/ellmer/issues/1131,
+1130,"`Chat$chat()` docs don't list possible `echo` values, and `$chat_structured()` recommends deprecated `echo = ""text""`","The `echo` parameter on `Chat$chat()` says ""whether to emit the response to stdout as it is received"" but doesn't list the possible values; they're only enumerated on the `Chat` constructor. `$chat_structured()` and `$chat_structured_async()` tell users to set `echo = ""text""`, which `check_echo()` has treated as deprecated in favour of `""output""` since 0.2.0. Suggest listing `""none""`, `""output""`, and `""all""` on `$chat()` and replacing `""text""` with `""output""` in the structured methods.",thisisnic,upkeep,open,2026-09-04T16:23:58Z,2026-09-15T16:10:00Z,0,https://github.com/tidyverse/ellmer/issues/1130,
 1129,parallel_chat_structured() silently drops include_tokens and include_cost for an array type,"## Summary
 
 `parallel_chat_structured(include_tokens = TRUE, include_cost = TRUE)` silently returns no token counts and no cost when `type` is a `type_array()`. Both flags are accepted and ignored.
@@ -404,7 +386,7 @@ Either of these would do:
 ## Context
 
 Found in quallmer (quallmer/quallmer#119), whose `qlm_segment()` asks for an array of segments per document and could not cost a run. Our workaround is to request `type_object(segments = type_array(...))` instead, which converts to one row per prompt with the usage beside the list-column, matching the wrapping ellmer does internally for providers that require an object at the top level.
-",kbenoit,,open,2026-09-03T22:42:20Z,2026-09-03T22:42:20Z,0,https://github.com/tidyverse/ellmer/issues/1129,
+",kbenoit,bug,open,2026-09-03T22:42:20Z,2026-09-15T16:33:09Z,0,https://github.com/tidyverse/ellmer/issues/1129,
 1128,"Support `defer_loading` and tool search, now shipped by both Anthropic and OpenAI","An app with a large tool set pays for every tool schema on every request, and `ellmer` offers no way to avoid it short of registering and unregistering tools mid-conversation. That workaround is worse than the problem: tools render ahead of `system` and `messages`, so changing the tool set invalidates the prompt cache for the entire request — the manifest, the system prompt and every turn of history.
 
 ## Both providers now solve this, and agree on the spelling
@@ -437,7 +419,7 @@ If a per-tool passthrough is preferred over a named argument, that would also re
 One implementation note: tool search introduces `tool_search_call` and `tool_search_output` items in the Responses output, so the turn parser needs to tolerate them. That overlaps with #928.
 
 Happy to open a PR if this is a direction you would take.
-",nbenn,,open,2026-09-03T08:53:23Z,2026-09-03T08:53:23Z,0,https://github.com/tidyverse/ellmer/issues/1128,
+",nbenn,feature,open,2026-09-03T08:53:23Z,2026-09-15T16:32:53Z,0,https://github.com/tidyverse/ellmer/issues/1128,
 1127,Make date format prompt unambiguous in `test_tools_simple()`,"Running the live Databricks tests with the new default model (`databricks-claude-sonnet-5`), the ""supports tool calling"" test failed because the model reformatted the tool result ""2024-01-01"" as ""2024-1-1"" in its reply. The `test_tools_simple()` helper in `tests/testthat/helper-provider.R` asks for the date ""in Y-M-D format"", which doesn't say anything about zero padding, but then uses `expect_match(result, ""2024-01-01"")`. Asking for ""YYYY-MM-DD format"" instead should make the expected output unambiguous without loosening the check.",thisisnic,upkeep,open,2026-09-03T08:01:11Z,2026-09-03T09:44:10Z,0,https://github.com/tidyverse/ellmer/issues/1127,
 1126,"`parallel_chat_structured()` returns an ordinary row, with no `.error`, for a response cut off at `max_tokens`","## Summary
 
@@ -528,7 +510,7 @@ This is a sibling of #1121, which asks for extraction failures to be recorded in
 
 Context: [quallmer](https://github.com/quallmer/quallmer) reports per-unit failures from `.error` and needed this for quallmer/quallmer#153. Our interim fix infers a cut from `include_tokens` when the caller declared `max_tokens` itself, which cannot see a provider default limit. Happy to send a PR if the direction is acceptable.
 
-Session info: ellmer 0.4.2, R 4.6.1, macOS.",kbenoit,,open,2026-09-03T06:59:39Z,2026-09-03T06:59:39Z,0,https://github.com/tidyverse/ellmer/issues/1126,
+Session info: ellmer 0.4.2, R 4.6.1, macOS.",kbenoit,bug,open,2026-09-03T06:59:39Z,2026-09-16T04:00:03Z,2,https://github.com/tidyverse/ellmer/issues/1126,
 1124,Add `release_bullets()` for ellmer-specific release tasks,"usethis::use_release_issue() picks up an unexported `release_bullets()` function and adds its items to the ""Prepare for release"" section of the release issue (see https://usethis.r-lib.org/reference/use_release_issue.html). We should add one to ellmer:
 
 ```r
@@ -630,7 +612,7 @@ Populate `.error` for extraction failures as well as request failures, so the co
 
 Context: we hit this in [quallmer](https://github.com/quallmer/quallmer), which reports per-unit failures from `.error` (quallmer/quallmer#132). Our interim fix is a calling handler around the structured call that parses the `* <row>: <message>` lines of the warning back into `.error`, with a test pinned against `multi_convert()` so a format change fails our suite. That works, but it is a reconstruction of information ellmer already had. Happy to send a PR if the direction is acceptable.
 
-Session info: ellmer 0.4.2, R 4.6.1, macOS.",kbenoit,,open,2026-09-03T01:52:37Z,2026-09-03T01:52:37Z,0,https://github.com/tidyverse/ellmer/issues/1121,
+Session info: ellmer 0.4.2, R 4.6.1, macOS.",kbenoit,bug,open,2026-09-03T01:52:37Z,2026-09-15T16:02:19Z,0,https://github.com/tidyverse/ellmer/issues/1121,
 1112,Release ellmer 0.5.0,"Prepare for release:
 
 * [x] `git pull`
@@ -668,11 +650,10 @@ Wait for CRAN...
 1088,Assorted provider gaps found while auditing feature support,"While auditing feature support across the official providers, 🤖 found a few apparent bugs. Status after investigating each:
 
 - **Confirmed:** `chat_deepseek()` silently drops non-text user content: `as_json(Turn)` (R/provider-deepseek.R:105) keeps only `ContentText`, so images and PDFs are discarded without a warning and the model never sees them. Verified empirically. Images are a documented limitation, but we should error (like Snowflake does) rather than silently drop. Straightforward fix.
-- **Confirmed, needs a live check:** `chat_snowflake()` never sets `finish_reason` in `value_turn()` (R/provider-snowflake.R:313) and has no `value_finish_reason` method, so the truncation warnings added in 0.4.2 (#867) can't fire. Caveat: chatlas has the same gap with a `# TODO: no finish_reason in Snowflake?` comment for the same `inference:complete` endpoint, and Snowflake's docs suggest support is patchy (absent entirely for Claude models). Needs a live test to see what the API actually returns before wiring anything up.
 - **Confirmed:** `chat_aws_bedrock()` doesn't stream thinking: `stream_content()` (R/provider-aws.R:344) only emits `ContentText` live; `reasoningContent` deltas are accumulated in `stream_merge_chunks()` but never emitted, so thinking only appears in the completed turn. Inconsistent with the direct Claude provider, which streams `ContentThinking` (R/provider-claude.R:323). Straightforward fix.
 - **Confirmed unverified inheritance:** `chat_posit()` inherits `has_batch_support = TRUE` from `ProviderAnthropic`, so `batch_chat()` will POST to `{gateway}/anthropic/v1/messages/batches` with no verification that the gateway supports that endpoint. chatlas notes the gateway doesn't proxy the beta Files API, so incomplete endpoint coverage is plausible; chatlas appears to have the same inheritance. Needs a live test against the gateway (or confirmation from Posit folks); if unsupported the fix is a one-line override.
 - **Feature gap, not a bug:** `google_upload()` is hardcoded to the Gemini endpoint (R/provider-google-upload.R:31), and this is more than parameterization: Vertex has no Files API equivalent and expects Cloud Storage URIs instead, so Vertex audio/video support is new functionality (e.g. accepting `gs://` URIs). The docs already note it's Gemini specific. Should be split into a separate feature request.
-",thisisnic,bug,open,2026-08-13T14:30:24Z,2026-08-31T10:18:38Z,0,https://github.com/tidyverse/ellmer/issues/1088,
+",thisisnic,bug,open,2026-08-13T14:30:24Z,2026-09-15T18:32:10Z,0,https://github.com/tidyverse/ellmer/issues/1088,
 1083,Model metadata omits the context window,"The `models_*()` functions don't report how much context a model accepts, and nothing on `Chat` exposes it either. A caller can see how many tokens a conversation has accumulated, through `get_tokens()`, but not how close that is to the limit — leaving a hardcoded per-model table that goes stale with every release, or per-provider HTTP calls, as the only ways to find out. That is the work ellmer otherwise saves callers from doing.
 
 Most providers already return it, in a response ellmer parses and then discards. The table below is a brief overview gathered from their docs, so it may well have shifted by the time anyone acts on it.
