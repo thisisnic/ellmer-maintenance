@@ -1,4 +1,217 @@
 number,title,body,user,labels,state,created_at,updated_at,comments,url,linked_prs
+1153,"Responses API: replayed `assistant` messages carry no top-level `type`, and llama.cpp's `/v1/responses` rejects the request with `HTTP 400 Cannot determine type of 'item'`","## Summary
+
+`chat_openai()` drives an OpenAI-compatible endpoint through the **Responses** API. When it replays
+an assistant turn that carried text (for example, the model narrating beside or between tool calls),
+it serialises that turn as a role-bearing item with **no top-level `type` key**. llama.cpp's
+`/v1/responses` input parser infers `type: ""message""` for `system` / `developer` / `user` items but
+not for `assistant`, so the whole request is rejected with HTTP 400.
+
+In a tool-using conversation this is terminal rather than cosmetic: once such a turn exists, every
+subsequent request in that conversation carries it and fails, so the agent loop cannot continue.
+
+## Environment
+
+- ellmer 0.5.0
+- R 4.5.0 (2025-04-11 ucrt), Windows 11
+- llama.cpp `build_info` **b10883-91f6a6cf3** (`llama-server`), fronted by llama-swap v255
+  (commit `7761aa1`), model `qwen3:30b-a3b` (Qwen3-30B-A3B Q4_K_M)
+
+## What happens
+
+Second and later turns of a tool-using conversation fail with:
+
+```
+HTTP 400 Bad Request.
+ℹ Cannot determine type of 'item'
+```
+
+Captured failing request body (dumped before send, 44,770 bytes, 17 input items). Item shapes only —
+content elided:
+
+```
+ #  keys                                    role       type
+ 0  [role, content]                         system     -                 content: [input_text]
+ 1  [role, content]                         user       -                 content: [input_text]
+ 2  [type, call_id, name, arguments]         -          function_call
+ 3  [type, call_id, output]                  -          function_call_output
+ 4..13  (function_call / function_call_output pairs)
+14  [role, content]                          assistant  -                 content: [output_text]   <-- rejected
+15  [type, call_id, name, arguments]         -          function_call
+16  [type, call_id, output]                  -          function_call_output
+```
+
+Item 14 verbatim (text is the model's own narration):
+
+```json
+{
+  ""role"": ""assistant"",
+  ""content"": [
+    { ""type"": ""output_text"",
+      ""text"": ""It appears there is an issue with the tool call. Let me attempt to resolve this by using a different approach.\n\n"" }
+  ]
+}
+```
+
+Items 0 and 1 are also untyped and are accepted; item 14 is not.
+
+## Minimal reproduction
+
+Against a local `llama-server` with the Responses endpoint enabled. No ellmer needed — this is the
+body shape, in isolation.
+
+```python
+import json, urllib.request, urllib.error
+
+U = ""http://localhost:8080/v1/responses""
+
+def post(body):
+    req = urllib.request.Request(
+        U, data=json.dumps(body).encode(),
+        headers={""Content-Type"": ""application/json"", ""Authorization"": ""Bearer x""})
+    try:
+        with urllib.request.urlopen(req, timeout=300) as r:
+            return r.status
+    except urllib.error.HTTPError as e:
+        return (e.code, json.loads(e.read())[""error""][""message""])
+
+sysm = {""role"": ""system"", ""content"": [{""type"": ""input_text"",  ""text"": ""You are terse.""}]}
+usr  = {""role"": ""user"",   ""content"": [{""type"": ""input_text"",  ""text"": ""Say OK.""}]}
+
+asst_untyped = {""role"": ""assistant"", ""content"": [{""type"": ""output_text"", ""text"": ""OK.""}]}
+asst_typed   = {""type"": ""message"", ""role"": ""assistant"",
+                ""content"": [{""type"": ""output_text"", ""text"": ""OK.""}]}
+asst_string  = {""role"": ""assistant"", ""content"": ""OK.""}
+
+cases = {
+    ""A  system + user (both untyped)"":        [sysm, usr],
+    ""B  + assistant, untyped"":                [sysm, usr, asst_untyped, usr],
+    ""C  + assistant, type=\""message\"""":       [sysm, usr, asst_typed,   usr],
+    ""D  + assistant, untyped, string content"":[sysm, usr, asst_string,  usr],
+}
+for k, inp in cases.items():
+    print(k, ""->"", post({""model"": ""<model>"", ""input"": inp,
+                         ""stream"": False, ""max_output_tokens"": 8}))
+```
+
+Measured:
+
+```
+A  system + user (both untyped)         -> 200
+B  + assistant, untyped                 -> (400, ""Cannot determine type of 'item'"")
+C  + assistant, type=""message""          -> 200
+D  + assistant, untyped, string content -> (400, ""Cannot determine type of 'item'"")
+```
+
+Case D shows it is the **role**, not the content shape: a plain-string `content` fails too. Sweeping
+the role on an otherwise identical untyped item:
+
+```
+system    -> 200
+developer -> 200
+user      -> 200
+assistant -> (400, ""Cannot determine type of 'item'"")
+```
+
+The same result at whole-request scale: replaying the captured 44,770-byte body unchanged returns
+400; adding `""type"": ""message""` to its role-bearing items and changing nothing else returns 200.
+
+It reads as non-deterministic in a benchmark only because whether the model narrates beside a tool
+call is sampling-dependent (temp 0.6). The defect itself is deterministic. We lost 14 cells across a
+792-cell tool-use benchmark this way, each one presenting as a blank answer rather than as an error.
+
+## Where ellmer emits it
+
+`R/provider-openai.R`, the `ContentText` serialiser (lines 491-502 on `main` at the time of writing):
+
+```r
+method(as_json, list(ProviderOpenAI, ContentText)) <- function(provider, x, ..., role) {
+  type <- if (role %in% c(""user"", ""system"")) ""input_text"" else ""output_text""
+  list(
+    role = role,
+    content = list(list(type = type, text = x@text))
+  )
+}
+```
+
+No top-level `type` is set for any role.
+
+## What the OpenAI Responses API accepts
+
+From the published OpenAPI spec (`openai/openai-openapi`, `openapi.yaml`, schema
+`EasyInputMessage`; rendered at
+<https://platform.openai.com/docs/api-reference/responses/create> under `input`):
+
+```yaml
+EasyInputMessage:
+  title: Input message
+  properties:
+    role:
+      enum: [user, assistant, system, developer]
+    content:
+      oneOf:
+        - type: string          # Text input
+        - $ref: InputMessageContentList
+    type:
+      description: |
+        The type of the message input. Always `message`.
+      enum: [message]
+  required:
+    - role
+    - content
+```
+
+So on the OpenAI side: `type` is **optional** on an input message item, `assistant` **is** an
+allowed role, and a plain string `content` is allowed. ellmer's body is therefore accepted by
+OpenAI, which is why this has not surfaced there.
+
+One related detail, worth a separate look: `InputMessageContentList` items are `InputContent`, whose
+`oneOf` is `input_text` / `input_image` / `input_file`. `output_text` is an *output* content type and
+is not in that list. It is not what llama.cpp is complaining about here (case D fails with a plain
+string), but ellmer is emitting an output content type inside an input message.
+
+## Whose bug is it?
+
+Both readings are defensible, and the llama.cpp side is already in motion:
+
+- **llama.cpp (`ggml-org/llama.cpp`).** Its `/v1/responses` input parser infers `type: ""message""`
+  for `system` / `developer` / `user` role-bearing items but not for `assistant`, even though
+  `EasyInputMessage` explicitly allows that role. This exact symptom is the subject of the open PR
+  [ggml-org/llama.cpp#28737](https://github.com/ggml-org/llama.cpp/pull/28737) (""server : accept
+  Responses input items without explicit type"", 2026-09-11, awaiting review; linked issue
+  [#26394](https://github.com/ggml-org/llama.cpp/issues/26394)). I am not filing a duplicate there.
+- **ellmer.** The spec marks `type` optional, so omitting it is legal — but `""message""` is the only
+  permitted value, it is what OpenAI's own SDKs emit, and sending it explicitly removes all
+  ambiguity for any server that discriminates `input` items on `type`. It also unblocks every
+  llama-server build shipped before that PR lands. Omitting an optional discriminator is the kind of
+  legal-but-fragile choice that only shows up against a second implementation.
+
+## Proposed fix (ellmer side)
+
+Emit the discriminator on replayed input messages:
+
+```r
+method(as_json, list(ProviderOpenAI, ContentText)) <- function(provider, x, ..., role) {
+  type <- if (role %in% c(""user"", ""system"")) ""input_text"" else ""output_text""
+  list(
+    type    = ""message"",
+    role    = role,
+    content = list(list(type = type, text = x@text))
+  )
+}
+```
+
+`type: ""message""` is the only value the spec permits for these items, so this is a no-op against
+OpenAI and fixes every OpenAI-compatible server that discriminates on it.
+
+## Workaround
+
+`ellmer::chat_openai_compatible()` (Chat Completions, `/v1/chat/completions`), where an assistant
+turn is an ordinary `{""role"": ""assistant"", ""content"": ...}` message and no `type` discriminator
+exists to get wrong. Measured on the same items and same model: the 400s disappear, and
+`chat_template_kwargs` still rides through `api_args` on that route, so provider-specific request
+options are unaffected.
+",travisjakel,,open,2026-09-17T17:08:56Z,2026-09-17T17:08:56Z,0,https://github.com/tidyverse/ellmer/issues/1153,
 1152,Support for server-side provider-native compaction?,"I understand that `ellmer` does not support compaction, and instead provides an entry point for the user to write manual auto-compaction as a callback (#1051, #1052). For client-side compaction, it's an insightful and elegant solution, and I fully agree the approach. But for server-side compaction callable through provider APIs, would you be open to considering native support in `ellmer`? Examples:
 
 * https://platform.claude.com/docs/en/build-with-claude/compaction
