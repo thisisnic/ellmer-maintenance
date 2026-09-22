@@ -1,5 +1,18 @@
 number,title,body,user,labels,state,created_at,updated_at,comments,url,linked_prs
-1155,Switch to interactions API for gemini,https://ai.google.dev/gemini-api/docs/interactions-overview,hadley,,open,2026-09-19T16:51:45Z,2026-09-19T16:51:45Z,0,https://github.com/tidyverse/ellmer/issues/1155,
+1156,Verify Gemini OAuth client,"Subtasks:
+- [ ] tidyverse.org: add an ellmer section to the Google privacy policy (keeping the same URL)
+- [ ] Cloud console: add the generative-language.retriever scope and enable the Generative Language API
+- [ ] Cloud console: create or reuse an OAuth client for ellmer
+- [ ] Record the demo video and write the scope justification (see Hadley video for Google Drive)
+- [ ] Cloud console: submit for verification in the Verification Center
+- [ ] ellmer: after approval, update gemini_client(), the chat_google_gemini() docs, and NEWS
+
+Resources:
+- [Sensitive scope verification](https://developers.google.com/identity/protocols/oauth2/production-readiness/sensitive-scope-verification)
+- [Changes to approved app](https://support.google.com/cloud/answer/13464018?hl=en)
+- [OAuth App Verification Help Center](https://support.google.com/cloud/answer/13463073?hl=en)
+",thisisnic,upkeep,open,2026-09-21T16:14:08Z,2026-09-22T00:46:51Z,1,https://github.com/tidyverse/ellmer/issues/1156,
+1155,Switch to interactions API for gemini,https://ai.google.dev/gemini-api/docs/interactions-overview,hadley,feature,open,2026-09-19T16:51:45Z,2026-09-22T00:46:36Z,0,https://github.com/tidyverse/ellmer/issues/1155,
 1154,"chat_google_gemini() retries permanent quota 429s, causing hours-long hangs","`method(base_request, ProviderGoogleGemini)` calls `ellmer_req_robustify(req)` without an `is_transient` callback, so httr2's default applies: 429 is always treated as transient and retried. But Gemini uses 429 for **permanent billing/quota errors**: an API key on an account with no credit gets `429 RESOURCE_EXHAUSTED` with a `retryDelay` of hours (daily quota). httr2 dutifully waits, so a chat call hangs for hours before finally erroring. (Motivating report: hadley/bananarama#15, where a no-credit key appeared as a stuck retry loop.)
 
 Pass an `is_transient` callback in the Gemini provider's `base_request()` that inspects the error body:
@@ -746,7 +759,7 @@ This is a sibling of #1121, which asks for extraction failures to be recorded in
 
 Context: [quallmer](https://github.com/quallmer/quallmer) reports per-unit failures from `.error` and needed this for quallmer/quallmer#153. Our interim fix infers a cut from `include_tokens` when the caller declared `max_tokens` itself, which cannot see a provider default limit. Happy to send a PR if the direction is acceptable.
 
-Session info: ellmer 0.4.2, R 4.6.1, macOS.",kbenoit,bug,open,2026-09-03T06:59:39Z,2026-09-16T04:00:03Z,2,https://github.com/tidyverse/ellmer/issues/1126,
+Session info: ellmer 0.4.2, R 4.6.1, macOS.",kbenoit,bug,open,2026-09-03T06:59:39Z,2026-09-22T06:16:10Z,3,https://github.com/tidyverse/ellmer/issues/1126,
 1124,Add `release_bullets()` for ellmer-specific release tasks,"usethis::use_release_issue() picks up an unexported `release_bullets()` function and adds its items to the ""Prepare for release"" section of the release issue (see https://usethis.r-lib.org/reference/use_release_issue.html). We should add one to ellmer:
 
 ```r
@@ -880,9 +893,9 @@ Wait for CRAN...
 * [x] Add link to blog post in pkgdown news menu
 * [x] `usethis::use_github_release()`
 * [x] `usethis::use_dev_version(push = TRUE)`
-* [ ] Share on social media
+* [x] Share on social media
 * [ ] Slack link to blog post, bluesky, and linkedin in #open-source-comms
-",thisisnic,upkeep,open,2026-09-01T15:44:41Z,2026-09-14T18:48:24Z,0,https://github.com/tidyverse/ellmer/issues/1112,
+",thisisnic,upkeep,open,2026-09-01T15:44:41Z,2026-09-21T17:37:57Z,0,https://github.com/tidyverse/ellmer/issues/1112,
 1088,Assorted provider gaps found while auditing feature support,"While auditing feature support across the official providers, 🤖 found a few apparent bugs. Status after investigating each:
 
 - **Confirmed:** `chat_deepseek()` silently drops non-text user content: `as_json(Turn)` (R/provider-deepseek.R:105) keeps only `ContentText`, so images and PDFs are discarded without a warning and the model never sees them. Verified empirically. Images are a documented limitation, but we should error (like Snowflake does) rather than silently drop. Straightforward fix.
