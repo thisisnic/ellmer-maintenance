@@ -1,4 +1,12 @@
 number,title,body,user,labels,state,draft,created_at,updated_at,url
+1157,Fix `get_tokens()` with a trailing unpaired user turn,"Fixes #1131.
+
+`Chat$get_tokens()` built its `input_preview` column by pairing all user turns with all complete assistant turns positionally. That only lines up when there's exactly one user turn per assistant turn, so a trailing user turn with no response yet, or two assistant turns with no user turn between them, threw a tibble row-recycling error instead of returning a table.
+
+`get_tokens()` now walks the turn history once and pairs each complete assistant turn with the most recently seen user turn (including tool-result turns), instead of matching two separately filtered lists positionally. This gives identical previews for a normal conversation, including tool-calling loops, and no longer errors when the history doesn't alternate.
+
+Added tests for the trailing-turn, partial-turn, consecutive-assistant, and tool-loop cases.
+",taekop,,open,FALSE,2026-09-24T02:11:21Z,2026-09-24T02:11:21Z,https://github.com/tidyverse/ellmer/pull/1157
 1149,Make the invoke_agent OpenTelemetry span kind internal,"Stacked on #1148. Closes #1146.
 
 Per the discussion in #1146, the `invoke_agent` span is now kind `internal` rather than `client`. ellmer's agent loop (tool dispatch, turn accumulation) runs in-process, which is the semconv `gen_ai.invoke_agent.internal` case; the model requests it wraps remain `client` spans.
