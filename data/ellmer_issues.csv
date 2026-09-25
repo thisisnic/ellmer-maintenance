@@ -1,4 +1,7 @@
 number,title,body,user,labels,state,created_at,updated_at,comments,url,linked_prs
+1158,Make the http-mocking skill trigger for any provider test work,"The `http-mocking` skill's description says to use it ""when adding or modifying provider tests that make real API calls, recording new cassettes, creating `chat_*_test()` helper functions for new providers, or setting up vcr cassettes"". In practice that means it only triggers once you've already decided a test needs HTTP, but much of its value is the guidance on when *not* to use vcr and how to test request formatting and parsing with constructed objects instead. While working on #1155 the skill wasn't loaded until I asked for it explicitly, after several provider tests had already been written.
+
+Suggest broadening the description to trigger whenever provider tests are being written or changed, e.g. ""Use when writing or modifying any test for a `chat_*()` provider, whether or not it makes HTTP requests, to decide between vcr cassettes, constructed objects and `mocked_chat()`.""",thisisnic,upkeep,open,2026-09-25T09:46:32Z,2026-09-25T09:46:32Z,0,https://github.com/tidyverse/ellmer/issues/1158,
 1156,Verify Gemini OAuth client,"Subtasks:
 - [ ] tidyverse.org: add an ellmer section to the Google privacy policy (keeping the same URL)
 - [ ] Cloud console: add the generative-language.retriever scope and enable the Generative Language API
@@ -759,7 +762,7 @@ This is a sibling of #1121, which asks for extraction failures to be recorded in
 
 Context: [quallmer](https://github.com/quallmer/quallmer) reports per-unit failures from `.error` and needed this for quallmer/quallmer#153. Our interim fix infers a cut from `include_tokens` when the caller declared `max_tokens` itself, which cannot see a provider default limit. Happy to send a PR if the direction is acceptable.
 
-Session info: ellmer 0.4.2, R 4.6.1, macOS.",kbenoit,bug,open,2026-09-03T06:59:39Z,2026-09-22T06:16:10Z,3,https://github.com/tidyverse/ellmer/issues/1126,
+Session info: ellmer 0.4.2, R 4.6.1, macOS.",kbenoit,bug,open,2026-09-03T06:59:39Z,2026-09-25T09:37:15Z,4,https://github.com/tidyverse/ellmer/issues/1126,
 1124,Add `release_bullets()` for ellmer-specific release tasks,"usethis::use_release_issue() picks up an unexported `release_bullets()` function and adds its items to the ""Prepare for release"" section of the release issue (see https://usethis.r-lib.org/reference/use_release_issue.html). We should add one to ellmer:
 
 ```r
@@ -862,40 +865,6 @@ Populate `.error` for extraction failures as well as request failures, so the co
 Context: we hit this in [quallmer](https://github.com/quallmer/quallmer), which reports per-unit failures from `.error` (quallmer/quallmer#132). Our interim fix is a calling handler around the structured call that parses the `* <row>: <message>` lines of the warning back into `.error`, with a test pinned against `multi_convert()` so a format change fails our suite. That works, but it is a reconstruction of information ellmer already had. Happy to send a PR if the direction is acceptable.
 
 Session info: ellmer 0.4.2, R 4.6.1, macOS.",kbenoit,bug,open,2026-09-03T01:52:37Z,2026-09-15T16:02:19Z,0,https://github.com/tidyverse/ellmer/issues/1121,
-1112,Release ellmer 0.5.0,"Prepare for release:
-
-* [x] `git pull`
-* [x] [Close v0.5.0 milestone](../milestone/8)
-* [x] Bump default models where appropriate
-* [x] Update README
-* [x] Check [current CRAN check results](https://cran.rstudio.org/web/checks/check_results_ellmer.html)
-* [x] [Advance deprecations](https://lifecycle.r-lib.org/articles/communicate.html#gradual-deprecation), if needed
-* [x] [Polish NEWS](https://style.tidyverse.org/news.html#news-release)
-* [x] `urlchecker::url_check()`
-* [x] `devtools::build_readme()`
-* [x] `devtools::check(remote = TRUE, manual = TRUE)`
-* [x] `devtools::check_win_devel()`
-* [x] `revdepcheck::cloud_check()`
-* [x] Update `cran-comments.md`
-* [x] `git push`
-* [x] Draft blog post
-
-Submit to CRAN:
-
-* [x] `usethis::use_version('minor')`
-* [x] `devtools::submit_cran()`
-* [x] Approve email
-
-Wait for CRAN...
-
-* [x] Accepted :tada:
-* [x] Finish & publish blog post
-* [x] Add link to blog post in pkgdown news menu
-* [x] `usethis::use_github_release()`
-* [x] `usethis::use_dev_version(push = TRUE)`
-* [x] Share on social media
-* [ ] Slack link to blog post, bluesky, and linkedin in #open-source-comms
-",thisisnic,upkeep,open,2026-09-01T15:44:41Z,2026-09-21T17:37:57Z,0,https://github.com/tidyverse/ellmer/issues/1112,
 1088,Assorted provider gaps found while auditing feature support,"While auditing feature support across the official providers, 🤖 found a few apparent bugs. Status after investigating each:
 
 - **Confirmed:** `chat_deepseek()` silently drops non-text user content: `as_json(Turn)` (R/provider-deepseek.R:105) keeps only `ContentText`, so images and PDFs are discarded without a warning and the model never sees them. Verified empirically. Images are a documented limitation, but we should error (like Snowflake does) rather than silently drop. Straightforward fix.
