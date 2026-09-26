@@ -1,4 +1,62 @@
 number,title,body,user,labels,state,draft,created_at,updated_at,url
+1162,Warn when include_tokens/include_cost is ignored for non-data-frame results,"Fixes #1129.
+
+`include_tokens` and `include_cost` only add columns when the result is a data frame. With a top-level `type_array()` or `convert = FALSE` the result is a list, so both flags were silently dropped. This keeps the documented behavior and warns when either flag is ignored.
+",taekop,,open,FALSE,2026-09-26T00:29:13Z,2026-09-26T00:29:13Z,https://github.com/tidyverse/ellmer/pull/1162
+1161,"Set type = ""message"" on chat_openai() Responses API input items","Fixes #1153.
+
+`chat_openai()` drives the OpenAI Responses API. Every message-shaped input item it serializes (text, images, PDFs, documents, uploaded file references, across all roles) carried `role` and `content` but no top-level `type`. `type` is optional in the published schema and OpenAI infers it, but llama.cpp's `/v1/responses` parser only infers it for `system`/`developer`/`user` items, not `assistant`, so a replayed assistant turn with text gets rejected with `HTTP 400 Cannot determine type of 'item'`, which is terminal for any tool-using conversation. Setting `type = ""message""` explicitly is a no-op against OpenAI and fixes every OpenAI-compatible server that discriminates on it.
+
+I don't have an OpenAI API key to re-record the affected vcr cassettes, so I hand-edited the recorded request bodies to add the new field, and I'm happy for them to be re-recorded instead.
+",taekop,,open,FALSE,2026-09-25T14:50:31Z,2026-09-25T18:42:08Z,https://github.com/tidyverse/ellmer/pull/1161
+1160,Keep `gen_ai.input.messages` when a tool result can't be JSON-serialized,"Fixes #1145.
+
+`as_otel_message()` now converts and test-serializes each content part on its own, and replaces a part that `jsonlite::toJSON()` can't encode (an image tool result, tool request arguments holding an environment, a malformed `json`-class string, ...) with a placeholder text part. Previously one such part dropped the whole `gen_ai.input.messages` attribute.
+",taekop,,open,FALSE,2026-09-25T13:00:10Z,2026-09-25T13:00:10Z,https://github.com/tidyverse/ellmer/pull/1160
+1159,Switch to interactions API for gemini,"TODO:
+- [ ] A little manual local testing
+- [ ] tidy up this PR description
+- [ ] Review code
+
+Closes #1155. Closes #1154.
+
+`chat_google_gemini()` now uses Google's Interactions API. `chat_google_vertex()` stays on generateContent since Interactions isn't available on Vertex AI, as do batch requests and `token_count()` for Gemini, which have no Interactions equivalent.
+
+## Design decisions
+
+- **Class split.** The old provider class is now `ProviderGoogle` (generateContent, used by Vertex), and `ProviderGoogleGemini` is a subclass that overrides only the chat methods. Batch submission, batch result parsing and `count_tokens()` drop back to the parent implementation via `convert(provider, ProviderGoogle)`, so those endpoints keep sending and parsing the generateContent format. The alternative, splitting Vertex out as a sibling class, would have meant Gemini's batch code building a Vertex-flavoured provider to get the old request body.
+- **Stateless.** Requests set `store = FALSE` and send the full history every turn, as ellmer does for every provider (and as the OpenAI Responses provider does). No use of `previous_interaction_id`.
+- **Signature replay.** The API rejects a history that omits a thought step's signature, so `ContentThinking` keeps the raw step in `extra` and `as_json()` sends it back unchanged. Search and URL-context steps do the same. Thoughts from other providers (no `type = ""thought""` in `extra`) are dropped from the request.
+- **Streaming.** `stream_merge_chunks()` rebuilds the non-streaming response shape (`status`, `usage`, `steps` keyed by index) so `value_turn()` is shared. Citations and tool activity are emitted on `interaction.completed`, since the sources for a search only arrive as annotations on the answer text.
+- **Citations.** Offsets are UTF-8 byte offsets (checked live with accented text), so `grounded_span` is sliced with `charToRaw()`. Search results only contain a suggestions widget, so `ContentToolResponseSearch@sources` is built from the citation annotations.
+- **Tool results** are sent as a plain string rather than content blocks; older models (gemini-2.5-flash) reject the block form and ellmer already routes image/document results outside the tool result.
+- **Retries.** 429s with code `quota_exceeded` are not retried; `rate_limit_exceeded` and 503 are (#1154). The batch and countTokens requests keep the generateContent retry behaviour.
+- **Remote images** now work; the API needs a mime type, which is guessed from the URL's extension, with a clear error suggesting `content_image_file()` when it can't be.
+- **Unknown step types** abort with an internal error, consistent with the other providers.
+- **Params.** `temperature`, `top_p`, `top_k`, `seed`, `max_tokens`, `stop_sequences` and `reasoning_effort` are mapped; `frequency_penalty`, `presence_penalty`, `log_probs` and `reasoning_tokens` have no Interactions equivalent and now warn. `api_args` must use Interactions field names.
+
+## Token counting
+
+`token_count()` still uses the generateContent `countTokens` endpoint. Compared with the input tokens the Interactions API reported for the same request:
+
+| case | estimate | actual |
+|---|---|---|
+| short prompt | 9 | 9 |
+| long prompt | 401 | 401 |
+| system prompt | 23 | 24 |
+| with tool declared | 55 | 60 |
+| with image | 1091 | 1091 |
+| structured output | 7 | 7 |
+| second turn, with thinking | 262 | 263 |
+| after a completed tool call | 155 | 203 |
+
+Exact or within a token except for tool machinery, where it runs low, so it was kept as the estimate it's documented to be.
+
+## Testing
+
+All Google cassettes were re-recorded. Beyond the test suite, three rounds of live smoke tests (about 120 feature combinations: streaming, tools, thinking, built-in search/fetch, structured output, images, PDFs, documents, uploads, mixed histories, `parallel_chat()`, `batch_chat()`, error paths, several models) found and fixed three bugs: an empty reply when thinking consumed the whole `max_tokens` budget, remote images needing a mime type, and the tool-result format for older models.
+
+Known behaviour, unchanged from generateContent: `chat_structured()` with tools registered answers in JSON without calling them. Thinking text only streams when Google chooses to send a summary, so `ContentThinking` may be empty while streaming at low effort.",thisisnic,,open,TRUE,2026-09-25T11:21:42Z,2026-09-25T13:46:39Z,https://github.com/tidyverse/ellmer/pull/1159
 1157,Fix `get_tokens()` with a trailing unpaired user turn,"Fixes #1131.
 
 `Chat$get_tokens()` built its `input_preview` column by pairing all user turns with all complete assistant turns positionally. That only lines up when there's exactly one user turn per assistant turn, so a trailing user turn with no response yet, or two assistant turns with no user turn between them, threw a tibble row-recycling error instead of returning a table.

@@ -15,7 +15,7 @@ Resources:
 - [Changes to approved app](https://support.google.com/cloud/answer/13464018?hl=en)
 - [OAuth App Verification Help Center](https://support.google.com/cloud/answer/13463073?hl=en)
 ",thisisnic,upkeep,open,2026-09-21T16:14:08Z,2026-09-22T00:46:51Z,1,https://github.com/tidyverse/ellmer/issues/1156,
-1155,Switch to interactions API for gemini,https://ai.google.dev/gemini-api/docs/interactions-overview,hadley,feature,open,2026-09-19T16:51:45Z,2026-09-22T00:46:36Z,0,https://github.com/tidyverse/ellmer/issues/1155,
+1155,Switch to interactions API for gemini,https://ai.google.dev/gemini-api/docs/interactions-overview,hadley,feature,open,2026-09-19T16:51:45Z,2026-09-22T00:46:36Z,0,https://github.com/tidyverse/ellmer/issues/1155,1159
 1154,"chat_google_gemini() retries permanent quota 429s, causing hours-long hangs","`method(base_request, ProviderGoogleGemini)` calls `ellmer_req_robustify(req)` without an `is_transient` callback, so httr2's default applies: 429 is always treated as transient and retried. But Gemini uses 429 for **permanent billing/quota errors**: an API key on an account with no credit gets `429 RESOURCE_EXHAUSTED` with a `retryDelay` of hours (daily quota). httr2 dutifully waits, so a chat call hangs for hours before finally erroring. (Motivating report: hadley/bananarama#15, where a no-credit key appeared as a stuck retry loop.)
 
 Pass an `is_transient` callback in the Gemini provider's `base_request()` that inspects the error body:
@@ -37,7 +37,7 @@ is_transient <- function(resp) {
 Note that `RESOURCE_EXHAUSTED` isn't always permanent — it also fires for per-minute rate limits, where retrying *is* correct. Possible distinguishing signals:
 
 * Only skip the retry when `retryDelay` is very long (e.g. > 5 minutes). Conservative; never harms genuine rate limiting, but the user still waits.
-* Inspect the `quotaViolation` details for a zero daily limit vs. a per-minute limit. More precise, but the response shape is less stable.",hadley,,open,2026-09-19T13:36:14Z,2026-09-19T16:52:50Z,1,https://github.com/tidyverse/ellmer/issues/1154,
+* Inspect the `quotaViolation` details for a zero daily limit vs. a per-minute limit. More precise, but the response shape is less stable.",hadley,,open,2026-09-19T13:36:14Z,2026-09-19T16:52:50Z,1,https://github.com/tidyverse/ellmer/issues/1154,1159
 1153,"Responses API: replayed `assistant` messages carry no top-level `type`, and llama.cpp's `/v1/responses` rejects the request with `HTTP 400 Cannot determine type of 'item'`","## Summary
 
 `chat_openai()` drives an OpenAI-compatible endpoint through the **Responses** API. When it replays
@@ -250,7 +250,7 @@ turn is an ordinary `{""role"": ""assistant"", ""content"": ...}` message and no
 exists to get wrong. Measured on the same items and same model: the 400s disappear, and
 `chat_template_kwargs` still rides through `api_args` on that route, so provider-specific request
 options are unaffected.
-",travisjakel,,open,2026-09-17T17:08:56Z,2026-09-17T17:08:56Z,0,https://github.com/tidyverse/ellmer/issues/1153,
+",travisjakel,,open,2026-09-17T17:08:56Z,2026-09-25T16:28:47Z,1,https://github.com/tidyverse/ellmer/issues/1153,1161
 1152,Support for server-side provider-native compaction?,"I understand that `ellmer` does not support compaction, and instead provides an entry point for the user to write manual auto-compaction as a callback (#1051, #1052). For client-side compaction, it's an insightful and elegant solution, and I fully agree the approach. But for server-side compaction callable through provider APIs, would you be open to considering native support in `ellmer`? Examples:
 
 * https://platform.claude.com/docs/en/build-with-claude/compaction
@@ -321,7 +321,7 @@ https://github.com/tidyverse/ellmer/blob/92cfa7f48270048105ea1bfb44d23a2e59c2df6
 (FYI, when the above says ""break the chat"", it's referring to the live chat and not the OTel recording of it.)
 
 For the purposes of reading in conversations recorded with this functionality, it'd be nice if ellmer if provided placeholder ""(An image was here.)"" tool results (or something else, if semconv has a preferred way of doing this) so that the remaining messages are still recorded.
-",simonpcouch,bug,open,2026-09-10T15:12:00Z,2026-09-15T15:35:18Z,0,https://github.com/tidyverse/ellmer/issues/1145,
+",simonpcouch,bug,open,2026-09-10T15:12:00Z,2026-09-15T15:35:18Z,0,https://github.com/tidyverse/ellmer/issues/1145,1160
 1140,Include more OpenAI built-in tools,"Image gen at a minimum:
 
 ```R
@@ -638,7 +638,7 @@ Either of these would do:
 ## Context
 
 Found in quallmer (quallmer/quallmer#119), whose `qlm_segment()` asks for an array of segments per document and could not cost a run. Our workaround is to request `type_object(segments = type_array(...))` instead, which converts to one row per prompt with the usage beside the list-column, matching the wrapping ellmer does internally for providers that require an object at the top level.
-",kbenoit,bug,open,2026-09-03T22:42:20Z,2026-09-15T16:33:09Z,0,https://github.com/tidyverse/ellmer/issues/1129,
+",kbenoit,bug,open,2026-09-03T22:42:20Z,2026-09-15T16:33:09Z,0,https://github.com/tidyverse/ellmer/issues/1129,1162
 1128,"Support `defer_loading` and tool search, now shipped by both Anthropic and OpenAI","An app with a large tool set pays for every tool schema on every request, and `ellmer` offers no way to avoid it short of registering and unregistering tools mid-conversation. That workaround is worse than the problem: tools render ahead of `system` and `messages`, so changing the tool set invalidates the prompt cache for the entire request — the manifest, the system prompt and every turn of history.
 
 ## Both providers now solve this, and agree on the spelling
