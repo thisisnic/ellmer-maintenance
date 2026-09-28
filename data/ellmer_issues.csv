@@ -864,7 +864,7 @@ Populate `.error` for extraction failures as well as request failures, so the co
 
 Context: we hit this in [quallmer](https://github.com/quallmer/quallmer), which reports per-unit failures from `.error` (quallmer/quallmer#132). Our interim fix is a calling handler around the structured call that parses the `* <row>: <message>` lines of the warning back into `.error`, with a test pinned against `multi_convert()` so a format change fails our suite. That works, but it is a reconstruction of information ellmer already had. Happy to send a PR if the direction is acceptable.
 
-Session info: ellmer 0.4.2, R 4.6.1, macOS.",kbenoit,bug,open,2026-09-03T01:52:37Z,2026-09-15T16:02:19Z,0,https://github.com/tidyverse/ellmer/issues/1121,
+Session info: ellmer 0.4.2, R 4.6.1, macOS.",kbenoit,bug,open,2026-09-03T01:52:37Z,2026-09-15T16:02:19Z,0,https://github.com/tidyverse/ellmer/issues/1121,1163
 1088,Assorted provider gaps found while auditing feature support,"While auditing feature support across the official providers, 🤖 found a few apparent bugs. Status after investigating each:
 
 - **Confirmed:** `chat_deepseek()` silently drops non-text user content: `as_json(Turn)` (R/provider-deepseek.R:105) keeps only `ContentText`, so images and PDFs are discarded without a warning and the model never sees them. Verified empirically. Images are a documented limitation, but we should error (like Snowflake does) rather than silently drop. Straightforward fix.

@@ -1,4 +1,84 @@
 number,title,body,user,labels,state,draft,created_at,updated_at,url
+1163,Record all failed prompts in `.error`,"Fixes #1121 and #1126.
+
+`parallel_chat_structured()` and `batch_chat_structured()` now record extraction failures and incomplete responses in `.error` when returning a data frame. Affected rows get the usual missing values, even when a truncated response contains valid JSON.
+
+Finish-reason messages match `chat_structured()` and appear in the existing extraction warning. Token and cost reporting are unchanged.
+
+Tests cover extraction errors, truncation with valid and malformed JSON, and preservation of usage metadata.
+
+<details>
+<summary>Before and after reprexes</summary>
+
+The first prompt should return an empty list; the second gets cut off. Before this PR, the two rows look the same.
+
+**Before (0.5.0)**
+``` r
+library(ellmer)
+
+type <- type_object(
+  items = type_array(type_object(name = type_string(), why = type_string()))
+)
+prompts <- list(
+  ""List the fruits mentioned in this sentence: 'The car is red.'"",
+  ""List 25 fruits, each with a two-sentence reason it is healthy.""
+)
+chat <- chat_anthropic(model = ""claude-sonnet-5"", params = params(max_tokens = 60))
+
+res <- parallel_chat_structured(chat, prompts, type)
+#> [working] (0 + 0) -> 1 -> 1 | ■■■■■■■■■■■■■■■■                  50%
+#> [working] (0 + 0) -> 0 -> 2 | ■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■  100%
+#> Warning: Failed to extract data from 1/2 turns
+#> * 2: parse error: premature EOF {""items"":[{""name"":""Apple"",""why"" (right here)
+#> ------^
+res
+#> # A tibble: 2 × 1
+#>   items           
+#>   <list>          
+#> 1 <tibble [0 × 2]>
+#> 2 <tibble [0 × 2]>
+str(lapply(res$.error, \(e) if (!is.null(e)) conditionMessage(e)))
+#> Warning: Unknown or uninitialised column: `.error`.
+#>  list()
+```
+
+<sup>Created on 2026-09-28 with [reprex v2.1.1](https://reprex.tidyverse.org)</sup>
+
+**After:**
+``` r
+library(ellmer)
+
+type <- type_object(
+  items = type_array(type_object(name = type_string(), why = type_string()))
+)
+prompts <- list(
+  ""List the fruits mentioned in this sentence: 'The car is red.'"",
+  ""List 25 fruits, each with a two-sentence reason it is healthy.""
+)
+chat <- chat_anthropic(model = ""claude-sonnet-5"", params = params(max_tokens = 60))
+
+res <- parallel_chat_structured(chat, prompts, type)
+#> [working] (0 + 0) -> 1 -> 1 | ■■■■■■■■■■■■■■■■                  50%
+#> [working] (0 + 0) -> 0 -> 2 | ■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■  100%
+#> Warning: Failed to extract data from 1/2 turns
+#> * 2: Response was truncated because it hit the `max_tokens` limit. ℹ Increase
+#> `max_tokens` to allow the model to generate the full response.
+res
+#> # A tibble: 2 × 2
+#>   items            .error    
+#>   <list>           <list>    
+#> 1 <tibble [0 × 2]> <NULL>    
+#> 2 <tibble [0 × 2]> <rlng_rrr>
+str(lapply(res$.error, \(e) if (!is.null(e)) conditionMessage(e)))
+#> List of 2
+#>  $ : NULL
+#>  $ : chr ""Response was truncated because it hit the `max_tokens` limit.\nℹ Increase `max_tokens` to allow the model to ge""| __truncated__
+```
+
+<sup>Created on 2026-09-28 with [reprex v2.1.1](https://reprex.tidyverse.org)</sup>
+
+</details>
+",kbenoit,,open,FALSE,2026-09-28T05:46:03Z,2026-09-28T05:58:34Z,https://github.com/tidyverse/ellmer/pull/1163
 1162,Warn when include_tokens/include_cost is ignored for non-data-frame results,"Fixes #1129.
 
 `include_tokens` and `include_cost` only add columns when the result is a data frame. With a top-level `type_array()` or `convert = FALSE` the result is a list, so both flags were silently dropped. This keeps the documented behavior and warns when either flag is ignored.
@@ -9,10 +89,12 @@ number,title,body,user,labels,state,draft,created_at,updated_at,url
 
 I don't have an OpenAI API key to re-record the affected vcr cassettes, so I hand-edited the recorded request bodies to add the new field, and I'm happy for them to be re-recorded instead.
 ",taekop,,open,FALSE,2026-09-25T14:50:31Z,2026-09-25T18:42:08Z,https://github.com/tidyverse/ellmer/pull/1161
-1160,Keep `gen_ai.input.messages` when a tool result can't be JSON-serialized,"Fixes #1145.
+1160,Convert `Content` tool results to otel parts instead of dropping `gen_ai.input.messages`,"Fixes #1145.
 
-`as_otel_message()` now converts and test-serializes each content part on its own, and replaces a part that `jsonlite::toJSON()` can't encode (an image tool result, tool request arguments holding an environment, a malformed `json`-class string, ...) with a placeholder text part. Previously one such part dropped the whole `gen_ai.input.messages` attribute.
-",taekop,,open,FALSE,2026-09-25T13:00:10Z,2026-09-25T13:00:10Z,https://github.com/tidyverse/ellmer/pull/1160
+Since #1077, `normalize_tool_result()` guarantees a tool result's value is `NULL`, a string, a `json` string, a `Content` object, or a list of `Content` objects. A bare `Content` value (e.g. an image) was being copied straight into the `response` field of the `tool_call_response` otel part, which `jsonlite::toJSON()` can't encode, and that error caused the whole `gen_ai.input.messages` attribute to be dropped.
+
+`tool_otel_response()` now maps a `Content` value (or a list of `Content`) through `as_otel_part()`, the same conversion used everywhere else, so it lands in the message as a valid part instead of a raw, unserializable object. An image comes out as a `generic` part carrying its class name.
+",taekop,,open,FALSE,2026-09-25T13:00:10Z,2026-09-28T05:07:12Z,https://github.com/tidyverse/ellmer/pull/1160
 1159,Switch to interactions API for gemini,"TODO:
 - [ ] A little manual local testing
 - [ ] tidy up this PR description
@@ -64,7 +146,7 @@ Known behaviour, unchanged from generateContent: `chat_structured()` with tools 
 `get_tokens()` now walks the turn history once and pairs each complete assistant turn with the most recently seen user turn (including tool-result turns), instead of matching two separately filtered lists positionally. This gives identical previews for a normal conversation, including tool-calling loops, and no longer errors when the history doesn't alternate.
 
 Added tests for the trailing-turn, partial-turn, consecutive-assistant, and tool-loop cases.
-",taekop,,open,FALSE,2026-09-24T02:11:21Z,2026-09-24T02:11:21Z,https://github.com/tidyverse/ellmer/pull/1157
+",taekop,,open,FALSE,2026-09-24T02:11:21Z,2026-09-28T05:09:48Z,https://github.com/tidyverse/ellmer/pull/1157
 1149,Make the invoke_agent OpenTelemetry span kind internal,"Stacked on #1148. Closes #1146.
 
 Per the discussion in #1146, the `invoke_agent` span is now kind `internal` rather than `client`. ellmer's agent loop (tool dispatch, turn accumulation) runs in-process, which is the semconv `gen_ai.invoke_agent.internal` case; the model requests it wraps remain `client` spans.
@@ -175,7 +257,7 @@ as_json(provider, tool_def)$`function`$parameters$required
 #> [1] ""x""
 ```
 
-`devtools::test(filter = ""provider-posit"")` passes (19 tests), including new coverage for both the strict and non-strict branches.",gadenbuie,,open,FALSE,2026-09-06T18:15:38Z,2026-09-09T19:02:26Z,https://github.com/tidyverse/ellmer/pull/1135
+`devtools::test(filter = ""provider-posit"")` passes (19 tests), including new coverage for both the strict and non-strict branches.",gadenbuie,,open,FALSE,2026-09-06T18:15:38Z,2026-09-27T15:15:01Z,https://github.com/tidyverse/ellmer/pull/1135
 1133,Fix image detail serialisation for OpenAI providers,"Fixes #1132.
 
 ## Summary
