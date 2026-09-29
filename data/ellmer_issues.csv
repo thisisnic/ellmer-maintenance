@@ -1,4 +1,44 @@
 number,title,body,user,labels,state,created_at,updated_at,comments,url,linked_prs
+1166,Should pricing data keep rates for deprecated models?,"## What happened
+
+The weekly model-data update on `main` (215c4bdc, 2026-09-28) removed 122 provider/model pairs from ellmer's pricing data. It happened because LiteLLM, our upstream source, removed 333 entries that were past their `deprecation_date` in a single cleanup commit: [BerriAI/litellm@075536e](https://github.com/BerriAI/litellm/commit/075536eca1a247bbab78d7992275a176875b96ae) (#42435 upstream). We use LiteLLM's data as a whole, so the removals carried straight over to ellmer.
+
+Removed pairs by provider:
+
+| Provider | Removed |
+|---|---:|
+| Mistral | 26 |
+| AWS/Bedrock | 20 |
+| OpenAI | 18 |
+| OpenRouter | 12 |
+| Azure/OpenAI | 11 |
+| Google/Gemini | 11 |
+| Anthropic | 9 |
+| Groq | 9 |
+| Google/Vertex | 6 |
+
+The Anthropic removals cover all of Claude 3.x, Claude 4.0 Opus and Sonnet, and Opus 4.1, including `claude-sonnet-4-20250514`, which had a deprecation date of 2026-06-15.
+
+The same update also broke a test on `main`. `test-provider-claude.R` prices a turn for `claude-sonnet-4-20250514` and now gets `cost = NA`. The update commit uses `[skip ci]`, so the failure first showed up in open PRs. I'll fix the test separately so it doesn't depend on the live price table, whatever we decide here.
+
+## The question
+
+Should ellmer's pricing data include historical rates for models after they're deprecated?
+
+**Keep historical rates.** Once a model is in our data, keep its last known price even after upstream removes it.
+
+- Costs for existing conversations stay computable, for example saved `Chat` objects, `token_usage()` totals, or logged turns from before the deprecation. Right now those return `NA` for any of the 122 removed models.
+- The prices were real when those tokens were used, so keeping them is still accurate.
+- The cost is more complexity: the update would merge upstream into our existing data instead of replacing it, and we'd need to decide when, if ever, an entry gets pruned.
+
+**Stay lean and match upstream.** Keep using LiteLLM's data as-is and drop models it removes.
+
+- Simpler, and the data always matches what's current upstream.
+- Removed models are unreachable anyway: `chat_claude(model = ""claude-sonnet-4-20250514"")` now fails with `HTTP 404 Not Found [not_found_error]`, so no new costs can be incurred for them.
+- The cost is that any cost calculation for past usage of a removed model silently becomes `NA`.
+
+Which do we prefer? If we keep historical rates, a follow-up question is whether upstream *price changes* for existing models should overwrite our values, or whether we only fill in models that went missing.
+",gadenbuie,,open,2026-09-28T13:42:13Z,2026-09-28T15:32:44Z,1,https://github.com/tidyverse/ellmer/issues/1166,
 1158,Make the http-mocking skill trigger for any provider test work,"The `http-mocking` skill's description says to use it ""when adding or modifying provider tests that make real API calls, recording new cassettes, creating `chat_*_test()` helper functions for new providers, or setting up vcr cassettes"". In practice that means it only triggers once you've already decided a test needs HTTP, but much of its value is the guidance on when *not* to use vcr and how to test request formatting and parsing with constructed objects instead. While working on #1155 the skill wasn't loaded until I asked for it explicitly, after several provider tests had already been written.
 
 Suggest broadening the description to trigger whenever provider tests are being written or changed, e.g. ""Use when writing or modifying any test for a `chat_*()` provider, whether or not it makes HTTP requests, to decide between vcr cassettes, constructed objects and `mocked_chat()`.""",thisisnic,upkeep,open,2026-09-25T09:46:32Z,2026-09-25T09:46:32Z,0,https://github.com/tidyverse/ellmer/issues/1158,

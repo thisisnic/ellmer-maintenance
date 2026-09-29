@@ -1,4 +1,53 @@
 number,title,body,user,labels,state,draft,created_at,updated_at,url
+1168,test: mock prices for `value_turn()` pricing tests,"Related to #1166
+
+## Summary
+- The weekly model-data update dropped `claude-sonnet-4-20250514` (and other now-deprecated models) from ellmer's bundled price table, breaking a `value_turn()` test in `test-provider-claude.R` that priced that model.
+- The two affected `value_turn()` tests check pricing *math* (the 1.25x cache-write surcharge, and fallback-model pricing), not any specific model's real-world rate, so they were fragile to any future price-table update.
+- Both tests now mock a fixed price table via the existing `local_prices_cache()`/`write_prices_cache()` test helpers (already used in `test-prices.R`), so they're deterministic and independent of the live/bundled price data.",gadenbuie,,open,FALSE,2026-09-28T14:20:16Z,2026-09-28T14:22:38Z,https://github.com/tidyverse/ellmer/pull/1168
+1167,fix: live_browser() broken by shinychat 0.5.0's chat_app() argument rename,"shinychat 0.5.0 renamed the `options` argument of `chat_app()` to `app_options` (sorry I missed this pre-release!). Since `ellmer::live_browser()` still passed `options`, that value silently landed in `chat_app()`'s `...` instead of being applied, breaking `live_browser()` for anyone on shinychat >= 0.5.0.
+
+This branches on the installed shinychat version so the correct argument name is used either way. I didn't think this issue alone was worth raising the shinychat version floor, and given the circular dependencies between shinychat and ellmer I think it's worth remaining flexible.",gadenbuie,,open,FALSE,2026-09-28T14:07:31Z,2026-09-28T14:23:05Z,https://github.com/tidyverse/ellmer/pull/1167
+1164,fix: `chat_cloudflare()` ignores `account` and fails on numeric streamed content,"Stacked on #1135, since the issues below were raised there.
+
+## Summary
+
+This PR fixes two bugs in `chat_cloudflare()`.
+
+**`account` was ignored.** `chat_cloudflare()` built its base URL by calling `cloudflare_account()` again instead of using its `account` argument, so any `account` you passed in was ignored and the function still needed the `CLOUDFLARE_ACCOUNT_ID` env var. The URL now uses `account`.
+
+This also exposed a bug in the live Cloudflare tests. They called `chat_cloudflare_test(""Be as terse as possible; no punctuation"")`, and because `account` is the first parameter of `chat_cloudflare()`, the system prompt was passed as the account ID. The old code ignored `account`, so the tests passed, but they never set a system prompt. They now pass `system_prompt =` by name.
+
+**Numeric streamed content failed.** After the system prompt fix, the live streaming test (`can make simple streaming request`) was the only failure left, which led us to this bug. When a streamed response is only a number, Cloudflare sends it as a JSON number instead of a string:
+
+```
+data: {...""choices"":[{""index"":0,""delta"":{""content"":2}}]...}
+```
+
+`stream_content()` passed the integer to `ContentText()`, which failed with `@text must be <character>, not <integer>`. `merge_dicts()` would also replace numeric chunks instead of appending them, so a stream of `1` then `2` would merge to `""2""`. `ProviderCloudflare` now has a `stream_parse()` method that converts numeric `delta$content` to character before streaming or merging sees it. The workaround stays in the Cloudflare provider rather than the OpenAI-compatible base class.
+
+## Changes
+
+- `chat_cloudflare()` uses `account` to build `base_url`.
+- New `stream_parse()` method for `ProviderCloudflare` that converts numeric `delta$content` to character.
+- New tests:
+  - `account` wins over `CLOUDFLARE_ACCOUNT_ID` in the base URL.
+  - A numeric streamed chunk becomes `ContentText(""2"")`, and chunks `1` and `2` merge to `""12""` (no API call).
+- Live Cloudflare tests now pass `system_prompt` by name.
+- The ""strict defaults are set per provider"" test from #1135 passes `account` directly and no longer sets the env var.
+- NEWS bullet.
+
+## Verification
+
+```r
+withr::with_envvar(c(CLOUDFLARE_ACCOUNT_ID = ""env-account""), {
+  chat_cloudflare(account = ""arg-account"", credentials = \() ""key"")$get_provider()@base_url
+})
+#> [1] ""https://api.cloudflare.com/client/v4/accounts/arg-account/ai/v1/""
+```
+
+`devtools::test(filter = ""cloudflare"")` passes, including the live tests: 9 passing, 0 skipped.
+",gadenbuie,,open,FALSE,2026-09-28T13:21:17Z,2026-09-28T13:22:25Z,https://github.com/tidyverse/ellmer/pull/1164
 1163,Record all failed prompts in `.error`,"Fixes #1121 and #1126.
 
 `parallel_chat_structured()` and `batch_chat_structured()` now record extraction failures and incomplete responses in `.error` when returning a data frame. Affected rows get the usual missing values, even when a truncated response contains valid JSON.
@@ -232,15 +281,39 @@ chat$chat(""Hi"")  # now works: request goes to /openai/v1
 ```
 
 New tests in `test-provider-posit.R` cover family swaps in both directions, no-op within a family, credentials/header carryover, cache preservation, and the hidden print field.",gadenbuie,,open,FALSE,2026-09-07T17:02:17Z,2026-09-09T13:18:10Z,https://github.com/tidyverse/ellmer/pull/1139
-1135,fix: keep optional tool args out of `required` for Posit models,"## Summary
+1135,fix: make OpenAI strict mode opt-in for OpenAI-compatible providers,"## Summary
 
-`chat_posit()` routes non-Claude models through `ProviderPositOpenAI`, which inherited OpenAI's strict-mode tool schema: every property listed in `required`, with optional ones made nullable. Gateway-hosted models that aren't OpenAI (Gemma, zai-org, etc.) don't follow that convention, so optional tool arguments were effectively mandatory.
+_Scope note: this PR has grown well beyond its original Posit-only fix. The [September 7 comment](https://github.com/tidyverse/ellmer/pull/1135#issuecomment-5573103545) explains why, and what follows reflects the current state of the branch._
 
-`ProviderPositOpenAI` now has a `strict` property, set in `chat_posit()` from an `openai/` prefix on the model id. When `FALSE`, the provider uses the standard `TypeObject` serialization (optional args stay out of `required`), omits `strict` from tool definitions, and strips `strict` from structured-output `response_format` bodies. When `TRUE`, behavior is unchanged from the inherited OpenAI-compatible path.
+`ProviderOpenAICompatible` was sending OpenAI's strict-mode conventions in three independent places:
 
-The prefix check is a best guess about how the gateway might hypothetically name OpenAI-routed models; it's marked as such in a comment.
+- `as_json(ToolDef)` added `strict: true` to every tool definition
+- `as_json(TypeObject)` listed every property in `required`, making optional ones nullable (`[""number"", ""null""]`)
+- `chat_body()` added `strict: true` to structured-output `response_format`
+
+The all-required-plus-nullable convention is an OpenAI implementation detail of strict mode / constrained decoding, not part of JSON Schema. It's only safe when the backend actually enforces it. Providers that do prompt-based tool calling put the schema in the prompt, and the model reads `required` the standard way, so optional tool arguments became effectively mandatory — the original `chat_posit()` bug, and the `chat_lmstudio()` bug that prompted the investigation. Because the convention lived in three separate places, some providers had patched one piece and missed the others (Databricks removed the tool-def `strict` in #548 but kept all-required schemas; vLLM removed the tool-def flag but kept `strict: true` in `response_format`; Cloudflare fixed tool serialization but not structured output).
+
+This PR makes strict mode opt-in on the base class:
+
+- `ProviderOpenAICompatible` gains a `strict` property, defaulting to `FALSE`. When `FALSE`, tool definitions omit `strict`, `TypeObject` uses the base serialization (only truly required arguments in `required`), and structured-output bodies omit `strict`. When `TRUE`, requests are unchanged from the previous inherited behavior.
+- `chat_openai_compatible()`, `chat_vllm()`, `chat_openrouter()`, `chat_portkey()`, and `chat_huggingface()` gain a `strict` argument (all defaulting to `FALSE`) for endpoints where the right choice can't be determined automatically.
+- Strict-capable providers opt in with `strict = TRUE`: `chat_openai()`, `chat_azure_openai()`, `chat_groq()`, and `chat_aws_bedrock(api = ""responses"")`. `ProviderOpenAI` previously hardcoded `strict: true` in its tool definitions and structured-output bodies; it now gates all three fields on the property, so requests from these functions are byte-identical to before.
+- Subclasses serving non-OpenAI models now pass `strict = FALSE` explicitly (`lmstudio`, `databricks`, `deepseek`, `mistral`, `perplexity`, `cloudflare`, `ollama`) or inherit the default. The now-redundant `ToolDef` overrides in `ProviderDatabricks` (#548) and `ProviderVllm` are removed.
+- `chat_posit()` keeps a best-guess heuristic: models whose id starts with `openai/` get `strict = TRUE`, everything else `FALSE`. The gateway catalog doesn't guarantee that naming yet; the assumption is commented in the code.
+
+Net effect: `chat_posit()`, `chat_lmstudio()`, `chat_databricks()`, `chat_mistral()`, `chat_deepseek()`, `chat_perplexity()`, and `chat_cloudflare()` now send standard JSON Schema where `required = FALSE` arguments stay out of `required`, matching the NEWS entry.
 
 ## Verification
+
+New tests, all credential-free:
+
+- ""strict defaults are set per provider"" (test-provider-openai-compatible.R) checks that `chat_openai()`, `chat_groq()`, and `chat_azure_openai()` set `strict = TRUE`, that twelve other constructors set `strict = FALSE`, and that `chat_posit()` keys off the `openai/` prefix — with explicit credentials/workspace/account so nothing skips.
+- ""structured output includes `strict` only when the provider is strict"" (test-provider-openai-compatible.R) asserts the three gated fields on both branches: `strict` absent and only `""x""` in `required` when non-strict; `strict: true`, all properties required, optional ones nullable when strict.
+- ""tools and structured output include `strict` only when strict"" (test-provider-openai.R) does the same for `ProviderOpenAI`.
+- ""responses api uses OpenAI strict mode"" (test-provider-aws.R) checks `chat_aws_bedrock(api = ""responses"")` opts in.
+- ""optional tool arguments stay out of `required`"" (test-provider-posit.R) covers both Posit branches.
+
+Example of the non-strict path:
 
 ```r
 tool_def <- tool(
@@ -251,13 +324,12 @@ tool_def <- tool(
     y = type_number(""Second"", required = FALSE)
   )
 )
-provider <- chat_posit(model = ""google/gemma-4-26B-A4B-it"")$get_provider()
+provider <- ProviderLMStudio(name = ""LM Studio"", base_url = ""http://localhost:1234"")
 as_json(provider, tool_def)$`function`$parameters$required
 #> [[1]]
 #> [1] ""x""
 ```
-
-`devtools::test(filter = ""provider-posit"")` passes (19 tests), including new coverage for both the strict and non-strict branches.",gadenbuie,,open,FALSE,2026-09-06T18:15:38Z,2026-09-27T15:15:01Z,https://github.com/tidyverse/ellmer/pull/1135
+",gadenbuie,,open,FALSE,2026-09-06T18:15:38Z,2026-09-28T14:28:12Z,https://github.com/tidyverse/ellmer/pull/1135
 1133,Fix image detail serialisation for OpenAI providers,"Fixes #1132.
 
 ## Summary
