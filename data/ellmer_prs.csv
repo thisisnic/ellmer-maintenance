@@ -155,7 +155,7 @@ Closes #1155. Closes #1154.
 
 ## Design decisions
 
-- **Class split.** The old provider class is now `ProviderGoogle` (generateContent, used by Vertex), and `ProviderGoogleGemini` is a subclass that overrides only the chat methods. Batch submission, batch result parsing and `count_tokens()` drop back to the parent implementation via `convert(provider, ProviderGoogle)`, so those endpoints keep sending and parsing the generateContent format. The alternative, splitting Vertex out as a sibling class, would have meant Gemini's batch code building a Vertex-flavoured provider to get the old request body.
+- **Class split.** Following the AWS Bedrock pattern, `ProviderGoogle` now holds only what both APIs share (credentials, Files API, model listing, batch polling), with two sibling subclasses: `ProviderGoogleGenerateContent` (the old code, used by `chat_google_vertex()`) and `ProviderGoogleInteractions` (used by `chat_google_gemini()`). Batch submission, batch result parsing and `count_tokens()` on the Interactions class hand over to a generateContent sibling via `as_generate_content()`, since those endpoints only exist in that format.
 - **Stateless.** Requests set `store = FALSE` and send the full history every turn, as ellmer does for every provider (and as the OpenAI Responses provider does). No use of `previous_interaction_id`.
 - **Signature replay.** The API rejects a history that omits a thought step's signature, so `ContentThinking` keeps the raw step in `extra` and `as_json()` sends it back unchanged. Search and URL-context steps do the same. Thoughts from other providers (no `type = ""thought""` in `extra`) are dropped from the request.
 - **Streaming.** `stream_merge_chunks()` rebuilds the non-streaming response shape (`status`, `usage`, `steps` keyed by index) so `value_turn()` is shared. Citations and tool activity are emitted on `interaction.completed`, since the sources for a search only arrive as annotations on the answer text.
@@ -187,7 +187,8 @@ Exact or within a token except for tool machinery, where it runs low, so it was 
 
 All Google cassettes were re-recorded. Beyond the test suite, three rounds of live smoke tests (about 120 feature combinations: streaming, tools, thinking, built-in search/fetch, structured output, images, PDFs, documents, uploads, mixed histories, `parallel_chat()`, `batch_chat()`, error paths, several models) found and fixed three bugs: an empty reply when thinking consumed the whole `max_tokens` budget, remote images needing a mime type, and the tool-result format for older models.
 
-Known behaviour, unchanged from generateContent: `chat_structured()` with tools registered answers in JSON without calling them. Thinking text only streams when Google chooses to send a summary, so `ContentThinking` may be empty while streaming at low effort.",thisisnic,,open,TRUE,2026-09-25T11:21:42Z,2026-09-25T13:46:39Z,https://github.com/tidyverse/ellmer/pull/1159
+Known behaviour, unchanged from generateContent: `chat_structured()` with tools registered answers in JSON without calling them. Thinking text only streams when Google chooses to send a summary, so `ContentThinking` may be empty while streaming at low effort.
+",thisisnic,,open,TRUE,2026-09-25T11:21:42Z,2026-09-29T17:11:06Z,https://github.com/tidyverse/ellmer/pull/1159
 1157,Fix `get_tokens()` with a trailing unpaired user turn,"Fixes #1131.
 
 `Chat$get_tokens()` built its `input_preview` column by pairing all user turns with all complete assistant turns positionally. That only lines up when there's exactly one user turn per assistant turn, so a trailing user turn with no response yet, or two assistant turns with no user turn between them, threw a tibble row-recycling error instead of returning a table.
