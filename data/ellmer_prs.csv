@@ -1,13 +1,7 @@
 number,title,body,user,labels,state,draft,created_at,updated_at,url
-1168,test: mock prices for `value_turn()` pricing tests,"Related to #1166
+1170,Fix partial matches in API field,"Fixes #1169
 
-## Summary
-- The weekly model-data update dropped `claude-sonnet-4-20250514` (and other now-deprecated models) from ellmer's bundled price table, breaking a `value_turn()` test in `test-provider-claude.R` that priced that model.
-- The two affected `value_turn()` tests check pricing *math* (the 1.25x cache-write surcharge, and fallback-model pricing), not any specific model's real-world rate, so they were fragile to any future price-table update.
-- Both tests now mock a fixed price table via the existing `local_prices_cache()`/`write_prices_cache()` test helpers (already used in `test-prices.R`), so they're deterministic and independent of the live/bundled price data.",gadenbuie,,open,FALSE,2026-09-28T14:20:16Z,2026-09-28T14:22:38Z,https://github.com/tidyverse/ellmer/pull/1168
-1167,fix: live_browser() broken by shinychat 0.5.0's chat_app() argument rename,"shinychat 0.5.0 renamed the `options` argument of `chat_app()` to `app_options` (sorry I missed this pre-release!). Since `ellmer::live_browser()` still passed `options`, that value silently landed in `chat_app()`'s `...` instead of being applied, breaking `live_browser()` for anyone on shinychat >= 0.5.0.
-
-This branches on the installed shinychat version so the correct argument name is used either way. I didn't think this issue alone was worth raising the shinychat version floor, and given the circular dependencies between shinychat and ellmer I think it's worth remaining flexible.",gadenbuie,,open,FALSE,2026-09-28T14:07:31Z,2026-09-28T14:23:05Z,https://github.com/tidyverse/ellmer/pull/1167
+I did a quick sweep to see if there were any other likely candidates, but there were not.  ",thisisnic,,open,FALSE,2026-09-30T16:14:02Z,2026-09-30T21:41:15Z,https://github.com/tidyverse/ellmer/pull/1170
 1164,fix: `chat_cloudflare()` ignores `account` and fails on numeric streamed content,"Stacked on #1135, since the issues below were raised there.
 
 ## Summary
@@ -196,7 +190,7 @@ Known behaviour, unchanged from generateContent: `chat_structured()` with tools 
 `get_tokens()` now walks the turn history once and pairs each complete assistant turn with the most recently seen user turn (including tool-result turns), instead of matching two separately filtered lists positionally. This gives identical previews for a normal conversation, including tool-calling loops, and no longer errors when the history doesn't alternate.
 
 Added tests for the trailing-turn, partial-turn, consecutive-assistant, and tool-loop cases.
-",taekop,,open,FALSE,2026-09-24T02:11:21Z,2026-09-28T05:09:48Z,https://github.com/tidyverse/ellmer/pull/1157
+",taekop,,open,FALSE,2026-09-24T02:11:21Z,2026-10-01T07:43:22Z,https://github.com/tidyverse/ellmer/pull/1157
 1149,Make the invoke_agent OpenTelemetry span kind internal,"Stacked on #1148. Closes #1146.
 
 Per the discussion in #1146, the `invoke_agent` span is now kind `internal` rather than `client`. ellmer's agent loop (tool dispatch, turn accumulation) runs in-process, which is the semconv `gen_ai.invoke_agent.internal` case; the model requests it wraps remain `client` spans.

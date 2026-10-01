@@ -1,4 +1,32 @@
 number,title,body,user,labels,state,created_at,updated_at,comments,url,linked_prs
+1169,Partial match warnings,"I took ellmer for a little test drive to test the oauth stuff I'm setting up. I'm seeing some partial match warnings:
+
+```
+# weird ""by hand"" auth stuff up here to create `token`
+> chat <- chat_google_gemini(
++   credentials = function() {
++     list(Authorization = paste(""Bearer"", token$credentials$access_token))
++   }
++ )
+Using model = ""gemini-3.7-flash"".
+> chat$chat(""Say hello in exactly three words."")
+Hello there, friend.                                         
+Warning messages:
+1: In part$thought : partial match of 'thought' to 'thoughtSignature'
+2: In content$thought : partial match of 'thought' to 'thoughtSignature'
+```
+
+By way of explanation, I always have this set somewhere in my `.Rprofile`:
+
+```
+...
+options(
+    warnPartialMatchArgs = TRUE,
+    warnPartialMatchAttr = TRUE,
+    warnPartialMatchDollar = TRUE
+)
+...
+```",jennybc,,open,2026-09-30T14:44:29Z,2026-09-30T16:14:29Z,1,https://github.com/tidyverse/ellmer/issues/1169,1170
 1166,Should pricing data keep rates for deprecated models?,"## What happened
 
 The weekly model-data update on `main` (215c4bdc, 2026-09-28) removed 122 provider/model pairs from ellmer's pricing data. It happened because LiteLLM, our upstream source, removed 333 entries that were past their `deprecation_date` in a single cleanup commit: [BerriAI/litellm@075536e](https://github.com/BerriAI/litellm/commit/075536eca1a247bbab78d7992275a176875b96ae) (#42435 upstream). We use LiteLLM's data as a whole, so the removals carried straight over to ellmer.
@@ -54,7 +82,7 @@ Resources:
 - [Sensitive scope verification](https://developers.google.com/identity/protocols/oauth2/production-readiness/sensitive-scope-verification)
 - [Changes to approved app](https://support.google.com/cloud/answer/13464018?hl=en)
 - [OAuth App Verification Help Center](https://support.google.com/cloud/answer/13463073?hl=en)
-",thisisnic,upkeep,open,2026-09-21T16:14:08Z,2026-09-22T00:46:51Z,1,https://github.com/tidyverse/ellmer/issues/1156,
+",thisisnic,upkeep,open,2026-09-21T16:14:08Z,2026-09-30T15:13:52Z,1,https://github.com/tidyverse/ellmer/issues/1156,
 1155,Switch to interactions API for gemini,https://ai.google.dev/gemini-api/docs/interactions-overview,hadley,feature,open,2026-09-19T16:51:45Z,2026-09-22T00:46:36Z,0,https://github.com/tidyverse/ellmer/issues/1155,1159
 1154,"chat_google_gemini() retries permanent quota 429s, causing hours-long hangs","`method(base_request, ProviderGoogleGemini)` calls `ellmer_req_robustify(req)` without an `is_transient` callback, so httr2's default applies: 429 is always treated as transient and retried. But Gemini uses 429 for **permanent billing/quota errors**: an API key on an account with no credit gets `429 RESOURCE_EXHAUSTED` with a `retryDelay` of hours (daily quota). httr2 dutifully waits, so a chat call hangs for hours before finally erroring. (Motivating report: hadley/bananarama#15, where a no-credit key appeared as a stuck retry loop.)
 
