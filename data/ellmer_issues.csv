@@ -82,7 +82,7 @@ Resources:
 - [Sensitive scope verification](https://developers.google.com/identity/protocols/oauth2/production-readiness/sensitive-scope-verification)
 - [Changes to approved app](https://support.google.com/cloud/answer/13464018?hl=en)
 - [OAuth App Verification Help Center](https://support.google.com/cloud/answer/13463073?hl=en)
-",thisisnic,upkeep,open,2026-09-21T16:14:08Z,2026-09-30T15:13:52Z,1,https://github.com/tidyverse/ellmer/issues/1156,
+",thisisnic,upkeep,open,2026-09-21T16:14:08Z,2026-09-30T15:13:52Z,1,https://github.com/tidyverse/ellmer/issues/1156,1171
 1155,Switch to interactions API for gemini,https://ai.google.dev/gemini-api/docs/interactions-overview,hadley,feature,open,2026-09-19T16:51:45Z,2026-09-22T00:46:36Z,0,https://github.com/tidyverse/ellmer/issues/1155,1159
 1154,"chat_google_gemini() retries permanent quota 429s, causing hours-long hangs","`method(base_request, ProviderGoogleGemini)` calls `ellmer_req_robustify(req)` without an `is_transient` callback, so httr2's default applies: 429 is always treated as transient and retried. But Gemini uses 429 for **permanent billing/quota errors**: an API key on an account with no credit gets `429 RESOURCE_EXHAUSTED` with a `retryDelay` of hours (daily quota). httr2 dutifully waits, so a chat call hangs for hours before finally erroring. (Motivating report: hadley/bananarama#15, where a no-credit key appeared as a stuck retry loop.)
 

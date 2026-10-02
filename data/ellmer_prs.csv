@@ -1,7 +1,15 @@
 number,title,body,user,labels,state,draft,created_at,updated_at,url
+1171,Use verified OAuth clients for Gemini browser auth,"Closes #1156. Replaces the old unverified Gemini OAuth client with two new ones from the posit.co GCP project: a desktop client for local sessions and a web client for hosted sessions, where the user pastes a code back from the tidyverse.org callback page instead of being redirected to localhost.
+
+`is_hosted_session()` now also detects Workbench, Positron server, and Colab, matching gargle, so Azure and Databricks skip their browser flows in those environments too.
+
+Also fixes `chat_google_vertex()` falling through to the Gemini browser flow with the wrong scope when no ADC is available. 
+
+Do **not** merge until Google approves scope verification, since the docs and NEWS already describe the app as verified.
+",thisisnic,,open,TRUE,2026-10-02T11:03:00Z,2026-10-02T11:03:00Z,https://github.com/tidyverse/ellmer/pull/1171
 1170,Fix partial matches in API field,"Fixes #1169
 
-I did a quick sweep to see if there were any other likely candidates, but there were not.  ",thisisnic,,open,FALSE,2026-09-30T16:14:02Z,2026-09-30T21:41:15Z,https://github.com/tidyverse/ellmer/pull/1170
+I did a quick sweep to see if there were any other likely candidates, but there were not.  ",thisisnic,,open,FALSE,2026-09-30T16:14:02Z,2026-10-02T08:52:14Z,https://github.com/tidyverse/ellmer/pull/1170
 1164,fix: `chat_cloudflare()` ignores `account` and fails on numeric streamed content,"Stacked on #1135, since the issues below were raised there.
 
 ## Summary
