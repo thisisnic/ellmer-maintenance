@@ -6,10 +6,7 @@ number,title,body,user,labels,state,draft,created_at,updated_at,url
 Also fixes `chat_google_vertex()` falling through to the Gemini browser flow with the wrong scope when no ADC is available. 
 
 Do **not** merge until Google approves scope verification, since the docs and NEWS already describe the app as verified.
-",thisisnic,,open,TRUE,2026-10-02T11:03:00Z,2026-10-02T11:03:00Z,https://github.com/tidyverse/ellmer/pull/1171
-1170,Fix partial matches in API field,"Fixes #1169
-
-I did a quick sweep to see if there were any other likely candidates, but there were not.  ",thisisnic,,open,FALSE,2026-09-30T16:14:02Z,2026-10-02T08:52:14Z,https://github.com/tidyverse/ellmer/pull/1170
+",thisisnic,,open,TRUE,2026-10-02T11:03:00Z,2026-10-02T17:03:50Z,https://github.com/tidyverse/ellmer/pull/1171
 1164,fix: `chat_cloudflare()` ignores `account` and fails on numeric streamed content,"Stacked on #1135, since the issues below were raised there.
 
 ## Summary
@@ -139,7 +136,7 @@ str(lapply(res$.error, \(e) if (!is.null(e)) conditionMessage(e)))
 `chat_openai()` drives the OpenAI Responses API. Every message-shaped input item it serializes (text, images, PDFs, documents, uploaded file references, across all roles) carried `role` and `content` but no top-level `type`. `type` is optional in the published schema and OpenAI infers it, but llama.cpp's `/v1/responses` parser only infers it for `system`/`developer`/`user` items, not `assistant`, so a replayed assistant turn with text gets rejected with `HTTP 400 Cannot determine type of 'item'`, which is terminal for any tool-using conversation. Setting `type = ""message""` explicitly is a no-op against OpenAI and fixes every OpenAI-compatible server that discriminates on it.
 
 I don't have an OpenAI API key to re-record the affected vcr cassettes, so I hand-edited the recorded request bodies to add the new field, and I'm happy for them to be re-recorded instead.
-",taekop,,open,FALSE,2026-09-25T14:50:31Z,2026-09-25T18:42:08Z,https://github.com/tidyverse/ellmer/pull/1161
+",taekop,,open,FALSE,2026-09-25T14:50:31Z,2026-10-02T18:04:38Z,https://github.com/tidyverse/ellmer/pull/1161
 1160,Convert `Content` tool results to otel parts instead of dropping `gen_ai.input.messages`,"Fixes #1145.
 
 Since #1077, `normalize_tool_result()` guarantees a tool result's value is `NULL`, a string, a `json` string, a `Content` object, or a list of `Content` objects. A bare `Content` value (e.g. an image) was being copied straight into the `response` field of the `tool_call_response` otel part, which `jsonlite::toJSON()` can't encode, and that error caused the whole `gen_ai.input.messages` attribute to be dropped.
@@ -251,14 +248,14 @@ Span changes:
 - `invoke_agent` span totals `gen_ai.usage.*_tokens` across the tool loop and sets `gen_ai.invoke_agent.duration`, `gen_ai.invoke_agent.inference_calls`, and `gen_ai.invoke_agent.tool_calls` as attributes (mirroring the metrics). Its kind stays `client`; whether it should be `internal` is being discussed in #1146.
 - `chat` and `invoke_agent` spans record `params()` as `gen_ai.request.*` attributes.
 
-Testing: the internal `with_otel_record()` helper now shuts the meter provider down before collecting, since otelsdk <= 0.2.4 only exports in-memory metrics on shutdown. Offline mocked tests cover streamed, non-streamed, tool, and agent paths. Live otel tests were skipped locally (no API keys).",schloerke,,open,FALSE,2026-09-10T15:05:45Z,2026-09-10T17:12:46Z,https://github.com/tidyverse/ellmer/pull/1143
+Testing: the internal `with_otel_record()` helper now shuts the meter provider down before collecting, since otelsdk <= 0.2.4 only exports in-memory metrics on shutdown. Offline mocked tests cover streamed, non-streamed, tool, and agent paths. Live otel tests were skipped locally (no API keys).",schloerke,,open,FALSE,2026-09-10T15:05:45Z,2026-10-02T14:28:42Z,https://github.com/tidyverse/ellmer/pull/1143
 1142,Record time to first token on the OpenTelemetry chat span,"Streamed responses now record the time to first token (seconds) as the `gen_ai.response.time_to_first_chunk` attribute on the `chat <model>` span.
 
 - `R/otel.R`: `record_chat_otel_span_ttft_attr()` sets the attribute from a start timestamp captured just before the stream begins.
 - `R/chat.R`: both sync and async streaming loops call it once, on the first non-empty text/thinking chunk.
 - Tests: offline mocked test plus assertions in the live stream tests.
 
-Follow-up in #1143 (stacked on this) broadens the trigger to tool calls and adds GenAI metrics.",schloerke,,open,FALSE,2026-09-10T14:24:31Z,2026-09-11T13:09:02Z,https://github.com/tidyverse/ellmer/pull/1142
+Follow-up in #1143 (stacked on this) broadens the trigger to tool calls and adds GenAI metrics.",schloerke,,open,FALSE,2026-09-10T14:24:31Z,2026-10-02T12:36:40Z,https://github.com/tidyverse/ellmer/pull/1142
 1139,`chat_posit()$set_model()` now switches model families,"Fixes #1138
 
 ## Summary
