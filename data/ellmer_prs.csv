@@ -633,9 +633,6 @@ chat$chat(""Look up the tidyverse/ellmer repo with your deepwiki tools."")
   - **Granular `require_approval`**: Object form allowing per-tool approval control, e.g. `{never: {tool_names: [""tool_a"", ""tool_b""]}}`, so specific tools can bypass approval while others require it.
   - **Interactive approval workflow**: When `require_approval` is not `""never""`, the API returns an `mcp_approval_request` output and expects an `mcp_approval_response` input in a follow-up request. We currently error instead of surfacing the approval request to the user.
 ",gadenbuie,,open,FALSE,2026-05-19T17:03:32Z,2026-08-04T17:49:56Z,https://github.com/tidyverse/ellmer/pull/991
-985,Handle mcp_tool_use and mcp_tool_result content types,"Completely vibe coded by Claude. But seems to do the job. I have absolutely zero experience or expertise in this package or field. 
-
-essentially is to handle mcp on claude api: https://platform.claude.com/docs/en/agents-and-tools/mcp-connector",klin333,,open,FALSE,2026-05-18T08:44:26Z,2026-05-27T03:29:48Z,https://github.com/tidyverse/ellmer/pull/985
 975,Introduce ContentThinkingDelta for streaming thinking,"## Summary
 
 Addresses #974 by introducing a `ContentThinkingDelta` class that cleanly separates streaming thinking fragments from complete `ContentThinking` objects stored in turn history.

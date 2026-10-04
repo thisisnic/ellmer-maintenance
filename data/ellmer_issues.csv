@@ -1529,7 +1529,6 @@ Then you could specify e.g. `chat_claude(model = ""small"")` (although we'd need
 * Clone
 * Reset turns
 * Set `echo = ""none""`",hadley,feature,open,2025-11-23T13:05:38Z,2026-05-13T17:49:19Z,0,https://github.com/tidyverse/ellmer/issues/879,
-868,Add openAI files api,https://platform.openai.com/docs/api-reference/files/create,hadley,feature,open,2025-11-15T19:18:17Z,2026-05-13T17:06:54Z,0,https://github.com/tidyverse/ellmer/issues/868,
 864,Remove role hack,Then check revdeps and submit fixes to downstream packages.,hadley,upkeep,open,2025-11-14T19:40:03Z,2026-05-13T17:58:08Z,2,https://github.com/tidyverse/ellmer/issues/864,
 821,Subagent ideas,"* https://github.com/openai/openai-agents-python https://minusx.ai/blog/decoding-claude-code/#appendix
 * https://google.github.io/adk-docs/agents/workflow-agents/
