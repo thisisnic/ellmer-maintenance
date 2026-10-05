@@ -596,36 +596,6 @@ list(type = ""image_url"", image_url = list(url = x@url, detail = x@detail))
 
 with `""auto""` either sent as-is or omitted, since it is the API default. Providers that have no equivalent (Claude, Gemini, Bedrock) can keep ignoring the field, but it would help to say so in the `content_image_url()` docs.
 ",kbenoit,feature,open,2026-09-05T11:17:22Z,2026-09-15T16:08:23Z,0,https://github.com/tidyverse/ellmer/issues/1132,1133
-1131,get_tokens() fails with an unpaired user turn or partial assistant,"`Chat$get_tokens()` fails when the history has a user turn without a completed assistant response. I reproduced this with released ellmer 0.5.0; the same preview assignment is present on current main. No model call is needed:
-
-```r
-library(ellmer)
-chat <- chat_openai_compatible(
-  base_url = ""http://127.0.0.1:1"",
-  model = ""fixture"",
-  credentials = function() ""unused""
-)
-chat$set_turns(list(
-  UserTurn(""First""),
-  AssistantTurn(""Done"", tokens = c(input = 10, output = 5, cached_input = 0), cost = 0.001),
-  UserTurn(""Pending"")
-))
-chat$get_tokens()
-# Error: Assigned data `map_chr(user_turns, turn_contents_preview)` must be
-# compatible with existing data.
-# Existing data has 1 row. Assigned data has 2 rows.
-
-chat$set_turns(c(chat$get_turns(), list(AssistantPartialTurn())))
-chat$get_tokens()
-# Same error
-```
-
-`get_tokens()` selects completed assistant turns for the token/cost rows, but all user turns for `input_preview`. `token_count(include = ""complete"")` also fails before reaching the provider's token-counting method because it calls `get_tokens()`.
-
-Our concrete case is a completed tool round followed by an `on_request_start` callback that stops before the next provider dispatch. The callback receives the pending tool-result user turn before ellmer has stored it. We retain that real turn through public `set_turns()` so saving and resuming does not lose the completed result. That produces an intentionally unfinished conversation. Adding a later user/assistant pair still leaves the extra user turn and the table mismatch. A cancelled partial assistant produces the same mismatch because partial turns are excluded from the token rows.
-
-Expected: token rows and previews should correspond to completed assistant responses even when history is unfinished. Incomplete requests should not require an invented assistant response just to inspect usage. It would also be helpful for complete-context estimation to include retained content after the last completed response.
-",JamesHWade,bug,open,2026-09-05T11:14:07Z,2026-09-15T11:44:18Z,0,https://github.com/tidyverse/ellmer/issues/1131,1157
 1130,"`Chat$chat()` docs don't list possible `echo` values, and `$chat_structured()` recommends deprecated `echo = ""text""`","The `echo` parameter on `Chat$chat()` says ""whether to emit the response to stdout as it is received"" but doesn't list the possible values; they're only enumerated on the `Chat` constructor. `$chat_structured()` and `$chat_structured_async()` tell users to set `echo = ""text""`, which `check_echo()` has treated as deprecated in favour of `""output""` since 0.2.0. Suggest listing `""none""`, `""output""`, and `""all""` on `$chat()` and replacing `""text""` with `""output""` in the structured methods.",thisisnic,upkeep,open,2026-09-04T16:23:58Z,2026-09-15T16:10:00Z,0,https://github.com/tidyverse/ellmer/issues/1130,
 1129,parallel_chat_structured() silently drops include_tokens and include_cost for an array type,"## Summary
 

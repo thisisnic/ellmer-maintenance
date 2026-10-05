@@ -46,7 +46,7 @@ withr::with_envvar(c(CLOUDFLARE_ACCOUNT_ID = ""env-account""), {
 ```
 
 `devtools::test(filter = ""cloudflare"")` passes, including the live tests: 9 passing, 0 skipped.
-",gadenbuie,,open,FALSE,2026-09-28T13:21:17Z,2026-09-28T13:22:25Z,https://github.com/tidyverse/ellmer/pull/1164
+",gadenbuie,,open,FALSE,2026-09-28T13:21:17Z,2026-10-04T16:57:55Z,https://github.com/tidyverse/ellmer/pull/1164
 1163,Record all failed prompts in `.error`,"Fixes #1121 and #1126.
 
 `parallel_chat_structured()` and `batch_chat_structured()` now record extraction failures and incomplete responses in `.error` when returning a data frame. Affected rows get the usual missing values, even when a truncated response contains valid JSON.
@@ -188,21 +188,13 @@ All Google cassettes were re-recorded. Beyond the test suite, three rounds of li
 
 Known behaviour, unchanged from generateContent: `chat_structured()` with tools registered answers in JSON without calling them. Thinking text only streams when Google chooses to send a summary, so `ContentThinking` may be empty while streaming at low effort.
 ",thisisnic,,open,TRUE,2026-09-25T11:21:42Z,2026-09-29T17:11:06Z,https://github.com/tidyverse/ellmer/pull/1159
-1157,Fix `get_tokens()` with a trailing unpaired user turn,"Fixes #1131.
-
-`Chat$get_tokens()` built its `input_preview` column by pairing all user turns with all complete assistant turns positionally. That only lines up when there's exactly one user turn per assistant turn, so a trailing user turn with no response yet, or two assistant turns with no user turn between them, threw a tibble row-recycling error instead of returning a table.
-
-`get_tokens()` now walks the turn history once and pairs each complete assistant turn with the most recently seen user turn (including tool-result turns), instead of matching two separately filtered lists positionally. This gives identical previews for a normal conversation, including tool-calling loops, and no longer errors when the history doesn't alternate.
-
-Added tests for the trailing-turn, partial-turn, consecutive-assistant, and tool-loop cases.
-",taekop,,open,FALSE,2026-09-24T02:11:21Z,2026-10-01T07:43:22Z,https://github.com/tidyverse/ellmer/pull/1157
 1149,Make the invoke_agent OpenTelemetry span kind internal,"Stacked on #1148. Closes #1146.
 
 Per the discussion in #1146, the `invoke_agent` span is now kind `internal` rather than `client`. ellmer's agent loop (tool dispatch, turn accumulation) runs in-process, which is the semconv `gen_ai.invoke_agent.internal` case; the model requests it wraps remain `client` spans.
 
 - `R/otel.R`: span kind and comment.
 - `tests/testthat/test-otel.R`: updated kind assertion.
-- `NEWS.md`: bullet noting the change for anyone with dashboards keyed on span kind. No deprecation, since the GenAI semconv is still `stability: development`.",schloerke,,open,FALSE,2026-09-10T16:54:20Z,2026-09-11T12:49:25Z,https://github.com/tidyverse/ellmer/pull/1149
+- `NEWS.md`: bullet noting the change for anyone with dashboards keyed on span kind. No deprecation, since the GenAI semconv is still `stability: development`.",schloerke,,open,FALSE,2026-09-10T16:54:20Z,2026-10-05T01:28:00Z,https://github.com/tidyverse/ellmer/pull/1149
 1148,"Record server, output type, reasoning, and tool definition attributes on OpenTelemetry chat spans","Stacked on #1147.
 
 Adds the remaining spec-recommended attributes to the `chat <model>` span:
@@ -213,7 +205,7 @@ Adds the remaining spec-recommended attributes to the `chat <model>` span:
 - `gen_ai.usage.reasoning.output_tokens` via a new internal `value_reasoning_tokens()` generic. Default is `NULL`; OpenAI reads `usage.output_tokens_details.reasoning_tokens`.
 - `gen_ai.tool.definitions`, opt-in behind the existing `OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT` gate, as a JSON array of `{type, name, description, parameters}` using the provider's own parameter schema serialization.
 
-Tests cover each attribute with mocked chats or by calling the span helper directly, plus a unit test for the OpenAI reasoning-token extractor.",schloerke,,open,FALSE,2026-09-10T15:56:15Z,2026-09-10T17:12:51Z,https://github.com/tidyverse/ellmer/pull/1148
+Tests cover each attribute with mocked chats or by calling the span helper directly, plus a unit test for the OpenAI reasoning-token extractor.",schloerke,,open,FALSE,2026-09-10T15:56:15Z,2026-10-05T10:31:15Z,https://github.com/tidyverse/ellmer/pull/1148
 1147,"Record request.stream, finish reasons, cache-read tokens, and errors on OpenTelemetry chat spans","Stacked on #1143.
 
 Rounds out the `chat <model>` span with spec-recommended attributes and adds error reporting:
@@ -225,7 +217,7 @@ Rounds out the `chat <model>` span with spec-recommended attributes and adds err
 
 Implementation: the request/response section of `submit_turns()` / `submit_turns_async()` and the agent loop in `chat_impl()` / `chat_impl_async()` are wrapped in `tryCatch()` that records and rethrows. coro supports `yield()` / `await()` inside `tryCatch()`, verified before relying on it. Most of the diff is the resulting re-indentation.
 
-Tests: mocked tests for each attribute and for the error path (both spans and both metrics).",schloerke,,open,FALSE,2026-09-10T15:53:49Z,2026-09-10T17:12:49Z,https://github.com/tidyverse/ellmer/pull/1147
+Tests: mocked tests for each attribute and for the error path (both spans and both metrics).",schloerke,,open,FALSE,2026-09-10T15:53:49Z,2026-10-05T10:11:32Z,https://github.com/tidyverse/ellmer/pull/1147
 1143,Record GenAI semantic convention metrics and agent attributes via OpenTelemetry,"Stacked on #1142.
 
 ellmer now records OpenTelemetry metrics whenever a meter is active, following the [GenAI semconv metrics](https://github.com/open-telemetry/semantic-conventions-genai/blob/main/model/gen-ai/metrics.yaml):
@@ -248,14 +240,14 @@ Span changes:
 - `invoke_agent` span totals `gen_ai.usage.*_tokens` across the tool loop and sets `gen_ai.invoke_agent.duration`, `gen_ai.invoke_agent.inference_calls`, and `gen_ai.invoke_agent.tool_calls` as attributes (mirroring the metrics). Its kind stays `client`; whether it should be `internal` is being discussed in #1146.
 - `chat` and `invoke_agent` spans record `params()` as `gen_ai.request.*` attributes.
 
-Testing: the internal `with_otel_record()` helper now shuts the meter provider down before collecting, since otelsdk <= 0.2.4 only exports in-memory metrics on shutdown. Offline mocked tests cover streamed, non-streamed, tool, and agent paths. Live otel tests were skipped locally (no API keys).",schloerke,,open,FALSE,2026-09-10T15:05:45Z,2026-10-02T14:28:42Z,https://github.com/tidyverse/ellmer/pull/1143
+Testing: the internal `with_otel_record()` helper now shuts the meter provider down before collecting, since otelsdk <= 0.2.4 only exports in-memory metrics on shutdown. Offline mocked tests cover streamed, non-streamed, tool, and agent paths. Live otel tests were skipped locally (no API keys).",schloerke,,open,FALSE,2026-09-10T15:05:45Z,2026-10-05T09:44:06Z,https://github.com/tidyverse/ellmer/pull/1143
 1142,Record time to first token on the OpenTelemetry chat span,"Streamed responses now record the time to first token (seconds) as the `gen_ai.response.time_to_first_chunk` attribute on the `chat <model>` span.
 
 - `R/otel.R`: `record_chat_otel_span_ttft_attr()` sets the attribute from a start timestamp captured just before the stream begins.
 - `R/chat.R`: both sync and async streaming loops call it once, on the first non-empty text/thinking chunk.
 - Tests: offline mocked test plus assertions in the live stream tests.
 
-Follow-up in #1143 (stacked on this) broadens the trigger to tool calls and adds GenAI metrics.",schloerke,,open,FALSE,2026-09-10T14:24:31Z,2026-10-02T12:36:40Z,https://github.com/tidyverse/ellmer/pull/1142
+Follow-up in #1143 (stacked on this) broadens the trigger to tool calls and adds GenAI metrics.",schloerke,,open,FALSE,2026-09-10T14:24:31Z,2026-10-05T01:28:54Z,https://github.com/tidyverse/ellmer/pull/1142
 1139,`chat_posit()$set_model()` now switches model families,"Fixes #1138
 
 ## Summary
@@ -281,55 +273,6 @@ chat$chat(""Hi"")  # now works: request goes to /openai/v1
 ```
 
 New tests in `test-provider-posit.R` cover family swaps in both directions, no-op within a family, credentials/header carryover, cache preservation, and the hidden print field.",gadenbuie,,open,FALSE,2026-09-07T17:02:17Z,2026-09-09T13:18:10Z,https://github.com/tidyverse/ellmer/pull/1139
-1135,fix: make OpenAI strict mode opt-in for OpenAI-compatible providers,"## Summary
-
-_Scope note: this PR has grown well beyond its original Posit-only fix. The [September 7 comment](https://github.com/tidyverse/ellmer/pull/1135#issuecomment-5573103545) explains why, and what follows reflects the current state of the branch._
-
-`ProviderOpenAICompatible` was sending OpenAI's strict-mode conventions in three independent places:
-
-- `as_json(ToolDef)` added `strict: true` to every tool definition
-- `as_json(TypeObject)` listed every property in `required`, making optional ones nullable (`[""number"", ""null""]`)
-- `chat_body()` added `strict: true` to structured-output `response_format`
-
-The all-required-plus-nullable convention is an OpenAI implementation detail of strict mode / constrained decoding, not part of JSON Schema. It's only safe when the backend actually enforces it. Providers that do prompt-based tool calling put the schema in the prompt, and the model reads `required` the standard way, so optional tool arguments became effectively mandatory — the original `chat_posit()` bug, and the `chat_lmstudio()` bug that prompted the investigation. Because the convention lived in three separate places, some providers had patched one piece and missed the others (Databricks removed the tool-def `strict` in #548 but kept all-required schemas; vLLM removed the tool-def flag but kept `strict: true` in `response_format`; Cloudflare fixed tool serialization but not structured output).
-
-This PR makes strict mode opt-in on the base class:
-
-- `ProviderOpenAICompatible` gains a `strict` property, defaulting to `FALSE`. When `FALSE`, tool definitions omit `strict`, `TypeObject` uses the base serialization (only truly required arguments in `required`), and structured-output bodies omit `strict`. When `TRUE`, requests are unchanged from the previous inherited behavior.
-- `chat_openai_compatible()`, `chat_vllm()`, `chat_openrouter()`, `chat_portkey()`, and `chat_huggingface()` gain a `strict` argument (all defaulting to `FALSE`) for endpoints where the right choice can't be determined automatically.
-- Strict-capable providers opt in with `strict = TRUE`: `chat_openai()`, `chat_azure_openai()`, `chat_groq()`, and `chat_aws_bedrock(api = ""responses"")`. `ProviderOpenAI` previously hardcoded `strict: true` in its tool definitions and structured-output bodies; it now gates all three fields on the property, so requests from these functions are byte-identical to before.
-- Subclasses serving non-OpenAI models now pass `strict = FALSE` explicitly (`lmstudio`, `databricks`, `deepseek`, `mistral`, `perplexity`, `cloudflare`, `ollama`) or inherit the default. The now-redundant `ToolDef` overrides in `ProviderDatabricks` (#548) and `ProviderVllm` are removed.
-- `chat_posit()` keeps a best-guess heuristic: models whose id starts with `openai/` get `strict = TRUE`, everything else `FALSE`. The gateway catalog doesn't guarantee that naming yet; the assumption is commented in the code.
-
-Net effect: `chat_posit()`, `chat_lmstudio()`, `chat_databricks()`, `chat_mistral()`, `chat_deepseek()`, `chat_perplexity()`, and `chat_cloudflare()` now send standard JSON Schema where `required = FALSE` arguments stay out of `required`, matching the NEWS entry.
-
-## Verification
-
-New tests, all credential-free:
-
-- ""strict defaults are set per provider"" (test-provider-openai-compatible.R) checks that `chat_openai()`, `chat_groq()`, and `chat_azure_openai()` set `strict = TRUE`, that twelve other constructors set `strict = FALSE`, and that `chat_posit()` keys off the `openai/` prefix — with explicit credentials/workspace/account so nothing skips.
-- ""structured output includes `strict` only when the provider is strict"" (test-provider-openai-compatible.R) asserts the three gated fields on both branches: `strict` absent and only `""x""` in `required` when non-strict; `strict: true`, all properties required, optional ones nullable when strict.
-- ""tools and structured output include `strict` only when strict"" (test-provider-openai.R) does the same for `ProviderOpenAI`.
-- ""responses api uses OpenAI strict mode"" (test-provider-aws.R) checks `chat_aws_bedrock(api = ""responses"")` opts in.
-- ""optional tool arguments stay out of `required`"" (test-provider-posit.R) covers both Posit branches.
-
-Example of the non-strict path:
-
-```r
-tool_def <- tool(
-  function(x, y = 1) x + y,
-  ""Add numbers"",
-  arguments = list(
-    x = type_number(""First""),
-    y = type_number(""Second"", required = FALSE)
-  )
-)
-provider <- ProviderLMStudio(name = ""LM Studio"", base_url = ""http://localhost:1234"")
-as_json(provider, tool_def)$`function`$parameters$required
-#> [[1]]
-#> [1] ""x""
-```
-",gadenbuie,,open,FALSE,2026-09-06T18:15:38Z,2026-09-28T14:28:12Z,https://github.com/tidyverse/ellmer/pull/1135
 1133,Fix image detail serialisation for OpenAI providers,"Fixes #1132.
 
 ## Summary
