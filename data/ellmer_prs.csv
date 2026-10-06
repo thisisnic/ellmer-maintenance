@@ -46,7 +46,7 @@ withr::with_envvar(c(CLOUDFLARE_ACCOUNT_ID = ""env-account""), {
 ```
 
 `devtools::test(filter = ""cloudflare"")` passes, including the live tests: 9 passing, 0 skipped.
-",gadenbuie,,open,FALSE,2026-09-28T13:21:17Z,2026-10-04T16:57:55Z,https://github.com/tidyverse/ellmer/pull/1164
+",gadenbuie,,open,FALSE,2026-09-28T13:21:17Z,2026-10-05T13:36:42Z,https://github.com/tidyverse/ellmer/pull/1164
 1163,Record all failed prompts in `.error`,"Fixes #1121 and #1126.
 
 `parallel_chat_structured()` and `batch_chat_structured()` now record extraction failures and incomplete responses in `.error` when returning a data frame. Affected rows get the usual missing values, even when a truncated response contains valid JSON.
@@ -126,17 +126,11 @@ str(lapply(res$.error, \(e) if (!is.null(e)) conditionMessage(e)))
 <sup>Created on 2026-09-28 with [reprex v2.1.1](https://reprex.tidyverse.org)</sup>
 
 </details>
-",kbenoit,,open,FALSE,2026-09-28T05:46:03Z,2026-09-28T05:58:34Z,https://github.com/tidyverse/ellmer/pull/1163
+",kbenoit,,open,FALSE,2026-09-28T05:46:03Z,2026-10-06T10:50:53Z,https://github.com/tidyverse/ellmer/pull/1163
 1162,Warn when include_tokens/include_cost is ignored for non-data-frame results,"Fixes #1129.
 
 `include_tokens` and `include_cost` only add columns when the result is a data frame. With a top-level `type_array()` or `convert = FALSE` the result is a list, so both flags were silently dropped. This keeps the documented behavior and warns when either flag is ignored.
-",taekop,,open,FALSE,2026-09-26T00:29:13Z,2026-09-26T00:29:13Z,https://github.com/tidyverse/ellmer/pull/1162
-1161,"Set type = ""message"" on chat_openai() Responses API input items","Fixes #1153.
-
-`chat_openai()` drives the OpenAI Responses API. Every message-shaped input item it serializes (text, images, PDFs, documents, uploaded file references, across all roles) carried `role` and `content` but no top-level `type`. `type` is optional in the published schema and OpenAI infers it, but llama.cpp's `/v1/responses` parser only infers it for `system`/`developer`/`user` items, not `assistant`, so a replayed assistant turn with text gets rejected with `HTTP 400 Cannot determine type of 'item'`, which is terminal for any tool-using conversation. Setting `type = ""message""` explicitly is a no-op against OpenAI and fixes every OpenAI-compatible server that discriminates on it.
-
-I don't have an OpenAI API key to re-record the affected vcr cassettes, so I hand-edited the recorded request bodies to add the new field, and I'm happy for them to be re-recorded instead.
-",taekop,,open,FALSE,2026-09-25T14:50:31Z,2026-10-02T18:04:38Z,https://github.com/tidyverse/ellmer/pull/1161
+",taekop,,open,FALSE,2026-09-26T00:29:13Z,2026-10-05T21:10:14Z,https://github.com/tidyverse/ellmer/pull/1162
 1160,Convert `Content` tool results to otel parts instead of dropping `gen_ai.input.messages`,"Fixes #1145.
 
 Since #1077, `normalize_tool_result()` guarantees a tool result's value is `NULL`, a string, a `json` string, a `Content` object, or a list of `Content` objects. A bare `Content` value (e.g. an image) was being copied straight into the `response` field of the `tool_call_response` otel part, which `jsonlite::toJSON()` can't encode, and that error caused the whole `gen_ai.input.messages` attribute to be dropped.
@@ -695,78 +689,5 @@ devtools::test(filter = ""provider-azure-anthropic"")
 > chat$chat(""What is the capital of France?"")
 The capital of France is **Paris**.
 ```",dareneiri,,open,FALSE,2026-04-10T06:40:23Z,2026-05-06T12:23:49Z,https://github.com/tidyverse/ellmer/pull/960
-923,Add Z AI provider with chat_zai() and models_zai(),"Implements suppo# Add Z AI Provider
-
-This PR adds support for Z AI's GLM models to ellmer.
-
-## Features
-
-- New `chat_zai()` function for Z AI GLM models
-- New `models_zai()` function to list available models
-- Supports both International and China/BigModel base URLs (tested):
-  - **International Coding API (default)**: `https://api.z.ai/api/coding/paas/v4`
-  - **International Regular API**: `https://api.z.ai/api/paas/v4` – For usage-based plans
-  - **China/BigModel Coding API**: `https://open.bigmodel.cn/api/coding/paas/v4`
-  - **China/BigModel Regular API**: `https://open.bigmodel.cn/api/paas/v4`
-- Reasoning content extraction from `message.reasoning_content`
-- Reasoning token tracking from `completion_tokens_details.reasoning_tokens`
-
-## Models Supported
-
-- glm-4.7 (default)
-- glm-4.6
-- glm-4.5
-- glm-4.5-Air
-
-## Implementation Details
-
-- Inherits from `ProviderOpenAICompatible` for OpenAI-compatible API
-- Overrides `value_tokens()` to extract reasoning tokens
-- Overrides `value_turn()` to handle reasoning content
-- Comprehensive documentation explaining both API endpoints
-
-## Testing
-
-- Tested with both coding and regular API endpoints
-- All functionality working correctly
-- Unit tests added in `tests/testthat/test-provider-zai.R`
-
-## Documentation
-
-- Added comprehensive documentation in `R/provider-zai.R` and `man/chat_zai.Rd`
-- Examples showing usage of both endpoints
-- Updated NEWS.md and README.md
-
-
-## Example 
-
-```
-> devtools::load_all()
-ℹ Loading ellmer
-> # List available models
-> models <- models_zai(base_url = ""https://api.z.ai/api/coding/paas/v4"")
-> print(models)
-           id created_at owned_by cached_input input output
-4     glm-4.7 2025-12-21     z-ai           NA    NA     NA
-3     glm-4.6 2025-10-01     z-ai           NA    NA     NA
-1     glm-4.5 2025-07-27     z-ai           NA    NA     NA
-2 glm-4.5-air 2025-07-27     z-ai           NA    NA     NA
-> 
-> # Create a chat client (explicit model + endpoint)
-> chat <- chat_zai(
-+   model = ""glm-4.7"",
-+   base_url = ""https://api.z.ai/api/coding/paas/v4""
-+ )
-> chat$chat(""Hi who are you?"")
-I'm GLM, a large language model developed by Z.ai. I'm designed to understand 
-and generate human language through training on diverse text data, which helps 
-me assist with various linguistic tasks like answering questions, providing 
-explanations, and engaging in conversations. 
-
-I don't store your personal data and I'm not connected to the internet in 
-real-time, though I can access some information I was trained on.
-
-How can I help you today?
-```",lazasaurus-ai,,open,FALSE,2026-01-29T22:06:30Z,2026-09-25T09:30:56Z,https://github.com/tidyverse/ellmer/pull/923
 605,WIP agents vignette,NA,hadley,,open,TRUE,2025-06-30T19:39:30Z,2026-05-06T12:23:49Z,https://github.com/tidyverse/ellmer/pull/605
 414,copyedit vignette:Tool/function calling,NA,lindbrook,,open,FALSE,2025-04-02T17:00:31Z,2026-05-06T12:23:49Z,https://github.com/tidyverse/ellmer/pull/414
