@@ -3,10 +3,7 @@ number,title,body,user,labels,state,draft,created_at,updated_at,url
 
 `is_hosted_session()` now also detects Workbench, Positron server, and Colab, matching gargle, so Azure and Databricks skip their browser flows in those environments too.
 
-Also fixes `chat_google_vertex()` falling through to the Gemini browser flow with the wrong scope when no ADC is available. 
-
-Do **not** merge until Google approves scope verification, since the docs and NEWS already describe the app as verified.
-",thisisnic,,open,TRUE,2026-10-02T11:03:00Z,2026-10-02T17:03:50Z,https://github.com/tidyverse/ellmer/pull/1171
+Also fixes `chat_google_vertex()` falling through to the Gemini browser flow with the wrong scope when no ADC is available. ",thisisnic,,open,FALSE,2026-10-02T11:03:00Z,2026-10-07T08:50:21Z,https://github.com/tidyverse/ellmer/pull/1171
 1164,fix: `chat_cloudflare()` ignores `account` and fails on numeric streamed content,"Stacked on #1135, since the issues below were raised there.
 
 ## Summary
@@ -137,31 +134,24 @@ Since #1077, `normalize_tool_result()` guarantees a tool result's value is `NULL
 
 `tool_otel_response()` now maps a `Content` value (or a list of `Content`) through `as_otel_part()`, the same conversion used everywhere else, so it lands in the message as a valid part instead of a raw, unserializable object. An image comes out as a `generic` part carrying its class name.
 ",taekop,,open,FALSE,2026-09-25T13:00:10Z,2026-09-28T05:07:12Z,https://github.com/tidyverse/ellmer/pull/1160
-1159,Switch to interactions API for gemini,"TODO:
+1159,Switch to Interactions API for gemini,"TODO:
 - [ ] A little manual local testing
-- [ ] tidy up this PR description
 - [ ] Review code
 
 Closes #1155. Closes #1154.
 
-`chat_google_gemini()` now uses Google's Interactions API. `chat_google_vertex()` stays on generateContent since Interactions isn't available on Vertex AI, as do batch requests and `token_count()` for Gemini, which have no Interactions equivalent.
+`chat_google_gemini()` now uses Google's Interactions API.
 
-## Design decisions
+I've put comments in the code, but the main design decision was splitting out the classes which I'll explain below.
 
-- **Class split.** Following the AWS Bedrock pattern, `ProviderGoogle` now holds only what both APIs share (credentials, Files API, model listing, batch polling), with two sibling subclasses: `ProviderGoogleGenerateContent` (the old code, used by `chat_google_vertex()`) and `ProviderGoogleInteractions` (used by `chat_google_gemini()`). Batch submission, batch result parsing and `count_tokens()` on the Interactions class hand over to a generateContent sibling via `as_generate_content()`, since those endpoints only exist in that format.
-- **Stateless.** Requests set `store = FALSE` and send the full history every turn, as ellmer does for every provider (and as the OpenAI Responses provider does). No use of `previous_interaction_id`.
-- **Signature replay.** The API rejects a history that omits a thought step's signature, so `ContentThinking` keeps the raw step in `extra` and `as_json()` sends it back unchanged. Search and URL-context steps do the same. Thoughts from other providers (no `type = ""thought""` in `extra`) are dropped from the request.
-- **Streaming.** `stream_merge_chunks()` rebuilds the non-streaming response shape (`status`, `usage`, `steps` keyed by index) so `value_turn()` is shared. Citations and tool activity are emitted on `interaction.completed`, since the sources for a search only arrive as annotations on the answer text.
-- **Citations.** Offsets are UTF-8 byte offsets (checked live with accented text), so `grounded_span` is sliced with `charToRaw()`. Search results only contain a suggestions widget, so `ContentToolResponseSearch@sources` is built from the citation annotations.
-- **Tool results** are sent as a plain string rather than content blocks; older models (gemini-2.5-flash) reject the block form and ellmer already routes image/document results outside the tool result.
-- **Retries.** 429s with code `quota_exceeded` are not retried; `rate_limit_exceeded` and 503 are (#1154). The batch and countTokens requests keep the generateContent retry behaviour.
-- **Remote images** now work; the API needs a mime type, which is guessed from the URL's extension, with a clear error suggesting `content_image_file()` when it can't be.
-- **Unknown step types** abort with an internal error, consistent with the other providers.
-- **Params.** `temperature`, `top_p`, `top_k`, `seed`, `max_tokens`, `stop_sequences` and `reasoning_effort` are mapped; `frequency_penalty`, `presence_penalty`, `log_probs` and `reasoning_tokens` have no Interactions equivalent and now warn. `api_args` must use Interactions field names.
+I needed a bit more class separation and so I tried to adopt a similar approach to the AWS Bedrock provider:
+  - `ProviderGoogle` - anything which both APIs share (credentials, Files API, model listing, batch polling)
+  - `ProviderGoogleGenerateContent` (the old code, used by `chat_google_vertex()`)
+  - `ProviderGoogleInteractions` (used by `chat_google_gemini()`).
 
-## Token counting
+Some functionality was missing from the Interactions API, so batch submission + result parsing and `count_tokens()` on the Interactions class still use `ProviderGoogleGenerateContent`.  
 
-`token_count()` still uses the generateContent `countTokens` endpoint. Compared with the input tokens the Interactions API reported for the same request:
+Seems fine for batch stuff, but maybe a bit weird for token counting - values are a bit off when there are tool calls but seemed better than removing the functionality altogether?
 
 | case | estimate | actual |
 |---|---|---|
@@ -174,21 +164,22 @@ Closes #1155. Closes #1154.
 | second turn, with thinking | 262 | 263 |
 | after a completed tool call | 155 | 203 |
 
-Exact or within a token except for tool machinery, where it runs low, so it was kept as the estimate it's documented to be.
+
 
 ## Testing
 
+:robot: summary of stuff I did so I don't forget:
+ 
 All Google cassettes were re-recorded. Beyond the test suite, three rounds of live smoke tests (about 120 feature combinations: streaming, tools, thinking, built-in search/fetch, structured output, images, PDFs, documents, uploads, mixed histories, `parallel_chat()`, `batch_chat()`, error paths, several models) found and fixed three bugs: an empty reply when thinking consumed the whole `max_tokens` budget, remote images needing a mime type, and the tool-result format for older models.
 
-Known behaviour, unchanged from generateContent: `chat_structured()` with tools registered answers in JSON without calling them. Thinking text only streams when Google chooses to send a summary, so `ContentThinking` may be empty while streaming at low effort.
-",thisisnic,,open,TRUE,2026-09-25T11:21:42Z,2026-09-29T17:11:06Z,https://github.com/tidyverse/ellmer/pull/1159
+",thisisnic,,open,TRUE,2026-09-25T11:21:42Z,2026-10-07T10:31:42Z,https://github.com/tidyverse/ellmer/pull/1159
 1149,Make the invoke_agent OpenTelemetry span kind internal,"Stacked on #1148. Closes #1146.
 
 Per the discussion in #1146, the `invoke_agent` span is now kind `internal` rather than `client`. ellmer's agent loop (tool dispatch, turn accumulation) runs in-process, which is the semconv `gen_ai.invoke_agent.internal` case; the model requests it wraps remain `client` spans.
 
 - `R/otel.R`: span kind and comment.
 - `tests/testthat/test-otel.R`: updated kind assertion.
-- `NEWS.md`: bullet noting the change for anyone with dashboards keyed on span kind. No deprecation, since the GenAI semconv is still `stability: development`.",schloerke,,open,FALSE,2026-09-10T16:54:20Z,2026-10-05T01:28:00Z,https://github.com/tidyverse/ellmer/pull/1149
+- `NEWS.md`: bullet noting the change for anyone with dashboards keyed on span kind. No deprecation, since the GenAI semconv is still `stability: development`.",schloerke,,open,FALSE,2026-09-10T16:54:20Z,2026-10-07T08:48:06Z,https://github.com/tidyverse/ellmer/pull/1149
 1148,"Record server, output type, reasoning, and tool definition attributes on OpenTelemetry chat spans","Stacked on #1147.
 
 Adds the remaining spec-recommended attributes to the `chat <model>` span:
@@ -199,7 +190,7 @@ Adds the remaining spec-recommended attributes to the `chat <model>` span:
 - `gen_ai.usage.reasoning.output_tokens` via a new internal `value_reasoning_tokens()` generic. Default is `NULL`; OpenAI reads `usage.output_tokens_details.reasoning_tokens`.
 - `gen_ai.tool.definitions`, opt-in behind the existing `OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT` gate, as a JSON array of `{type, name, description, parameters}` using the provider's own parameter schema serialization.
 
-Tests cover each attribute with mocked chats or by calling the span helper directly, plus a unit test for the OpenAI reasoning-token extractor.",schloerke,,open,FALSE,2026-09-10T15:56:15Z,2026-10-05T10:31:15Z,https://github.com/tidyverse/ellmer/pull/1148
+Tests cover each attribute with mocked chats or by calling the span helper directly, plus a unit test for the OpenAI reasoning-token extractor.",schloerke,,open,FALSE,2026-09-10T15:56:15Z,2026-10-07T08:48:06Z,https://github.com/tidyverse/ellmer/pull/1148
 1147,"Record request.stream, finish reasons, cache-read tokens, and errors on OpenTelemetry chat spans","Stacked on #1143.
 
 Rounds out the `chat <model>` span with spec-recommended attributes and adds error reporting:
@@ -211,7 +202,7 @@ Rounds out the `chat <model>` span with spec-recommended attributes and adds err
 
 Implementation: the request/response section of `submit_turns()` / `submit_turns_async()` and the agent loop in `chat_impl()` / `chat_impl_async()` are wrapped in `tryCatch()` that records and rethrows. coro supports `yield()` / `await()` inside `tryCatch()`, verified before relying on it. Most of the diff is the resulting re-indentation.
 
-Tests: mocked tests for each attribute and for the error path (both spans and both metrics).",schloerke,,open,FALSE,2026-09-10T15:53:49Z,2026-10-05T10:11:32Z,https://github.com/tidyverse/ellmer/pull/1147
+Tests: mocked tests for each attribute and for the error path (both spans and both metrics).",schloerke,,open,FALSE,2026-09-10T15:53:49Z,2026-10-07T08:48:07Z,https://github.com/tidyverse/ellmer/pull/1147
 1143,Record GenAI semantic convention metrics and agent attributes via OpenTelemetry,"Stacked on #1142.
 
 ellmer now records OpenTelemetry metrics whenever a meter is active, following the [GenAI semconv metrics](https://github.com/open-telemetry/semantic-conventions-genai/blob/main/model/gen-ai/metrics.yaml):
@@ -234,14 +225,7 @@ Span changes:
 - `invoke_agent` span totals `gen_ai.usage.*_tokens` across the tool loop and sets `gen_ai.invoke_agent.duration`, `gen_ai.invoke_agent.inference_calls`, and `gen_ai.invoke_agent.tool_calls` as attributes (mirroring the metrics). Its kind stays `client`; whether it should be `internal` is being discussed in #1146.
 - `chat` and `invoke_agent` spans record `params()` as `gen_ai.request.*` attributes.
 
-Testing: the internal `with_otel_record()` helper now shuts the meter provider down before collecting, since otelsdk <= 0.2.4 only exports in-memory metrics on shutdown. Offline mocked tests cover streamed, non-streamed, tool, and agent paths. Live otel tests were skipped locally (no API keys).",schloerke,,open,FALSE,2026-09-10T15:05:45Z,2026-10-05T09:44:06Z,https://github.com/tidyverse/ellmer/pull/1143
-1142,Record time to first token on the OpenTelemetry chat span,"Streamed responses now record the time to first token (seconds) as the `gen_ai.response.time_to_first_chunk` attribute on the `chat <model>` span.
-
-- `R/otel.R`: `record_chat_otel_span_ttft_attr()` sets the attribute from a start timestamp captured just before the stream begins.
-- `R/chat.R`: both sync and async streaming loops call it once, on the first non-empty text/thinking chunk.
-- Tests: offline mocked test plus assertions in the live stream tests.
-
-Follow-up in #1143 (stacked on this) broadens the trigger to tool calls and adds GenAI metrics.",schloerke,,open,FALSE,2026-09-10T14:24:31Z,2026-10-05T01:28:54Z,https://github.com/tidyverse/ellmer/pull/1142
+Testing: the internal `with_otel_record()` helper now shuts the meter provider down before collecting, since otelsdk <= 0.2.4 only exports in-memory metrics on shutdown. Offline mocked tests cover streamed, non-streamed, tool, and agent paths. Live otel tests were skipped locally (no API keys).",schloerke,,open,FALSE,2026-09-10T15:05:45Z,2026-10-07T08:48:06Z,https://github.com/tidyverse/ellmer/pull/1143
 1139,`chat_posit()$set_model()` now switches model families,"Fixes #1138
 
 ## Summary
@@ -461,7 +445,7 @@ Internally, this adds shared one-time reauthentication for synchronous, asynchro
 
 - Focused provider tests: 17 passing
 - Live synchronous, multi-turn, and asynchronous requests with `gpt-5.6-luna`
-",t-kalinowski,,open,FALSE,2026-07-31T21:07:00Z,2026-08-03T20:57:30Z,https://github.com/tidyverse/ellmer/pull/1067
+",t-kalinowski,,open,FALSE,2026-07-31T21:07:00Z,2026-10-07T12:33:41Z,https://github.com/tidyverse/ellmer/pull/1067
 991,Add `mcp_connector()` for provider-hosted MCP server connections,"Closes #985 (supersedes).
 
 ## Summary

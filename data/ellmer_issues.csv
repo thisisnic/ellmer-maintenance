@@ -1,5 +1,40 @@
 number,title,body,user,labels,state,created_at,updated_at,comments,url,linked_prs
-1172,OAuth auth for OpenRouter,https://openrouter.ai/docs/guides/overview/auth/oauth,hadley,,open,2026-10-02T20:31:50Z,2026-10-02T20:31:50Z,0,https://github.com/tidyverse/ellmer/issues/1172,
+1173,Support third-party providers: export provider generics and allow stream-only providers,"`?Provider` says that to add a backend you subclass `Provider` and implement
+the generics, but those generics (`chat_body()`, `chat_request()`,
+`stream_parse()`, `stream_content()`, `stream_merge_chunks()`,
+`value_turn()`, `value_tokens()`, `value_finish_reason()`,
+`has_batch_support()`, `count_tokens()`, `file_*()`) aren't exported, so a
+package outside ellmer can only register methods through
+`getFromNamespace()`. That is hard to get past CRAN review.
+
+I maintain [ellmercodex](https://github.com/simxnherrera/ellmercodex), a
+provider that uses a ChatGPT plan through OpenAI's documented ""Sign in
+with ChatGPT"" flow. With that token, the public Responses API **only**
+supports `stream = TRUE` (and `store = FALSE`), as documented in
+[the preview limitations](https://developers.openai.com/siwc/token-sharing-open-source/preview-limitations).
+In `Chat$submit_turns()`, non-streaming calls go through
+`chat_perform(mode = ""value"")` -> `req_perform()` -> `resp_body_json()`,
+and the provider can't intercept that because `chat_perform()` isn't a
+generic. Today I work around it by replacing `Chat`'s private
+`submit_turns()`/`chat_impl()` methods, which is fragile for both of us.
+
+Would you consider:
+
+1. Exporting the provider generics (and `ContentJson`, needed to build
+   structured-output turns), maybe documented as ""for provider authors"".
+2. A way for a provider to say it only streams, for example a
+   `provider_stream_only()` generic defaulting to `FALSE`, or making the
+   value path a generic. When it's `TRUE`, `""value""` mode would consume the
+   stream and fold it with `stream_merge_chunks()` before `value_turn()`.
+   `parallel_chat()`/`batch_chat()` could error clearly for such providers.
+3. Optionally exporting `ProviderOpenAI` (or the Responses-API body
+   builder) for subclassing; this was previously discussed in #595, which was closed
+   because `chat_openai_compatible()` covered that use case. It does not cover a
+   provider with refreshing OAuth credentials and a restricted, stream-only body.
+
+Happy to send a PR for (2) if the direction sounds right.
+",simxnherrera,feature,open,2026-10-06T17:05:08Z,2026-10-07T10:51:49Z,0,https://github.com/tidyverse/ellmer/issues/1173,
+1172,OAuth auth for OpenRouter,https://openrouter.ai/docs/guides/overview/auth/oauth,hadley,feature,open,2026-10-02T20:31:50Z,2026-10-07T10:51:54Z,0,https://github.com/tidyverse/ellmer/issues/1172,
 1166,Should pricing data keep rates for deprecated models?,"## What happened
 
 The weekly model-data update on `main` (215c4bdc, 2026-09-28) removed 122 provider/model pairs from ellmer's pricing data. It happened because LiteLLM, our upstream source, removed 333 entries that were past their `deprecation_date` in a single cleanup commit: [BerriAI/litellm@075536e](https://github.com/BerriAI/litellm/commit/075536eca1a247bbab78d7992275a176875b96ae) (#42435 upstream). We use LiteLLM's data as a whole, so the removals carried straight over to ellmer.
@@ -47,7 +82,7 @@ Suggest broadening the description to trigger whenever provider tests are being 
 - [x] tidyverse.org: add an ellmer section to the Google privacy policy (keeping the same URL)
 - [x] Cloud console: add the generative-language.retriever scope and enable the Generative Language API
 - [x] Cloud console: create or reuse an OAuth client for ellmer
-- [ ] Record the demo video and write the scope justification (see Hadley video for Google Drive)
+- [x] Record the demo video and write the scope justification (see Hadley video for Google Drive)
 - [ ] Cloud console: submit for verification in the Verification Center
 - [ ] ellmer: after approval, update gemini_client(), the chat_google_gemini() docs, and NEWS
 
@@ -55,7 +90,7 @@ Resources:
 - [Sensitive scope verification](https://developers.google.com/identity/protocols/oauth2/production-readiness/sensitive-scope-verification)
 - [Changes to approved app](https://support.google.com/cloud/answer/13464018?hl=en)
 - [OAuth App Verification Help Center](https://support.google.com/cloud/answer/13463073?hl=en)
-",thisisnic,upkeep,open,2026-09-21T16:14:08Z,2026-10-02T11:59:48Z,1,https://github.com/tidyverse/ellmer/issues/1156,1171
+",thisisnic,upkeep,open,2026-09-21T16:14:08Z,2026-10-06T16:06:59Z,1,https://github.com/tidyverse/ellmer/issues/1156,1171
 1155,Switch to interactions API for gemini,https://ai.google.dev/gemini-api/docs/interactions-overview,hadley,feature,open,2026-09-19T16:51:45Z,2026-09-22T00:46:36Z,0,https://github.com/tidyverse/ellmer/issues/1155,1159
 1154,"chat_google_gemini() retries permanent quota 429s, causing hours-long hangs","`method(base_request, ProviderGoogleGemini)` calls `ellmer_req_robustify(req)` without an `is_transient` callback, so httr2's default applies: 429 is always treated as transient and retried. But Gemini uses 429 for **permanent billing/quota errors**: an API key on an account with no credit gets `429 RESOURCE_EXHAUSTED` with a `retryDelay` of hours (daily quota). httr2 dutifully waits, so a chat call hangs for hours before finally erroring. (Motivating report: hadley/bananarama#15, where a no-credit key appeared as a stuck retry loop.)
 
@@ -78,7 +113,7 @@ is_transient <- function(resp) {
 Note that `RESOURCE_EXHAUSTED` isn't always permanent — it also fires for per-minute rate limits, where retrying *is* correct. Possible distinguishing signals:
 
 * Only skip the retry when `retryDelay` is very long (e.g. > 5 minutes). Conservative; never harms genuine rate limiting, but the user still waits.
-* Inspect the `quotaViolation` details for a zero daily limit vs. a per-minute limit. More precise, but the response shape is less stable.",hadley,,open,2026-09-19T13:36:14Z,2026-09-19T16:52:50Z,1,https://github.com/tidyverse/ellmer/issues/1154,1159
+* Inspect the `quotaViolation` details for a zero daily limit vs. a per-minute limit. More precise, but the response shape is less stable.",hadley,bug,open,2026-09-19T13:36:14Z,2026-10-07T10:51:42Z,1,https://github.com/tidyverse/ellmer/issues/1154,1159
 1152,Support for server-side provider-native compaction?,"I understand that `ellmer` does not support compaction, and instead provides an entry point for the user to write manual auto-compaction as a callback (#1051, #1052). For client-side compaction, it's an insightful and elegant solution, and I fully agree the approach. But for server-side compaction callable through provider APIs, would you be open to considering native support in `ellmer`? Examples:
 
 * https://platform.claude.com/docs/en/build-with-claude/compaction
