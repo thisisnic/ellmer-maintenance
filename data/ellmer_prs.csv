@@ -168,7 +168,7 @@ str(lapply(res$.error, \(e) if (!is.null(e)) conditionMessage(e)))
 1162,Warn when include_tokens/include_cost is ignored for non-data-frame results,"Fixes #1129.
 
 `include_tokens` and `include_cost` only add columns when the result is a data frame. With a top-level `type_array()` or `convert = FALSE` the result is a list, so both flags were silently dropped. This keeps the documented behavior and warns when either flag is ignored.
-",taekop,,open,FALSE,2026-09-26T00:29:13Z,2026-10-05T21:10:14Z,https://github.com/tidyverse/ellmer/pull/1162
+",taekop,,open,FALSE,2026-09-26T00:29:13Z,2026-10-09T11:21:32Z,https://github.com/tidyverse/ellmer/pull/1162
 1160,Convert `Content` tool results to otel parts instead of dropping `gen_ai.input.messages`,"Fixes #1145.
 
 Since #1077, `normalize_tool_result()` guarantees a tool result's value is `NULL`, a string, a `json` string, a `Content` object, or a list of `Content` objects. A bare `Content` value (e.g. an image) was being copied straight into the `response` field of the `tool_call_response` otel part, which `jsonlite::toJSON()` can't encode, and that error caused the whole `gen_ai.input.messages` attribute to be dropped.
