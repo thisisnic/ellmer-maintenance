@@ -1,4 +1,5 @@
 number,title,body,user,labels,state,created_at,updated_at,comments,url,linked_prs
+1176,Bump default models,"We should bump the default models. Definitely Google Gemini as 3.7 flash is being deprecated, but also the others, ahead of the next release.",thisisnic,upkeep,open,2026-10-10T16:25:32Z,2026-10-10T16:25:32Z,0,https://github.com/tidyverse/ellmer/issues/1176,
 1173,Support third-party providers: export provider generics and allow stream-only providers,"`?Provider` says that to add a backend you subclass `Provider` and implement
 the generics, but those generics (`chat_body()`, `chat_request()`,
 `stream_parse()`, `stream_content()`, `stream_merge_chunks()`,
