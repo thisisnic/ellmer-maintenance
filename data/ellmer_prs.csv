@@ -1,4 +1,18 @@
 number,title,body,user,labels,state,draft,created_at,updated_at,url
+1177,Implement OAuth for chat_openrouter,"Closes #1172
+
+Implements OAuth for `chat_openrouter()`.
+
+They use a non-standard OAuth flow so it needed a bit more work to wire it all up than just standard httr OAuth functionality.
+
+The returned token has no expiry and can't be refreshed, and so have had to add in something that checks once per chat object whether the loaded key works, and if not, triggers the login flow again.
+
+I've not trimmed down the tests as much as I would otherwise, due to the amount of custom code here.
+
+TODO before marking ready for review:
+- [ ] Re-reread code/flow and compare with alternative approaches
+- [ ] Revisit which tests to keep/drop
+",thisisnic,,open,TRUE,2026-10-11T15:10:12Z,2026-10-11T16:44:44Z,https://github.com/tidyverse/ellmer/pull/1177
 1175,Record cancelled and interrupted requests with an error status on OpenTelemetry spans and metrics,"Stacked on #1174.
 
 Requests that unwind before they finish now get an error status on the `chat` and `invoke_agent` spans and `error.type` on the `gen_ai.client.inference.duration` and `gen_ai.invoke_agent.duration` metrics. Two outcomes are distinguished:

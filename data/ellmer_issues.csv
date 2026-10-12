@@ -35,7 +35,7 @@ Would you consider:
 
 Happy to send a PR for (2) if the direction sounds right.
 ",simxnherrera,feature,open,2026-10-06T17:05:08Z,2026-10-07T10:51:49Z,0,https://github.com/tidyverse/ellmer/issues/1173,
-1172,OAuth auth for OpenRouter,https://openrouter.ai/docs/guides/overview/auth/oauth,hadley,feature,open,2026-10-02T20:31:50Z,2026-10-07T10:51:54Z,0,https://github.com/tidyverse/ellmer/issues/1172,
+1172,OAuth auth for OpenRouter,https://openrouter.ai/docs/guides/overview/auth/oauth,hadley,feature,open,2026-10-02T20:31:50Z,2026-10-07T10:51:54Z,0,https://github.com/tidyverse/ellmer/issues/1172,1177
 1166,Should pricing data keep rates for deprecated models?,"## What happened
 
 The weekly model-data update on `main` (215c4bdc, 2026-09-28) removed 122 provider/model pairs from ellmer's pricing data. It happened because LiteLLM, our upstream source, removed 333 entries that were past their `deprecation_date` in a single cleanup commit: [BerriAI/litellm@075536e](https://github.com/BerriAI/litellm/commit/075536eca1a247bbab78d7992275a176875b96ae) (#42435 upstream). We use LiteLLM's data as a whole, so the removals carried straight over to ellmer.
