@@ -1313,7 +1313,7 @@ chat2$set_turns(contents_replay(first))
 ```",gadenbuie,feature,open,2025-12-01T15:24:16Z,2026-05-13T17:53:24Z,3,https://github.com/tidyverse/ellmer/issues/895,
 884,consider support for `llama.cpp`?,"another interface for local models that may or may not be supported by ollama. this would add flexibility, `llama.cpp` can run gguf-format models and seems like a speedy alternative as well. 
 
-stumbled upon this R implementation over the weekend for reference: [localLLM, a local llama.cpp binding in R](https://github.com/EddieYang211/localLLM)",frankiethull,feature,open,2025-11-24T15:00:54Z,2026-05-13T17:57:09Z,3,https://github.com/tidyverse/ellmer/issues/884,
+stumbled upon this R implementation over the weekend for reference: [localLLM, a local llama.cpp binding in R](https://github.com/EddieYang211/localLLM)",frankiethull,feature,open,2025-11-24T15:00:54Z,2026-05-13T17:57:09Z,3,https://github.com/tidyverse/ellmer/issues/884,1178
 880,Provide some model metdata?,"Might be useful to extract out something like ""version"" and ""size"", where size is something like ""big"", ""regular"", ""small"", ""smallest"".
 
 Then you could specify e.g. `chat_claude(model = ""small"")` (although we'd need some way to disambiguate from model names).",hadley,feature,open,2025-11-23T13:18:04Z,2026-05-13T17:06:46Z,0,https://github.com/tidyverse/ellmer/issues/880,

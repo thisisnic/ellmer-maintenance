@@ -1,4 +1,5 @@
 number,title,body,user,labels,state,draft,created_at,updated_at,url
+1178,adding llama.cpp support for ellmer,"tested locally with `ggml-org_gemma-3-1b-it-GGUF_gemma-3-1b-it-Q4_K_M.gguf` on Pop!_OS, closes #884.",frankiethull,,open,FALSE,2026-10-12T21:19:49Z,2026-10-12T21:19:49Z,https://github.com/tidyverse/ellmer/pull/1178
 1177,Implement OAuth for chat_openrouter,"Closes #1172
 
 Implements OAuth for `chat_openrouter()`.
@@ -47,13 +48,13 @@ The `execute_tool` span and `gen_ai.execute_tool.duration` metric get the same t
 - The agent tally stores `error_type` directly and a `completed` flag; `record_agent_otel()` reports `interrupted` when neither is set.
 - `record_tool_otel_interrupted()` is the tool counterpart, registered with `defer()` in both `invoke_tool()` variants and a no-op once `record_tool_otel_result()` has run.
 - Tests: the cancelled-stream test now asserts status, `error.type`, and metric attributes; new tests interrupt the request and a tool call with `rlang::interrupt()` and check the same.
-",schloerke,,open,FALSE,2026-10-07T21:48:15Z,2026-10-07T22:41:15Z,https://github.com/tidyverse/ellmer/pull/1175
+",schloerke,,open,FALSE,2026-10-07T21:48:15Z,2026-10-12T21:39:17Z,https://github.com/tidyverse/ellmer/pull/1175
 1174,Record GenAI token usage counters and time per output chunk via OpenTelemetry,"Follow-up to #1148 covering the remaining client inference metrics from the [GenAI client inference conventions](https://github.com/open-telemetry/semantic-conventions-genai/blob/main/docs/gen-ai/client-inference.md) and [token metrics](https://github.com/open-telemetry/semantic-conventions-genai/blob/main/docs/gen-ai/gen-ai-token-metrics.md):
 
 * Monotonic counters `gen_ai.client.inference.usage.input_tokens`, `gen_ai.client.inference.usage.output_tokens`, `gen_ai.client.inference.usage.cache_read.input_tokens`, and `gen_ai.client.inference.usage.reasoning.output_tokens`. These require `gen_ai.token.modality`; providers only report totals, so ellmer reports `unknown`.
 * `gen_ai.client.inference.time_per_output_chunk` histogram, recorded for each streamed chunk after the first.
 
-Not included: `gen_ai.client.inference.usage.cache_write.input_tokens`, since `value_tokens()` has no cache-write count.",schloerke,,open,FALSE,2026-10-07T20:11:34Z,2026-10-07T21:47:50Z,https://github.com/tidyverse/ellmer/pull/1174
+Not included: `gen_ai.client.inference.usage.cache_write.input_tokens`, since `value_tokens()` has no cache-write count.",schloerke,,open,FALSE,2026-10-07T20:11:34Z,2026-10-12T21:08:57Z,https://github.com/tidyverse/ellmer/pull/1174
 1171,Use verified OAuth clients for Gemini browser auth,"Closes #1156. Replaces the old unverified Gemini OAuth client with two new ones from the posit.co GCP project: a desktop client for local sessions and a web client for hosted sessions, where the user pastes a code back from the tidyverse.org callback page instead of being redirected to localhost.
 
 `is_hosted_session()` now also detects Workbench, Positron server, and Colab, matching gargle, so Azure and Databricks skip their browser flows in those environments too.
