@@ -99,7 +99,7 @@ withr::with_envvar(c(CLOUDFLARE_ACCOUNT_ID = ""env-account""), {
 ```
 
 `devtools::test(filter = ""cloudflare"")` passes, including the live tests: 9 passing, 0 skipped.
-",gadenbuie,,open,FALSE,2026-09-28T13:21:17Z,2026-10-05T13:36:42Z,https://github.com/tidyverse/ellmer/pull/1164
+",gadenbuie,,open,FALSE,2026-09-28T13:21:17Z,2026-10-13T17:17:12Z,https://github.com/tidyverse/ellmer/pull/1164
 1163,Record all failed prompts in `.error`,"Fixes #1121 and #1126.
 
 `parallel_chat_structured()` and `batch_chat_structured()` now record extraction failures and incomplete responses in `.error` when returning a data frame. Affected rows get the usual missing values, even when a truncated response contains valid JSON.
