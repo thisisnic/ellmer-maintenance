@@ -60,46 +60,6 @@ Not included: `gen_ai.client.inference.usage.cache_write.input_tokens`, since `v
 `is_hosted_session()` now also detects Workbench, Positron server, and Colab, matching gargle, so Azure and Databricks skip their browser flows in those environments too.
 
 Also fixes `chat_google_vertex()` falling through to the Gemini browser flow with the wrong scope when no ADC is available. ",thisisnic,,open,FALSE,2026-10-02T11:03:00Z,2026-10-08T09:19:16Z,https://github.com/tidyverse/ellmer/pull/1171
-1164,fix: `chat_cloudflare()` ignores `account` and fails on numeric streamed content,"Stacked on #1135, since the issues below were raised there.
-
-## Summary
-
-This PR fixes two bugs in `chat_cloudflare()`.
-
-**`account` was ignored.** `chat_cloudflare()` built its base URL by calling `cloudflare_account()` again instead of using its `account` argument, so any `account` you passed in was ignored and the function still needed the `CLOUDFLARE_ACCOUNT_ID` env var. The URL now uses `account`.
-
-This also exposed a bug in the live Cloudflare tests. They called `chat_cloudflare_test(""Be as terse as possible; no punctuation"")`, and because `account` is the first parameter of `chat_cloudflare()`, the system prompt was passed as the account ID. The old code ignored `account`, so the tests passed, but they never set a system prompt. They now pass `system_prompt =` by name.
-
-**Numeric streamed content failed.** After the system prompt fix, the live streaming test (`can make simple streaming request`) was the only failure left, which led us to this bug. When a streamed response is only a number, Cloudflare sends it as a JSON number instead of a string:
-
-```
-data: {...""choices"":[{""index"":0,""delta"":{""content"":2}}]...}
-```
-
-`stream_content()` passed the integer to `ContentText()`, which failed with `@text must be <character>, not <integer>`. `merge_dicts()` would also replace numeric chunks instead of appending them, so a stream of `1` then `2` would merge to `""2""`. `ProviderCloudflare` now has a `stream_parse()` method that converts numeric `delta$content` to character before streaming or merging sees it. The workaround stays in the Cloudflare provider rather than the OpenAI-compatible base class.
-
-## Changes
-
-- `chat_cloudflare()` uses `account` to build `base_url`.
-- New `stream_parse()` method for `ProviderCloudflare` that converts numeric `delta$content` to character.
-- New tests:
-  - `account` wins over `CLOUDFLARE_ACCOUNT_ID` in the base URL.
-  - A numeric streamed chunk becomes `ContentText(""2"")`, and chunks `1` and `2` merge to `""12""` (no API call).
-- Live Cloudflare tests now pass `system_prompt` by name.
-- The ""strict defaults are set per provider"" test from #1135 passes `account` directly and no longer sets the env var.
-- NEWS bullet.
-
-## Verification
-
-```r
-withr::with_envvar(c(CLOUDFLARE_ACCOUNT_ID = ""env-account""), {
-  chat_cloudflare(account = ""arg-account"", credentials = \() ""key"")$get_provider()@base_url
-})
-#> [1] ""https://api.cloudflare.com/client/v4/accounts/arg-account/ai/v1/""
-```
-
-`devtools::test(filter = ""cloudflare"")` passes, including the live tests: 9 passing, 0 skipped.
-",gadenbuie,,open,FALSE,2026-09-28T13:21:17Z,2026-10-13T17:17:12Z,https://github.com/tidyverse/ellmer/pull/1164
 1163,Record all failed prompts in `.error`,"Fixes #1121 and #1126.
 
 `parallel_chat_structured()` and `batch_chat_structured()` now record extraction failures and incomplete responses in `.error` when returning a data frame. Affected rows get the usual missing values, even when a truncated response contains valid JSON.
@@ -180,10 +140,6 @@ str(lapply(res$.error, \(e) if (!is.null(e)) conditionMessage(e)))
 
 </details>
 ",kbenoit,,open,FALSE,2026-09-28T05:46:03Z,2026-10-06T10:50:53Z,https://github.com/tidyverse/ellmer/pull/1163
-1162,Warn when include_tokens/include_cost is ignored for non-data-frame results,"Fixes #1129.
-
-`include_tokens` and `include_cost` only add columns when the result is a data frame. With a top-level `type_array()` or `convert = FALSE` the result is a list, so both flags were silently dropped. This keeps the documented behavior and warns when either flag is ignored.
-",taekop,,open,FALSE,2026-09-26T00:29:13Z,2026-10-10T02:38:31Z,https://github.com/tidyverse/ellmer/pull/1162
 1160,Convert `Content` tool results to otel parts instead of dropping `gen_ai.input.messages`,"Fixes #1145.
 
 Since #1077, `normalize_tool_result()` guarantees a tool result's value is `NULL`, a string, a `json` string, a `Content` object, or a list of `Content` objects. A bare `Content` value (e.g. an image) was being copied straight into the `response` field of the `tool_call_response` otel part, which `jsonlite::toJSON()` can't encode, and that error caused the whole `gen_ai.input.messages` attribute to be dropped.

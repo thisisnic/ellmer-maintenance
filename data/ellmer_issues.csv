@@ -420,59 +420,6 @@ list(type = ""image_url"", image_url = list(url = x@url, detail = x@detail))
 with `""auto""` either sent as-is or omitted, since it is the API default. Providers that have no equivalent (Claude, Gemini, Bedrock) can keep ignoring the field, but it would help to say so in the `content_image_url()` docs.
 ",kbenoit,feature,open,2026-09-05T11:17:22Z,2026-09-15T16:08:23Z,0,https://github.com/tidyverse/ellmer/issues/1132,1133
 1130,"`Chat$chat()` docs don't list possible `echo` values, and `$chat_structured()` recommends deprecated `echo = ""text""`","The `echo` parameter on `Chat$chat()` says ""whether to emit the response to stdout as it is received"" but doesn't list the possible values; they're only enumerated on the `Chat` constructor. `$chat_structured()` and `$chat_structured_async()` tell users to set `echo = ""text""`, which `check_echo()` has treated as deprecated in favour of `""output""` since 0.2.0. Suggest listing `""none""`, `""output""`, and `""all""` on `$chat()` and replacing `""text""` with `""output""` in the structured methods.",thisisnic,upkeep,open,2026-09-04T16:23:58Z,2026-09-15T16:10:00Z,0,https://github.com/tidyverse/ellmer/issues/1130,
-1129,parallel_chat_structured() silently drops include_tokens and include_cost for an array type,"## Summary
-
-`parallel_chat_structured(include_tokens = TRUE, include_cost = TRUE)` silently returns no token counts and no cost when `type` is a `type_array()`. Both flags are accepted and ignored.
-
-## Why
-
-`multi_convert()` attaches usage only when the converted result is a data frame:
-
-```r
-if (convert) {
-  out <- convert_from_type(row_data, type_array(type))
-}
-...
-if (is.data.frame(out)) {
-  ...
-  if (include_tokens) { out$input_tokens <- ...; out$output_tokens <- ...; out$cached_input_tokens <- ... }
-  if (include_cost)   { out$cost <- ... }
-}
-out
-```
-
-For an array `type`, `convert_from_type(row_data, type_array(type))` is a `type_array(type_array(...))` conversion and returns a plain list of tibbles, one per prompt, so `is.data.frame(out)` is `FALSE` and the block is skipped. There is no warning that the request could not be honoured. (`convert = FALSE` returns a bare list too, so it has the same gap.)
-
-## Reproducible shape, without a provider
-
-The branch is decided by what `convert_from_type()` returns:
-
-```r
-items <- type_object(text = type_string(), label = type_string())
-rows  <- list(list(list(text = ""a"", label = ""x"")), list(list(text = ""b"", label = ""y"")))
-
-is.data.frame(ellmer:::convert_from_type(rows, type_array(type_array(items = items))))
-#> FALSE   -> usage columns never attached
-
-wrapped <- type_object(items = type_array(items = items))
-rows2   <- lapply(rows, function(r) list(items = r))
-is.data.frame(ellmer:::convert_from_type(rows2, type_array(wrapped)))
-#> TRUE    -> usage columns attached beside a list-column
-```
-
-Live, `parallel_chat_structured(chat, prompts, type = type_array(items = items), include_cost = TRUE)` returns the list with no `cost` anywhere. ellmer 0.4.2.
-
-## Suggestions
-
-Either of these would do:
-
-- Attach usage for a list result as well, e.g. as attributes on the list, or by returning a tibble with a list-column for array types when usage is requested.
-- Or refuse the flags for array types with an error, so the caller learns at the call rather than by noticing an absence.
-
-## Context
-
-Found in quallmer (quallmer/quallmer#119), whose `qlm_segment()` asks for an array of segments per document and could not cost a run. Our workaround is to request `type_object(segments = type_array(...))` instead, which converts to one row per prompt with the usage beside the list-column, matching the wrapping ellmer does internally for providers that require an object at the top level.
-",kbenoit,bug,open,2026-09-03T22:42:20Z,2026-09-15T16:33:09Z,0,https://github.com/tidyverse/ellmer/issues/1129,1162
 1128,"Support `defer_loading` and tool search, now shipped by both Anthropic and OpenAI","An app with a large tool set pays for every tool schema on every request, and `ellmer` offers no way to avoid it short of registering and unregistering tools mid-conversation. That workaround is worse than the problem: tools render ahead of `system` and `messages`, so changing the tool set invalidates the prompt cache for the entire request — the manifest, the system prompt and every turn of history.
 
 ## Both providers now solve this, and agree on the spelling
