@@ -1,4 +1,5 @@
 number,title,body,user,labels,state,draft,created_at,updated_at,url
+1185,"Match models starting with ""anthropic"" to Claude ones",Closes #1182 by expanding the regex for Claude models,thisisnic,,open,FALSE,2026-10-17T16:28:08Z,2026-10-18T09:50:10Z,https://github.com/tidyverse/ellmer/pull/1185
 1181,Avoid S7 import and constructor documentation warnings,"Development S7 exports `:=`, so importing all of S7 and rlang produces a warning when ellmer loads. Import `:=` from S7 and exclude the rlang stub so ellmer can use S7's assignment syntax without an import warning.
 
 Document the inherited `AssistantPartialTurn()` arguments through `...`, forwarded to `AssistantTurn()`, to match its generated constructor. Quote the `AssistantTurn` token default so S7 accepts the vector without a warning; the default token values are unchanged.
@@ -146,12 +147,6 @@ str(lapply(res$.error, \(e) if (!is.null(e)) conditionMessage(e)))
 
 </details>
 ",kbenoit,,open,FALSE,2026-09-28T05:46:03Z,2026-10-06T10:50:53Z,https://github.com/tidyverse/ellmer/pull/1163
-1160,Convert `Content` tool results to otel parts instead of dropping `gen_ai.input.messages`,"Fixes #1145.
-
-Since #1077, `normalize_tool_result()` guarantees a tool result's value is `NULL`, a string, a `json` string, a `Content` object, or a list of `Content` objects. A bare `Content` value (e.g. an image) was being copied straight into the `response` field of the `tool_call_response` otel part, which `jsonlite::toJSON()` can't encode, and that error caused the whole `gen_ai.input.messages` attribute to be dropped.
-
-`tool_otel_response()` now maps a `Content` value (or a list of `Content`) through `as_otel_part()`, the same conversion used everywhere else, so it lands in the message as a valid part instead of a raw, unserializable object. An image comes out as a `generic` part carrying its class name.
-",taekop,,open,FALSE,2026-09-25T13:00:10Z,2026-09-28T05:07:12Z,https://github.com/tidyverse/ellmer/pull/1160
 1159,Switch to Interactions API for gemini,"Closes #1155. Closes #1154.
 
 `chat_google_gemini()` now uses Google's Interactions API.
@@ -230,31 +225,6 @@ Span changes:
 - `chat` and `invoke_agent` spans record `params()` as `gen_ai.request.*` attributes.
 
 Testing: the internal `with_otel_record()` helper now shuts the meter provider down before collecting, since otelsdk <= 0.2.4 only exports in-memory metrics on shutdown. Offline mocked tests cover streamed, non-streamed, tool, and agent paths. Live otel tests were skipped locally (no API keys).",schloerke,,open,FALSE,2026-09-10T15:05:45Z,2026-10-07T20:14:37Z,https://github.com/tidyverse/ellmer/pull/1143
-1139,`chat_posit()$set_model()` now switches model families,"Fixes #1138
-
-## Summary
-
-`chat_posit()` picks its provider class from the model name: Claude models get `ProviderPositAnthropic` (pointing at `{base_url}/anthropic/v1`), everything else gets `ProviderPositOpenAI` (pointing at `{base_url}/openai/v1`). But `Chat$set_model()` only updated the model name, so switching to a model from the other family sent a request with the wrong wire format to the wrong endpoint.
-
-This adds a `provider_set_model(provider, name)` S7 hook that `Chat$set_model()` consults. The default method returns the provider unchanged, so no other provider is affected. `ProviderPositAnthropic` and `ProviderPositOpenAI` override it to swap in their sibling class when the new model name belongs to the other family, carrying over credentials, `extra_headers`, and the gateway base URL (recovered via `posit_gateway_url()`).
-
-Design notes:
-
-- The `params()` argument of `chat_posit()` is provider-agnostic (each provider's `chat_params()` translates standard names to API-specific ones), so the `Model` object carries over untouched.
-- The Claude-only `cache` setting survives family switches via an inert `cache` property on `ProviderPositOpenAI`, so `cache = ""1h""` still applies after a round trip through OpenAI models. A chat that starts on an OpenAI model stores its `cache` argument too, so switching to Claude honors it. The property is hidden from `print()` for `ProviderPositOpenAI` since it's unused there.
-- A unified `ProviderPosit` class that picks the wire format per request was considered, but S7 dispatches on class and it would need ~30 thin wrapper methods that can drift from upstream; the hook gives the same result in ~20 lines.
-
-## Verification
-
-```r
-chat <- chat_posit(model = ""claude-sonnet-5"")
-chat$chat(""Hi"")  # works
-
-chat$set_model(""zai-org/GLM-5.3-Flash"")
-chat$chat(""Hi"")  # now works: request goes to /openai/v1
-```
-
-New tests in `test-provider-posit.R` cover family swaps in both directions, no-op within a family, credentials/header carryover, cache preservation, and the hidden print field.",gadenbuie,,open,FALSE,2026-09-07T17:02:17Z,2026-09-09T13:18:10Z,https://github.com/tidyverse/ellmer/pull/1139
 1133,Fix image detail serialisation for OpenAI providers,"Fixes #1132.
 
 ## Summary
@@ -349,43 +319,6 @@ answers
 
 <sup>Created on 2026-09-05 with [reprex v2.1.1](https://reprex.tidyverse.org)</sup>
   ",kbenoit,,open,FALSE,2026-09-05T12:02:24Z,2026-09-05T14:32:31Z,https://github.com/tidyverse/ellmer/pull/1133
-1122,Stream chunks as they arrive in `Chat$stream()`,"Hi,
-
-When using `Chat$stream` events arrive in bursts instead of a consistent stream. Something like:
-
-```r
-t0 <- Sys.time()
-
-coro::loop(for (chunk in chat$stream(""Write a long essay about R."")) {
-  print(Sys.time() - t0)
-})
-```
-
-with a slow endpoint (or model?) would show this, though I can make a nicer repro if needed ':)
-
-This run delivered ~300 chunks at once multiple times, with silences of 1-12 seconds in between. I tested the same endpoint with `curl -N` and it showed the server trickling continuously at 5-7KB/s.
-
-I had an agent chase the call stack (then verified):
-
-```
-chat_perform_stream
-  └─ chat_resp_stream(provider, resp)
-       └─ resp_stream_sse(resp)
-            └─ stream_pull(resp, ...)
-                 └─ resp$body$read(65536)
-                      └─ readBin(conn, ""raw"", 65536)
-```
-
-With 65536 being `stream_chunk_bytes` in {`httr2`}. So when `chat_perform_stream` calls `req_perform_connection` with `blocking = TRUE` (by default), `readBin` waits for the full 64KB which seems too coarse for tokenized LLM streams.
-
-This PR just changes the connection to be non-blocking (`Chat$stream` keeps being synchronous). Because non-blocking reads can find nothing, `NULL` in `chat_resp_stream` no longer implies end-of-stream so we check with `resp_stream_is_complete` following the pattern in the async generator. I thought `Sys.sleep(0.05)` was reasonable even if somewhat arbitrary since a sync consumer has nothing else to run while waiting.
-
-Running the loop with these changes produces much smoother streaming with no significant silences.
-
-Note I considered filing an issue to {`httr2`} instead but the surface here is much smaller. Though it might be worth a mention to the team whether the `stream_chunk_bytes` constant and related APIs are currently suitable for streaming functionality.
-
-Happy to discuss any details,
-Thanks!",hectorgray,,open,FALSE,2026-09-03T03:48:37Z,2026-09-04T22:55:14Z,https://github.com/tidyverse/ellmer/pull/1122
 1089,Report the model's context window in `models_*()` and on `Chat`,"Most providers publish a model's context window in a response `models_list()` already parses and then discards. This adds a `context_window` column to the `models_*()` data frames, and `Chat$get_context_window()` to pair with `$get_tokens()`.
 
 | Provider | Field read |

@@ -1,4 +1,7 @@
 number,title,body,user,labels,state,created_at,updated_at,comments,url,linked_prs
+1184,chat_aws_bedrock() docs recommend a thinking config that newer Claude models reject,"The `api_args` docs for `chat_aws_bedrock()` show enabling thinking on Converse with `thinking = list(type = ""enabled"", budget_tokens = 4000)`. Claude models from Sonnet 4.6 and Opus 4.6 onward reject manual budgets with a 400 (see posit-dev/chatlas#448), and the default model is now Sonnet 5, so the example likely fails as written. The example should switch to adaptive thinking with an effort level, and it may be worth translating `params(reasoning_effort = )` into `additionalModelRequestFields` for the Converse path so it works the same way as on `api = ""messages""`.",thisisnic,documentation; upkeep,open,2026-10-17T16:19:25Z,2026-10-17T16:28:52Z,0,https://github.com/tidyverse/ellmer/issues/1184,
+1183,chat_aws_bedrock() should honor the generic AWS_ENDPOINT_URL,"`aws_bedrock_base_url()` only reads the service-specific `AWS_ENDPOINT_URL_BEDROCK_RUNTIME` and `AWS_ENDPOINT_URL_BEDROCK_MANTLE` variables. The AWS SDKs also honor the generic `AWS_ENDPOINT_URL`, with the service-specific variable taking precedence and the computed regional endpoint as the fallback. chatlas added this in posit-dev/chatlas#423; porting it is a small change to the two defaults plus a doc note on `base_url`.",thisisnic,feature,open,2026-10-17T16:19:19Z,2026-10-17T16:20:27Z,0,https://github.com/tidyverse/ellmer/issues/1183,
+1182,has_claude_structured_output() does not recognize Bedrock model ids,"`chat_aws_bedrock(api = ""messages"")` never uses native structured outputs because `has_claude_structured_output()` anchors its regex with `^claude-`, and the model id on that path is `anthropic.claude-sonnet-5` (or `us.anthropic.claude-...` before region stripping). So `chat_structured()` always falls back to forcing a tool call, which Claude 5.5 and Fable 5.1 reject with a 400, and older models miss native structured outputs. chatlas fixed the same bug in posit-dev/chatlas#453 by dropping the start anchor so Bedrock ids match too.",thisisnic,bug; structured data 🏗️,open,2026-10-17T16:19:13Z,2026-10-17T16:20:21Z,0,https://github.com/tidyverse/ellmer/issues/1182,1185
 1176,Bump default models,"We should bump the default models. Definitely Google Gemini as 3.7 flash is being deprecated, but also the others, ahead of the next release.",thisisnic,upkeep,open,2026-10-10T16:25:32Z,2026-10-10T16:25:32Z,0,https://github.com/tidyverse/ellmer/issues/1176,
 1173,Support third-party providers: export provider generics and allow stream-only providers,"`?Provider` says that to add a backend you subclass `Provider` and implement
 the generics, but those generics (`chat_body()`, `chat_request()`,
@@ -176,16 +179,6 @@ The `gen_ai.invoke_agent.duration` metric notes that when it ""is reported along
 2. If `internal`, is the change worth a NEWS bullet / any deprecation consideration for users with existing dashboards?
 
 Related: #1142, #1143.",schloerke,feature,open,2026-09-10T15:38:43Z,2026-09-15T16:33:45Z,1,https://github.com/tidyverse/ellmer/issues/1146,1149
-1145,OpenTelemetry logging drops message history after rich tool results,"Rich content nested in a tool result can prevent ellmer from serializing `gen_ai.input.messages`. 
-
-For example, a plot returned as `ContentImageInline` causes `jsonlite` to error with `No method asJSON S3 class: S7_object`; ellmer suppresses the error and omits the entire attribute, including later text-only user messages because each span records the full conversation history. 
-
-https://github.com/tidyverse/ellmer/blob/92cfa7f48270048105ea1bfb44d23a2e59c2df6e/R/otel.R#L69-L83
-
-(FYI, when the above says ""break the chat"", it's referring to the live chat and not the OTel recording of it.)
-
-For the purposes of reading in conversations recorded with this functionality, it'd be nice if ellmer if provided placeholder ""(An image was here.)"" tool results (or something else, if semconv has a preferred way of doing this) so that the remaining messages are still recorded.
-",simonpcouch,bug,open,2026-09-10T15:12:00Z,2026-09-15T15:35:18Z,0,https://github.com/tidyverse/ellmer/issues/1145,1160
 1140,Include more OpenAI built-in tools,"Image gen at a minimum:
 
 ```R
@@ -199,63 +192,6 @@ For the purposes of reading in conversations recorded with this functionality, i
     )
   )
 ```",hadley,feature,open,2026-09-08T22:53:24Z,2026-09-15T11:41:49Z,0,https://github.com/tidyverse/ellmer/issues/1140,
-1138,`chat_posit()` and `$set_model()` can't switch between Anthropic and OpenAI model families,"### The problem
-
-`chat_posit()` picks the provider class based on the model name. Claude models get a `ProviderPositAnthropic` pointing at `{base_url}/anthropic/v1`; everything else gets a `ProviderPositOpenAI` pointing at `{base_url}/openai/v1`.
-
-https://github.com/tidyverse/ellmer/blob/d92a1b3e52a83048260b38d2c9350f1c48e1e2fb/R/provider-posit.R#L65-L80
-
-This works fine at construction time. But `Chat$set_model()` only updates the model name. It never re-evaluates the provider choice. So when a Posit user switches to a model from the other family, they get an OpenAI-shaped request going to an Anthropic endpoint, or vice versa, which fails.
-
-https://github.com/tidyverse/ellmer/blob/d92a1b3e52a83048260b38d2c9350f1c48e1e2fb/R/chat.R#L156-L161
-
-For example:
-
-```r
-chat <- chat_posit(model = ""claude-sonnet-5"")
-chat$chat(""Hi"")  # works
-chat$set_model(""zai-org/GLM-5.3-Flash"")
-chat$chat(""Hi"")  # fails: Anthropic-shaped request hits /openai/v1
-```
-
-This is unique to `chat_posit()`. Every other `chat_*()` function has a one-to-one mapping between its provider class and the set of models it can reach, so this bug can't happen anywhere else.
-
-### Proposed fix: `provider_set_model()` hook
-
-Add an S7 generic, `provider_set_model(provider, name)`, consulted by `Chat$set_model()` to optionally return an updated provider. The default method returns the provider unchanged, so no other provider is affected. `Chat$set_model()` gains one dispatch call:
-
-```r
-set_model = function(model) {
-  check_string(model)
-  private$model@name <- model
-  private$provider <- provider_set_model(private$provider, model)
-  provider_model(private$provider) <- private$model
-  invisible(self)
-}
-```
-
-`ProviderPositAnthropic` and `ProviderPositOpenAI` override it to swap in their sibling class, carrying over `credentials`, `extra_headers`, and the base URL (recoverable via `posit_gateway_url()`):
-
-```r
-method(provider_set_model, ProviderPositAnthropic) <- function(provider, name) {
-  if (is_claude_model(name)) {
-    provider
-  } else {
-    ProviderPositOpenAI(...)
-  }
-}
-```
-
-One design note: the `params()` argument of `chat_posit()` is already provider-agnostic. It uses standard names (`temperature`, `max_tokens`, ...) that each provider's `chat_params()` method translates to API-specific names, with a warning for unsupported parameters rather than an error. So the `Model` object carries over untouched when the provider swaps.
-
-### Alternatives considered
-
-The other idea was a unified `ProviderPosit` class holding both base URLs and picking the wire format per-request based on the current model name. S7 dispatches on an object's class, and a class can't change at runtime, so this would mean either:
-
-1.  A `ProviderPosit` that internally delegates to an ""active"" Anthropic or OpenAI view, re-implementing every one of those family's ~30 methods as a thin wrapper. That includes all the `as_json(provider, Content*)` multi-dispatches, since every call site passes the provider object directly. Roughly 200 lines of boilerplate that can drift as methods are added upstream.
-2.  Restructuring the provider architecture around a separate ""wire format"" concept that both families share. A much larger refactor that touches every provider.
-
-The `provider_set_model()` hook gives users the same result with roughly 20 lines and no new abstraction. The only behavior note is that `cache` (Claude-only, lives on `ProviderPositAnthropic`) is silently lost when switching away from Claude models; the override should warn when that happens.",gadenbuie,bug,open,2026-09-07T16:34:26Z,2026-09-15T11:43:39Z,0,https://github.com/tidyverse/ellmer/issues/1138,1139
 1136,`ContentToolResult` doesn't collapse value into a scalar string,"ellmer collapses a plain character-vector return into a single string, but a `ContentToolResult` returned by a tool is used as-is. When its `value` has more than one element, the OpenAI serializer emits `output = [""line one"", ""line two""]` – an array of bare strings – which the Responses API rejects with HTTP 400. This probably affects other providers as well.
 
 Verified with ellmer 0.5.0.
