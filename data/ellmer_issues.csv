@@ -146,38 +146,6 @@ A full design doc and a task-by-task TDD implementation plan already exist local
 - `docs/plans/2026-09-11-generous-max-output-tokens-design.md`
 - `docs/plans/2026-09-11-generous-max-output-tokens-implementation-plan.md`
 ",cpsievert,feature,open,2026-09-12T00:43:41Z,2026-09-15T16:34:55Z,3,https://github.com/tidyverse/ellmer/issues/1150,
-1146,OpenTelemetry: should the `invoke_agent` span be kind `client` or `internal`?,"@shikokuchuo we'd like your take on this.
-
-ellmer's `invoke_agent` span (the parent of the per-request `chat <model>` spans and `execute_tool` spans) is currently kind `client`. While adding the GenAI metrics in #1143 the question came up whether it should be `internal` instead. We've left it as `client` in that PR so the decision can be made here.
-
-## Context
-
-The [GenAI semantic conventions](https://github.com/open-telemetry/semantic-conventions-genai/blob/main/model/gen-ai/spans.yaml) define two `invoke_agent` span variants:
-
-- **`gen_ai.invoke_agent.client`** (kind `client`): ""Describes GenAI agent invocation over a remote service."" Examples given: OpenAI Assistants API, AWS Bedrock Agents.
-- **`gen_ai.invoke_agent.internal`** (kind `internal`): ""Describes GenAI agent invocation within the same process."" Examples given: LangChain agents, CrewAI agents.
-
-The `gen_ai.invoke_agent.duration` metric notes that when it ""is reported alongside a `gen_ai.invoke_agent.internal` span, the metric value SHOULD be the same as the span duration.""
-
-## Case for `client` (current behavior)
-
-- The whole point of the span is that we are calling a remote model server. From the user's perspective `chat$chat()` is an outbound request, and `client` communicates that at a glance.
-- Every child of the span is remote work (the `chat` spans and the HTTP `POST` spans beneath them). Tool execution is the only local work, and it is triggered by the remote model.
-- It is what ellmer has shipped since OpenTelemetry support was added, so changing it is a user-visible change for anyone with dashboards keyed on span kind.
-
-## Case for `internal`
-
-- ellmer's agent loop runs in-process: the `while` loop, tool dispatch, and turn accumulation are all R code. The remote calls are already represented by the child `chat <model>` spans, which are kind `client`, and the HTTP spans beneath those. Marking the parent `client` too describes the agent itself as running remotely.
-- The spec's `client` variant is explicitly for hosted agents (Assistants API, Bedrock Agents) where a single remote call runs the loop on the provider's side. ellmer is structurally the LangChain/CrewAI case.
-- Some backends derive outbound dependency latency from `client` spans. A `client` parent wrapping `client` children double-counts the model calls in that view.
-- The new `gen_ai.invoke_agent.duration` metric is specified to pair with the `internal` span.
-
-## Questions
-
-1. Which kind should ellmer use?
-2. If `internal`, is the change worth a NEWS bullet / any deprecation consideration for users with existing dashboards?
-
-Related: #1142, #1143.",schloerke,feature,open,2026-09-10T15:38:43Z,2026-09-15T16:33:45Z,1,https://github.com/tidyverse/ellmer/issues/1146,1149
 1140,Include more OpenAI built-in tools,"Image gen at a minimum:
 
 ```R
