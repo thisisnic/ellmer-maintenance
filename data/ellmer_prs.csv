@@ -1,4 +1,113 @@
 number,title,body,user,labels,state,draft,created_at,updated_at,url
+1195,fix(anthropic): keep redacted_thinking blocks instead of erroring,"When extended thinking is on, Claude can return a `redacted_thinking` content block (encrypted reasoning that was flagged by safety systems). `value_turn()` for `ProviderAnthropic` only knew `thinking`, so such a response aborted with an internal error:
+
+```
+Error: Unknown content type ""redacted_thinking"".
+i This is an internal error that was detected in the ellmer package.
+```
+
+The block is now kept as a `ContentThinking` with empty text and the encrypted payload in `extra`, and `as_json()` sends it back unchanged as `{type = ""redacted_thinking"", data = ...}`. The API expects these blocks to be returned as received when a turn continues after a tool call. Streaming needs no extra handling because the block arrives complete in `content_block_start`.
+
+**Tests** (in `test-provider-claude.R`): `value_turn()` followed by `as_json()` for a response with thinking, redacted thinking and text; and the same block merged from stream events. Both fail on main with the error above and pass with the change. The blocks are built by hand from the documented shape; no request was made to a live API.
+
+This change was made with Claude Code.
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+",pcbeingused333,,open,FALSE,2026-10-21T08:01:15Z,2026-10-21T08:01:15Z,https://github.com/tidyverse/ellmer/pull/1195
+1194,fix(anthropic): take cumulative usage from message_delta when streaming,"Anthropic's `message_delta` event reports cumulative usage. With server tools (web search, web fetch) its input and cache counts grow during the response and exceed what `message_start` reported. The `stream_merge_chunks()` method for `ProviderAnthropic` copied only `output_tokens` from `message_delta`, so a streamed turn kept `message_start`'s input and cache counts and under-reported tokens and cost compared with the same request without streaming. `chat_aws_bedrock()` with Claude models inherits the method.
+
+For example, with `message_start` usage `input_tokens: 2247, cache_creation_input_tokens: 0` and `message_delta` usage `input_tokens: 2254, cache_creation_input_tokens: 17269`, the merged turn reported 2247 input tokens and dropped the 17k cache-write tokens.
+
+The merge now copies `input_tokens`, `cache_creation_input_tokens`, `cache_read_input_tokens`, `output_tokens` and `server_tool_use` from `message_delta` when present, as the Anthropic SDKs' stream accumulators do. Fields the event omits keep the `message_start` value.
+
+**Tests** (in `test-provider-claude.R`): one with the counts above, which fails on main (`actual$input: 2247`, `expected$input: 19523`), and one checking that fields `message_delta` omits keep the `message_start` value. The file passes with the change. No request was made to a live API; the counts come from the Anthropic streaming docs' event shape and a recorded chatlas cassette.
+
+This change was made with Claude Code.
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+",pcbeingused333,,open,FALSE,2026-10-21T07:58:51Z,2026-10-21T07:58:51Z,https://github.com/tidyverse/ellmer/pull/1194
+1192,Add OpenRouter model discovery and cached cost estimates,"Closes #1189
+
+## Summary
+
+Add credential-free `models_openrouter()` with model metadata and advertised input, output, and cached-input rates in USD per million tokens, parsed directly from OpenRouter's public API. Preserve free rates as zero and map absent, variable, or invalid rates to `NA`; do not depend on litellm or the local price snapshot.
+
+When a response lacks a valid actual charge but reports usable token counts, estimate its cost from one lazily fetched model-price table cached for the R session. Actual charges, including zero, never fetch models. Failed lookups are latched too; the optional lookup is bounded and best-effort. Explicit model discovery stays fresh and independent of this cache.
+
+Fallback estimates use the public OpenRouter catalog and token rates only, not conditional overrides, cache-write premiums, or non-token fees. They can be stale and are not guaranteed to match routed charges. Insufficient counts/rates or lookup failure leave costs unknown.
+
+## Verification
+
+No credentials are needed for discovery:
+
+```r
+library(ellmer)
+models_openrouter()[c(""id"", ""input"", ""output"", ""cached_input"")]
+```
+
+Offline tests cover a trimmed recorded public response, rate conversion and model metadata, auth isolation, free/unknown rates, actual-cost precedence, one lookup across turns/models, latched failures, missing counts, zero-token categories, fresh explicit discovery, request limits/restoration, and mixed actual/estimated totals. Local package checks and subsystem reviews are completed before this draft is opened; GitHub CI results are recorded separately.
+
+## Stack
+
+PR 3 of 3 for #1189. Discovery is independently shippable; the fallback extends the first layer's reviewed actual-cost path. 
+
+1. #1190
+2. #1191
+3. 1192",gadenbuie,,open,FALSE,2026-10-20T15:16:20Z,2026-10-20T17:11:01Z,https://github.com/tidyverse/ellmer/pull/1192
+1191,Remove obsolete OpenRouter prices from the static snapshot,"Refs #1189
+
+## Summary
+
+Remove OpenRouter from the litellm-backed pricing updater and replace its provider-count assertion with a provider-set check that names missing and unexpected providers. The expected set comes from the maintained lookup plus Posit.
+
+The committed JSON and bundled R data remove only the 553 OpenRouter rows; all other prices remain unchanged. There is no schema-version bump or cache migration. Existing caches remain readable, but refreshed snapshots no longer supply obsolete OpenRouter estimates. General upstream price/model refreshes are left to the normal workflow.
+
+## Verification
+
+With the PR's package installed:
+
+```r
+library(ellmer)
+sort(unique(ellmer:::prices$provider))
+```
+
+The bundled snapshot has nine providers and no OpenRouter rows. Tests cover the supported set, same-count substitutions, named diagnostics, JSON/bundled metadata agreement, and cache compatibility. Dev-only checks explicitly skip when `data-raw` is absent from a built package; bundled checks still run. The updater was run successfully against current upstream data, validated its schema, and reported unchanged data on a second run. Schema validation stays in the existing updater, without a new package dependency.
+
+## Stack
+
+PR 2 of 3 for #1189. This updater/data change is independently usable; stacking it above actual-cost support avoids a temporary loss of OpenRouter cost reporting.
+
+1. #1190
+2. 1191
+3. #1192",gadenbuie,,open,FALSE,2026-10-20T15:16:16Z,2026-10-20T16:36:46Z,https://github.com/tidyverse/ellmer/pull/1191
+1190,Use OpenRouter's reported response costs,"Refs #1189
+
+## Summary
+
+Use OpenRouter's response-reported `usage.cost` for each completed assistant turn instead of a static token-rate estimate. Preserve zero charges and full precision; missing or malformed charges remain unknown (`NA`) in this layer. Keep inherited content, reasoning, tool, structured-output, and streaming parsing unchanged, and document the difference between OpenRouter account charges and external BYOK bills.
+
+No deprecated usage opt-in flags are added. Unknown charges continue to make cumulative chat/provider-model totals unknown; known individual turn costs remain available.
+
+## Verification
+
+With the PR's package installed and a valid `OPENROUTER_API_KEY`:
+
+```r
+library(ellmer)
+chat <- chat_openrouter(model = ""openai/gpt-4o-mini"")
+chat$chat(""Say hello"")
+chat$get_cost()
+chat$get_tokens()
+```
+
+Deterministic tests cover conflicting static/cached prices, zero and missing costs, final usage-only SSE chunks, async streaming, tool and structured-output turns, and aggregation. The cache fixture explicitly proves its conflicting price is active during the test. Tests run offline; existing live tests skip when no key is configured.
+
+## Stack
+
+This PR is the start of the stack addressing #1189, followed by:
+
+1. #1191
+1. #1192",gadenbuie,,open,FALSE,2026-10-20T15:16:12Z,2026-10-20T16:12:00Z,https://github.com/tidyverse/ellmer/pull/1190
 1188,Let OTEL_R_SUPPRESS_SCOPES turn off ellmer's telemetry,"`OTEL_R_SUPPRESS_SCOPES` could not turn off ellmer's spans or metrics with any value. ellmer passed its scope name to `otel::get_tracer()` and `otel::get_meter()`. When it gets a name, otel sets the scope's package to `NA`, and no suppress pattern can remove an `NA` (see [r-lib/otel#50](https://github.com/r-lib/otel/issues/50)).
 
 This PR calls both functions without a name. otel then reads `otel_tracer_name` from the ellmer namespace, so the scope name is still `co.posit.r-package.ellmer`, and the package is recorded as `ellmer`. Because of r-lib/otel#50, users must currently list both names: `OTEL_R_SUPPRESS_SCOPES=ellmer,co.posit.r-package.ellmer`. Once otel is fixed, `ellmer` alone should work.
@@ -24,7 +133,7 @@ Document the inherited `AssistantPartialTurn()` arguments through `...`, forward
 
 Use S7’s load, unload, and build hooks when available, retaining `methods_register()` for older releases. On development S7, unloading removes the package’s external S7 methods and dependency hooks, and the build hook cleans external generic bindings after method declarations.
 ",t-kalinowski,,open,FALSE,2026-10-16T13:40:02Z,2026-10-16T14:12:01Z,https://github.com/tidyverse/ellmer/pull/1181
-1178,adding llama.cpp support for ellmer,"tested locally with `ggml-org_gemma-3-1b-it-GGUF_gemma-3-1b-it-Q4_K_M.gguf` on Pop!_OS, closes #884.",frankiethull,,open,FALSE,2026-10-12T21:19:49Z,2026-10-12T21:19:49Z,https://github.com/tidyverse/ellmer/pull/1178
+1178,adding llama.cpp support for ellmer,"tested locally with `ggml-org_gemma-3-1b-it-GGUF_gemma-3-1b-it-Q4_K_M.gguf` on Pop!_OS, closes #884.",frankiethull,,open,FALSE,2026-10-12T21:19:49Z,2026-10-21T06:04:25Z,https://github.com/tidyverse/ellmer/pull/1178
 1177,Implement OAuth for chat_openrouter,"Closes #1172
 
 Implements OAuth for `chat_openrouter()`.
@@ -148,7 +257,7 @@ Seems fine for batch stuff, but maybe a bit weird for token counting - values ar
 | second turn, with thinking | 262 | 263 |
 | after a completed tool call | 155 | 203 |
 
-",thisisnic,,open,FALSE,2026-09-25T11:21:42Z,2026-10-08T09:09:35Z,https://github.com/tidyverse/ellmer/pull/1159
+",thisisnic,,open,FALSE,2026-09-25T11:21:42Z,2026-10-20T12:47:31Z,https://github.com/tidyverse/ellmer/pull/1159
 1089,Report the model's context window in `models_*()` and on `Chat`,"Most providers publish a model's context window in a response `models_list()` already parses and then discards. This adds a `max_context_length` column to the `models_*()` data frames, and `Chat$get_max_context_length()` to pair with `$get_tokens()`.
 
 | Provider | Field read |

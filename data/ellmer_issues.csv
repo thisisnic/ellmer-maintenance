@@ -1,4 +1,31 @@
 number,title,body,user,labels,state,created_at,updated_at,comments,url,linked_prs
+1189,"OpenRouter pricing: drop litellm rows, source prices from OpenRouter directly","### Problem
+
+The weekly `update-prices` workflow is failing: litellm deliberately removed all `openrouter` rows from its cost map ([#45665](https://github.com/BerriAI/litellm/pull/45665)–[#45669](https://github.com/BerriAI/litellm/pull/45669)). Our `provider_lookup` inner join in `data-raw/prices.R` now yields 9 providers, and the `Expected 10 providers` check fails. The last committed `prices.json` still has 553 OpenRouter rows, but the next successful run would silently drop them.
+
+### Background: why litellm dropped the rows, and why that's actually good for us
+
+OpenRouter is a *router*: each request is sent to one of several upstream providers serving the same model — at different prices — and OpenRouter reports the actual charge for each response in `usage.cost` (returned when the request opts into usage accounting with `usage: {""include"": true}`). Since litellm [#45640](https://github.com/BerriAI/litellm/pull/45640), every litellm path for OpenRouter bills from that per-response cost, which made its 496 static per-model price rows redundant: a static row is at best a default, and it can disagree with what any given request actually routes to and is charged. So litellm deleted the rows and stopped syncing OpenRouter models ([litellm-providers#254](https://github.com/BerriAI/litellm-providers/pull/254)); they won't be coming back.
+
+Update: in [OpenRouter: Usage Accounting](https://openrouter.ai/docs/cookbook/administration/usage-accounting) under Usage Information, it says:
+
+> This information is included in the last SSE message for streaming responses, or in the complete response for non-streaming requests. No additional parameters are required.
+
+The Deprecated Parameters note directly below says:
+
+> The `usage: { include: true }` and `stream_options: { include_usage: true }` parameters are deprecated and have no effect. Full usage details are now always included automatically in every response.
+
+That same property makes `usage.cost` the *best* available pricing signal for OpenRouter, because it captures what static data can't: the actual routed provider, cache discounts, and the promo rates in effect at request time. Any static snapshot — litellm's or ours — inherently lags that.
+
+### Proposal
+
+1. **Remove OpenRouter from `prices`** — delete the `provider_lookup` entry in `data-raw/prices.R`; update the provider check (suggest asserting the expected provider *set* rather than a count, so this kind of upstream change fails loudly and names the missing provider). Keeping a static OpenRouter snapshot isn't worth it: OpenRouter pricing changes frequently (promotional rates with expiry dates, time-of-use pricing, per-endpoint rate differences across upstream providers), OpenRouter publishes no price-change feed, and any weekly snapshot we ship would drift — a freshness problem OpenRouter's own API solves for us (see 2).
+2. **Add `models_openrouter()`** following the existing `models_openai()`/`models_groq()` pattern, but with a `models_list()` override that takes pricing from the `/api/v1/models` response's own `pricing` fields (`prompt`, `completion`, `input_cache_read` → per-1M USD). One request, authoritative data, no litellm dependency. Model listing itself already works via the inherited `ProviderOpenAICompatible` method, and since the endpoint is public (no API key required), `models_openrouter()` should work without credentials — relaxing the inherited auth path for this endpoint.
+3. **Use `usage.cost` for runtime costs** — send `usage: {""include"": true}` on OpenRouter requests and set `AssistantTurn@cost` from the response's `usage.cost` (actual charge, including routing and cache variance) instead of calling `get_token_cost()`, falling back to `NA` when the field is absent. Optional refinement, not needed for correctness: cache `models_openrouter()` output and use it as the fallback in `get_token_cost()` when `usage.cost` is missing, turning `NA` costs back into estimates.
+4. **Docs** — `chat_openrouter()` documents that costs are per-response actuals and points users to `models_openrouter()` for model + price discovery; note the estimate-vs-actual distinction in `token_usage()`.
+
+Every step is independently shippable, so implementation can start without waiting on feedback; comments here can still shape the details.
+",gadenbuie,,open,2026-10-20T13:22:08Z,2026-10-20T13:36:27Z,0,https://github.com/tidyverse/ellmer/issues/1189,1192
 1184,chat_aws_bedrock() docs recommend a thinking config that newer Claude models reject,"The `api_args` docs for `chat_aws_bedrock()` show enabling thinking on Converse with `thinking = list(type = ""enabled"", budget_tokens = 4000)`. Claude models from Sonnet 4.6 and Opus 4.6 onward reject manual budgets with a 400 (see posit-dev/chatlas#448), and the default model is now Sonnet 5, so the example likely fails as written. The example should switch to adaptive thinking with an effort level, and it may be worth translating `params(reasoning_effort = )` into `additionalModelRequestFields` for the Converse path so it works the same way as on `api = ""messages""`.",thisisnic,documentation; upkeep,open,2026-10-17T16:19:25Z,2026-10-17T16:28:52Z,0,https://github.com/tidyverse/ellmer/issues/1184,
 1183,chat_aws_bedrock() should honor the generic AWS_ENDPOINT_URL,"`aws_bedrock_base_url()` only reads the service-specific `AWS_ENDPOINT_URL_BEDROCK_RUNTIME` and `AWS_ENDPOINT_URL_BEDROCK_MANTLE` variables. The AWS SDKs also honor the generic `AWS_ENDPOINT_URL`, with the service-specific variable taking precedence and the computed regional endpoint as the fallback. chatlas added this in posit-dev/chatlas#423; porting it is a small change to the two defaults plus a doc note on `base_url`.",thisisnic,feature,open,2026-10-17T16:19:19Z,2026-10-17T16:20:27Z,0,https://github.com/tidyverse/ellmer/issues/1183,
 1176,Bump default models,"We should bump the default models. Definitely Google Gemini as 3.7 flash is being deprecated, but also the others, ahead of the next release.",thisisnic,upkeep,open,2026-10-10T16:25:32Z,2026-10-10T16:25:32Z,0,https://github.com/tidyverse/ellmer/issues/1176,
