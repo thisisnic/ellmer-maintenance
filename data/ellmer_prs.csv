@@ -1,4 +1,54 @@
 number,title,body,user,labels,state,draft,created_at,updated_at,url
+1201,adding llamacpp & updating docs,"- adding new provider, llama.cpp
+- upd docs
+- upd NEWS
+
+this closes #884. a slimmed down version of #1178 (@thisisnic), closing #1178 as well. it also references a new package in the docs for the heavier stuff, `ggruf`. 
+
+gg**r**uf, was created to find, inspect, & serve GGUF files for llama.cpp. mainly designed as a helper for ellmer::chat_llamacpp but could be useful elsewhere.
+
+package link: https://github.com/frankiethull/ggruf 🐐 🐐 🐐 ",frankiethull,,open,FALSE,2026-10-22T07:18:01Z,2026-10-22T07:18:01Z,https://github.com/tidyverse/ellmer/pull/1201
+1199,"fix(google, openai): standardise finish reasons","`value_finish_reason()` for Google Gemini and OpenAI Responses did not standardise two cases, which the docs for `finish_reason` in `Turn` say is done ""across providers"":
+
+- **Content filter.** Gemini's `IMAGE_SAFETY`, `IMAGE_PROHIBITED_CONTENT`, `IMAGE_RECITATION` and `LANGUAGE` finish reasons were passed through as raw strings, so `check_finish_reason()` warned ""Response may be incomplete, unexpected finish reason"" instead of reporting a content filter. They now map to `""content_filter""` like `SAFETY`, `RECITATION`, `BLOCKLIST`, `PROHIBITED_CONTENT` and `SPII`.
+- **Tool calls.** Gemini finishes with `STOP` when the response contains a `functionCall`, and the Responses API reports `status = ""completed""` when it contains a `function_call` item, so such turns got `""success""`. The Anthropic and OpenAI-compatible providers report `""tool_use""` for the same situation. Both now return `""tool_use""` when the response has a tool call.
+
+This is the same fix as posit-dev/chatlas#473 (Gemini `STOP` with a function call is now `tool_use` there).
+
+**Tests:** `test-provider-google.R` checks `STOP`, `MAX_TOKENS`, each content-filter reason, an unknown reason (still `I(""OTHER"")`) and `STOP` with a `functionCall` part; `test-provider-openai.R` checks a completed response with and without a `function_call` output item. Both new tests fail on `main` and pass with the change. They call `value_finish_reason()` on hand-built result lists; no request was made to either API.
+
+This change was made with Claude Code.
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+",pcbeingused333,,open,FALSE,2026-10-21T15:47:56Z,2026-10-21T15:48:10Z,https://github.com/tidyverse/ellmer/pull/1199
+1198,fix: collapse a character ContentToolResult value into one string,"Closes #1136
+
+A tool that returns a `ContentToolResult()` whose `value` is a character vector longer than one was sent as-is: the OpenAI Responses serializer emitted `output = [""line one"", ""line two""]` and the API answers with HTTP 400, and the echo of the result assumed a single string. A bare character vector returned by a tool is already collapsed with newlines by `normalize_tool_result()`.
+
+`new_tool_result()` now applies the same collapse to the `value` of a `ContentToolResult` that a tool returns, so both paths hand the providers and the echo a single string. Other values (a string, a `Content` object, a list of `Content`, an error result, numbers) are untouched. I first normalized every value, but that changed the type of non-string values that existing tests keep as-is, so this only handles character vectors.
+
+New tests check the collapsed value in `new_tool_result()` and the `output` that `as_json()` produces for the OpenAI provider.
+
+This change was made with Claude Code (AI-assisted); the tests above were run, but no request was made to the OpenAI API.
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+",pcbeingused333,,open,FALSE,2026-10-21T15:04:58Z,2026-10-21T15:04:58Z,https://github.com/tidyverse/ellmer/pull/1198
+1197,docs: use adaptive thinking in the chat_aws_bedrock() api_args example,"Fixes #1184.
+
+The `api_args` documentation for `chat_aws_bedrock()` shows enabling thinking on Converse with `thinking = list(type = ""enabled"", budget_tokens = 4000)`. Claude Sonnet 4.6, Opus 4.6 and later models reject manual budgets with a 400 error (see posit-dev/chatlas#448), and the default model is now Sonnet 5, so the example fails as written.
+
+The example now uses adaptive thinking with an effort level, the same request shape `chat_claude()` builds when `params(reasoning_effort =)` is set, and a sentence notes that manual budgets only apply to earlier models. `man/chat_aws_bedrock.Rd` is updated to match.
+
+This is a documentation-only change; no code or tests changed. The new example was not run against a live Bedrock endpoint.
+
+This change was made with Claude Code.
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+",pcbeingused333,,open,FALSE,2026-10-21T14:44:39Z,2026-10-21T19:56:38Z,https://github.com/tidyverse/ellmer/pull/1197
 1195,fix(anthropic): keep redacted_thinking blocks instead of erroring,"When extended thinking is on, Claude can return a `redacted_thinking` content block (encrypted reasoning that was flagged by safety systems). `value_turn()` for `ProviderAnthropic` only knew `thinking`, so such a response aborted with an internal error:
 
 ```
@@ -13,7 +63,7 @@ The block is now kept as a `ContentThinking` with empty text and the encrypted p
 This change was made with Claude Code.
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
-",pcbeingused333,,open,FALSE,2026-10-21T08:01:15Z,2026-10-21T08:01:15Z,https://github.com/tidyverse/ellmer/pull/1195
+",pcbeingused333,,open,FALSE,2026-10-21T08:01:15Z,2026-10-21T14:59:18Z,https://github.com/tidyverse/ellmer/pull/1195
 1194,fix(anthropic): take cumulative usage from message_delta when streaming,"Anthropic's `message_delta` event reports cumulative usage. With server tools (web search, web fetch) its input and cache counts grow during the response and exceed what `message_start` reported. The `stream_merge_chunks()` method for `ProviderAnthropic` copied only `output_tokens` from `message_delta`, so a streamed turn kept `message_start`'s input and cache counts and under-reported tokens and cost compared with the same request without streaming. `chat_aws_bedrock()` with Claude models inherits the method.
 
 For example, with `message_start` usage `input_tokens: 2247, cache_creation_input_tokens: 0` and `message_delta` usage `input_tokens: 2254, cache_creation_input_tokens: 17269`, the merged turn reported 2247 input tokens and dropped the 17k cache-write tokens.
@@ -113,15 +163,15 @@ This PR is the start of the stack addressing #1189, followed by:
 This PR calls both functions without a name. otel then reads `otel_tracer_name` from the ellmer namespace, so the scope name is still `co.posit.r-package.ellmer`, and the package is recorded as `ellmer`. Because of r-lib/otel#50, users must currently list both names: `OTEL_R_SUPPRESS_SCOPES=ellmer,co.posit.r-package.ellmer`. Once otel is fixed, `ellmer` alone should work.
 
 Adds a test that checks no spans are recorded when the scope is suppressed. The test fails on `main` and passes here.
-",schloerke,,open,FALSE,2026-10-20T02:35:34Z,2026-10-20T10:08:10Z,https://github.com/tidyverse/ellmer/pull/1188
+",schloerke,,open,TRUE,2026-10-20T02:35:34Z,2026-10-21T19:43:50Z,https://github.com/tidyverse/ellmer/pull/1188
 1187,Add an OpenTelemetry vignette,"ellmer records OpenTelemetry traces and metrics, but the only place this is written up is `NEWS.md`. This adds `vignette(""otel"")`, which covers how to turn it on with the otel and otelsdk environment variables, the span tree (`invoke_agent`, `chat`, `execute_tool`, and httr2's `POST`), the metrics, opting in to recording prompts and responses, `Chat$conversation_id`, and nesting ellmer's spans under your own, with `otel::start_local_active_span()` for `$chat()` and `promises::with_otel_span()` for async calls.
 
-The vignette's claims were checked against `R/otel.R`. Tool errors mark only the `execute_tool` span, since the chat goes on, so `invoke_agent` is not marked as failed. Tool metrics are tagged by tool name rather than provider and model. The `OTEL_R_SUPPRESS_SCOPES` example doesn't work on `main` yet; [tidyverse/ellmer#1188](https://github.com/tidyverse/ellmer/pull/1188) fixes that, and the vignette needs to show both names until [r-lib/otel#50](https://github.com/r-lib/otel/issues/50) is fixed.
+The vignette's claims were checked against `R/otel.R`. Tool errors mark only the `execute_tool` span, since the chat goes on, so `invoke_agent` is not marked as failed. Tool metrics are tagged by tool name rather than provider and model. The `OTEL_R_SUPPRESS_SCOPES=ellmer` example doesn't work with otel 0.2.0. It will work once otel releases the fixes for [r-lib/otel#50](https://github.com/r-lib/otel/issues/50) and [r-lib/otel#52](https://github.com/r-lib/otel/issues/52), with no change to ellmer.
 
 Code chunks don't run (`eval = FALSE`), since they need an exporter and an API key. The metrics table describes `main`; the cache-write counter from [tidyverse/ellmer#1186](https://github.com/tidyverse/ellmer/issues/1186) can be added to the `usage.*` row once that merges.
 
-- [ ] Merge [tidyverse/ellmer#1188](https://github.com/tidyverse/ellmer/pull/1188), then update the vignette's `OTEL_R_SUPPRESS_SCOPES` example to `ellmer,co.posit.r-package.ellmer`
-",schloerke,,open,TRUE,2026-10-20T02:13:08Z,2026-10-20T02:37:46Z,https://github.com/tidyverse/ellmer/pull/1187
+- [ ] otel is released with the fixes for [r-lib/otel#50](https://github.com/r-lib/otel/issues/50) and [r-lib/otel#52](https://github.com/r-lib/otel/issues/52), so `OTEL_R_SUPPRESS_SCOPES=ellmer` works
+",schloerke,,open,TRUE,2026-10-20T02:13:08Z,2026-10-21T20:48:00Z,https://github.com/tidyverse/ellmer/pull/1187
 1186,Record prompt cache-write tokens on OpenTelemetry chat spans and metrics,"Claude reports the number of input tokens written to the prompt cache (`cache_creation_input_tokens`), but ellmer only used it for pricing. This records it on the OpenTelemetry `chat` span as `gen_ai.usage.cache_write.input_tokens` and as the `gen_ai.client.inference.usage.cache_write.input_tokens` counter, using the names from the current [GenAI semantic conventions](https://github.com/open-telemetry/semantic-conventions-genai/blob/main/docs/gen-ai/gen-ai-token-metrics.md). The Anthropic SDKs and the Claude API record the same attribute on their own spans.
 
 A new internal generic, `value_cache_write_tokens()`, mirrors `value_reasoning_tokens()`: it returns `NULL` by default and Claude implements it. Claude's cost code now reads the value through it. Per the conventions, cache numbers are left off the `invoke_agent` span.
@@ -133,7 +183,7 @@ Document the inherited `AssistantPartialTurn()` arguments through `...`, forward
 
 Use S7’s load, unload, and build hooks when available, retaining `methods_register()` for older releases. On development S7, unloading removes the package’s external S7 methods and dependency hooks, and the build hook cleans external generic bindings after method declarations.
 ",t-kalinowski,,open,FALSE,2026-10-16T13:40:02Z,2026-10-16T14:12:01Z,https://github.com/tidyverse/ellmer/pull/1181
-1178,adding llama.cpp support for ellmer,"tested locally with `ggml-org_gemma-3-1b-it-GGUF_gemma-3-1b-it-Q4_K_M.gguf` on Pop!_OS, closes #884.",frankiethull,,open,FALSE,2026-10-12T21:19:49Z,2026-10-21T06:04:25Z,https://github.com/tidyverse/ellmer/pull/1178
+1178,adding llama.cpp support for ellmer,"tested locally with `ggml-org_gemma-3-1b-it-GGUF_gemma-3-1b-it-Q4_K_M.gguf` on Pop!_OS, closes #884.",frankiethull,,open,FALSE,2026-10-12T21:19:49Z,2026-10-22T04:44:45Z,https://github.com/tidyverse/ellmer/pull/1178
 1177,Implement OAuth for chat_openrouter,"Closes #1172
 
 Implements OAuth for `chat_openrouter()`.
@@ -233,53 +283,31 @@ str(lapply(res$.error, \(e) if (!is.null(e)) conditionMessage(e)))
 
 </details>
 ",kbenoit,,open,FALSE,2026-09-28T05:46:03Z,2026-10-19T00:13:58Z,https://github.com/tidyverse/ellmer/pull/1163
-1159,Switch to Interactions API for gemini,"Closes #1155. Closes #1154.
-
-`chat_google_gemini()` now uses Google's Interactions API.
-
-I needed a bit more class separation and so I tried to adopt a similar approach to the AWS Bedrock provider:
-  - `ProviderGoogle` - anything which both APIs share (credentials, Files API, model listing, batch polling)
-  - `ProviderGoogleGenerateContent` (the old code, used by `chat_google_vertex()`)
-  - `ProviderGoogleInteractions` (used by `chat_google_gemini()`).
-
-Some functionality was missing from the Interactions API, so batch submission + result parsing and `count_tokens()` on the Interactions class still use `ProviderGoogleGenerateContent`.  
-
-Seems fine for batch stuff, but maybe a bit weird for token counting - values are a bit off when there are tool calls but seemed better than removing the functionality altogether for the Interactions API?
-
-| case | estimate | actual |
-|---|---|---|
-| short prompt | 9 | 9 |
-| long prompt | 401 | 401 |
-| system prompt | 23 | 24 |
-| with tool declared | 55 | 60 |
-| with image | 1091 | 1091 |
-| structured output | 7 | 7 |
-| second turn, with thinking | 262 | 263 |
-| after a completed tool call | 155 | 203 |
-
-",thisisnic,,open,FALSE,2026-09-25T11:21:42Z,2026-10-20T12:47:31Z,https://github.com/tidyverse/ellmer/pull/1159
 1089,Report the model's context window in `models_*()` and on `Chat`,"Most providers publish a model's context window in a response `models_list()` already parses and then discards. This adds a `max_context_length` column to the `models_*()` data frames, and `Chat$get_max_context_length()` to pair with `$get_tokens()`.
 
 | Provider | Field read |
 | --- | --- |
 | Anthropic | `max_input_tokens` |
+| DeepSeek | `context_window` |
 | Gemini | `inputTokenLimit` |
 | Groq | `context_window` |
 | LM Studio | `max_context_length`, from the native `/api/v1/models` |
 | Mistral | `max_context_length` |
+| OpenRouter | `context_length` |
 | Posit | `max_context_length` |
 | vLLM | `max_model_len` |
 | Ollama | `<arch>.context_length`, from the `api/show` response already fetched for `capabilities` |
 
 Everyone else gets `NA`, so the column is there whichever provider you ask. The OpenAI-compatible parser reads `context_window` generically, which is what covers Groq.
 
-The `Chat$get_max_context_length()` method resolves the current model through `models_list()`, caching per provider, base URL and model, so it costs one request per session.
+The `Chat$get_max_context_length()` method looks the current model up in `models_list()`, and an undated alias such as `claude-sonnet-4-5` matches its latest dated snapshot. The listing is cached per provider and base URL, so it costs one request per session, and a listing that fails gives `NA` and is retried on the next call.
 
-Verified live: Gemini 36/36 models, Mistral 55/55, Groq 15/15, Ollama Cloud 18/18, Posit 10/10, LM Studio against a local server. Anthropic comes from the existing `anthropic-list-models` cassette and vLLM from vLLM's source. Vertex publishes no token limit anywhere in `publisherModels`, in either projection, so it falls through to `NA`. For LM Studio, its OpenAI-compatible `/v1/models` carries only `id`, `object` and `owned_by`, so the window is joined from the native `/api/v1/models` by model key, and a server without that route degrades to `NA`. The `test_models()` helper now checks the column, and checks it is populated for the providers that report one.
+Verified live: Gemini 36/36 models, Mistral 55/55, Groq 15/15, Ollama Cloud 18/18, OpenRouter 468/468, Posit 10/10, LM Studio against a local server. Anthropic comes from the existing `anthropic-list-models` cassette, vLLM from vLLM's source, and DeepSeek from its API reference. Vertex publishes no token limit anywhere in `publisherModels`, in either projection, so it falls through to `NA`. For LM Studio, its OpenAI-compatible `/v1/models` carries only `id`, `object` and `owned_by`, so the window is joined from the native `/api/v1/models` by model key, and a server without that route degrades to `NA`. The `test_models()` helper now checks the column, and checks it is populated for the providers that report one.
 
 Fixes #1083
 
-",nbenn,,open,FALSE,2026-08-13T14:37:54Z,2026-10-19T19:38:34Z,https://github.com/tidyverse/ellmer/pull/1089
+
+",nbenn,,open,FALSE,2026-08-13T14:37:54Z,2026-10-21T14:04:19Z,https://github.com/tidyverse/ellmer/pull/1089
 1075,Explore contents_trajectory(): serialize chats to trajectory-v1,"## Summary
 
 This is an exploratory draft. The implementation is in solid shape, but there's no pressure to merge this — it's here to spark discussion about whether this fits ellmer's scope. It's inspired by [letta-ai/trajectory](https://github.com/letta-ai/trajectory), a schema/toolkit for normalizing raw agent transcripts (Claude Code, Codex, etc.) into a common `trajectory-v1` JSON shape. ellmer already holds a fully structured `Chat`/`Round`/`Turn`/`Content` object graph in memory, so the parsing problem that project solves doesn't apply here — this PR asks a narrower question: does ellmer's internal model map cleanly onto that shape, and is a native R serializer worth having?

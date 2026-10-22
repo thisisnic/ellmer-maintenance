@@ -1,4 +1,5 @@
 number,title,body,user,labels,state,created_at,updated_at,comments,url,linked_prs
+1196,Explore server-side state management,https://ai.google.dev/gemini-api/docs/interactions-overview#server-side-state,hadley,feature,open,2026-10-21T14:10:34Z,2026-10-21T19:54:35Z,0,https://github.com/tidyverse/ellmer/issues/1196,
 1189,"OpenRouter pricing: drop litellm rows, source prices from OpenRouter directly","### Problem
 
 The weekly `update-prices` workflow is failing: litellm deliberately removed all `openrouter` rows from its cost map ([#45665](https://github.com/BerriAI/litellm/pull/45665)–[#45669](https://github.com/BerriAI/litellm/pull/45669)). Our `provider_lookup` inner join in `data-raw/prices.R` now yields 9 providers, and the `Expected 10 providers` check fails. The last committed `prices.json` still has 553 OpenRouter rows, but the next successful run would silently drop them.
@@ -26,7 +27,7 @@ That same property makes `usage.cost` the *best* available pricing signal for Op
 
 Every step is independently shippable, so implementation can start without waiting on feedback; comments here can still shape the details.
 ",gadenbuie,,open,2026-10-20T13:22:08Z,2026-10-20T13:36:27Z,0,https://github.com/tidyverse/ellmer/issues/1189,1192
-1184,chat_aws_bedrock() docs recommend a thinking config that newer Claude models reject,"The `api_args` docs for `chat_aws_bedrock()` show enabling thinking on Converse with `thinking = list(type = ""enabled"", budget_tokens = 4000)`. Claude models from Sonnet 4.6 and Opus 4.6 onward reject manual budgets with a 400 (see posit-dev/chatlas#448), and the default model is now Sonnet 5, so the example likely fails as written. The example should switch to adaptive thinking with an effort level, and it may be worth translating `params(reasoning_effort = )` into `additionalModelRequestFields` for the Converse path so it works the same way as on `api = ""messages""`.",thisisnic,documentation; upkeep,open,2026-10-17T16:19:25Z,2026-10-17T16:28:52Z,0,https://github.com/tidyverse/ellmer/issues/1184,
+1184,chat_aws_bedrock() docs recommend a thinking config that newer Claude models reject,"The `api_args` docs for `chat_aws_bedrock()` show enabling thinking on Converse with `thinking = list(type = ""enabled"", budget_tokens = 4000)`. Claude models from Sonnet 4.6 and Opus 4.6 onward reject manual budgets with a 400 (see posit-dev/chatlas#448), and the default model is now Sonnet 5, so the example likely fails as written. The example should switch to adaptive thinking with an effort level, and it may be worth translating `params(reasoning_effort = )` into `additionalModelRequestFields` for the Converse path so it works the same way as on `api = ""messages""`.",thisisnic,documentation; upkeep,open,2026-10-17T16:19:25Z,2026-10-17T16:28:52Z,0,https://github.com/tidyverse/ellmer/issues/1184,1197
 1183,chat_aws_bedrock() should honor the generic AWS_ENDPOINT_URL,"`aws_bedrock_base_url()` only reads the service-specific `AWS_ENDPOINT_URL_BEDROCK_RUNTIME` and `AWS_ENDPOINT_URL_BEDROCK_MANTLE` variables. The AWS SDKs also honor the generic `AWS_ENDPOINT_URL`, with the service-specific variable taking precedence and the computed regional endpoint as the fallback. chatlas added this in posit-dev/chatlas#423; porting it is a small change to the two defaults plus a doc note on `base_url`.",thisisnic,feature,open,2026-10-17T16:19:19Z,2026-10-17T16:20:27Z,0,https://github.com/tidyverse/ellmer/issues/1183,
 1176,Bump default models,"We should bump the default models. Definitely Google Gemini as 3.7 flash is being deprecated, but also the others, ahead of the next release.",thisisnic,upkeep,open,2026-10-10T16:25:32Z,2026-10-10T16:25:32Z,0,https://github.com/tidyverse/ellmer/issues/1176,
 1173,Support third-party providers: export provider generics and allow stream-only providers,"`?Provider` says that to add a backend you subclass `Provider` and implement
@@ -121,29 +122,6 @@ Resources:
 - [Changes to approved app](https://support.google.com/cloud/answer/13464018?hl=en)
 - [OAuth App Verification Help Center](https://support.google.com/cloud/answer/13463073?hl=en)
 ",thisisnic,upkeep,open,2026-09-21T16:14:08Z,2026-10-06T16:06:59Z,1,https://github.com/tidyverse/ellmer/issues/1156,1171
-1155,Switch to interactions API for gemini,https://ai.google.dev/gemini-api/docs/interactions-overview,hadley,feature,open,2026-09-19T16:51:45Z,2026-09-22T00:46:36Z,0,https://github.com/tidyverse/ellmer/issues/1155,1159
-1154,"chat_google_gemini() retries permanent quota 429s, causing hours-long hangs","`method(base_request, ProviderGoogleGemini)` calls `ellmer_req_robustify(req)` without an `is_transient` callback, so httr2's default applies: 429 is always treated as transient and retried. But Gemini uses 429 for **permanent billing/quota errors**: an API key on an account with no credit gets `429 RESOURCE_EXHAUSTED` with a `retryDelay` of hours (daily quota). httr2 dutifully waits, so a chat call hangs for hours before finally erroring. (Motivating report: hadley/bananarama#15, where a no-credit key appeared as a stuck retry loop.)
-
-Pass an `is_transient` callback in the Gemini provider's `base_request()` that inspects the error body:
-
-```r
-is_transient <- function(resp) {
-  status <- resp_status(resp)
-  if (status == 429) {
-    # Quota exhausted for the billing period: retrying can't help
-    !identical(resp_body_json(resp)$error$status, ""RESOURCE_EXHAUSTED"")
-  } else if (status == 503) {
-    TRUE
-  } else {
-   FALSE
-  }  
-}
-```
-
-Note that `RESOURCE_EXHAUSTED` isn't always permanent — it also fires for per-minute rate limits, where retrying *is* correct. Possible distinguishing signals:
-
-* Only skip the retry when `retryDelay` is very long (e.g. > 5 minutes). Conservative; never harms genuine rate limiting, but the user still waits.
-* Inspect the `quotaViolation` details for a zero daily limit vs. a per-minute limit. More precise, but the response shape is less stable.",hadley,bug,open,2026-09-19T13:36:14Z,2026-10-07T10:51:42Z,1,https://github.com/tidyverse/ellmer/issues/1154,1159
 1152,Support for server-side provider-native compaction?,"I understand that `ellmer` does not support compaction, and instead provides an entry point for the user to write manual auto-compaction as a callback (#1051, #1052). For client-side compaction, it's an insightful and elegant solution, and I fully agree the approach. But for server-side compaction callable through provider APIs, would you be open to considering native support in `ellmer`? Examples:
 
 * https://platform.claude.com/docs/en/build-with-claude/compaction
@@ -255,7 +233,7 @@ chat3$chat(""Call the return_result_vector tool."")
 #> ◯ [tool call] return_result_vector()
 #> Error in `if (grepl(""\n"", value)) ...`:
 #> ! the condition has length > 1
-```",gadenbuie,bug,open,2026-09-07T13:46:31Z,2026-09-15T16:32:34Z,2,https://github.com/tidyverse/ellmer/issues/1136,
+```",gadenbuie,bug,open,2026-09-07T13:46:31Z,2026-09-15T16:32:34Z,2,https://github.com/tidyverse/ellmer/issues/1136,1198
 1134,Support Gemini agentic video understanding,"Gemini recently added [Agentic Video Understanding](https://blog.google/innovation-and-ai/models-and-research/gemini-models/introducing-agentic-video-in-gemini/), which allows supported models to dynamically inspect relevant portions of a video instead of relying only on static video processing.
 
 For the Gemini GenerateContent API, this is enabled per video `Part` by setting:
@@ -1134,7 +1112,7 @@ chat2$set_turns(contents_replay(first))
 ```",gadenbuie,feature,open,2025-12-01T15:24:16Z,2026-05-13T17:53:24Z,3,https://github.com/tidyverse/ellmer/issues/895,
 884,consider support for `llama.cpp`?,"another interface for local models that may or may not be supported by ollama. this would add flexibility, `llama.cpp` can run gguf-format models and seems like a speedy alternative as well. 
 
-stumbled upon this R implementation over the weekend for reference: [localLLM, a local llama.cpp binding in R](https://github.com/EddieYang211/localLLM)",frankiethull,feature,open,2025-11-24T15:00:54Z,2026-05-13T17:57:09Z,3,https://github.com/tidyverse/ellmer/issues/884,1178
+stumbled upon this R implementation over the weekend for reference: [localLLM, a local llama.cpp binding in R](https://github.com/EddieYang211/localLLM)",frankiethull,feature,open,2025-11-24T15:00:54Z,2026-05-13T17:57:09Z,3,https://github.com/tidyverse/ellmer/issues/884,1178; 1201
 880,Provide some model metdata?,"Might be useful to extract out something like ""version"" and ""size"", where size is something like ""big"", ""regular"", ""small"", ""smallest"".
 
 Then you could specify e.g. `chat_claude(model = ""small"")` (although we'd need some way to disambiguate from model names).",hadley,feature,open,2025-11-23T13:18:04Z,2026-05-13T17:06:46Z,0,https://github.com/tidyverse/ellmer/issues/880,
