@@ -22,7 +22,7 @@ This change was made with Claude Code.
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
-",pcbeingused333,,open,FALSE,2026-10-21T15:47:56Z,2026-10-21T15:48:10Z,https://github.com/tidyverse/ellmer/pull/1199
+",pcbeingused333,,open,FALSE,2026-10-21T15:47:56Z,2026-10-23T09:19:42Z,https://github.com/tidyverse/ellmer/pull/1199
 1198,fix: collapse a character ContentToolResult value into one string,"Closes #1136
 
 A tool that returns a `ContentToolResult()` whose `value` is a character vector longer than one was sent as-is: the OpenAI Responses serializer emitted `output = [""line one"", ""line two""]` and the API answers with HTTP 400, and the echo of the result assumed a single string. A bare character vector returned by a tool is already collapsed with newlines by `normalize_tool_result()`.
@@ -48,7 +48,7 @@ This change was made with Claude Code.
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
-",pcbeingused333,,open,FALSE,2026-10-21T14:44:39Z,2026-10-21T19:56:38Z,https://github.com/tidyverse/ellmer/pull/1197
+",pcbeingused333,,open,FALSE,2026-10-21T14:44:39Z,2026-10-22T23:55:12Z,https://github.com/tidyverse/ellmer/pull/1197
 1195,fix(anthropic): keep redacted_thinking blocks instead of erroring,"When extended thinking is on, Claude can return a `redacted_thinking` content block (encrypted reasoning that was flagged by safety systems). `value_turn()` for `ProviderAnthropic` only knew `thinking`, so such a response aborted with an internal error:
 
 ```
@@ -158,20 +158,12 @@ This PR is the start of the stack addressing #1189, followed by:
 
 1. #1191
 1. #1192",gadenbuie,,open,FALSE,2026-10-20T15:16:12Z,2026-10-20T16:12:00Z,https://github.com/tidyverse/ellmer/pull/1190
-1188,Let OTEL_R_SUPPRESS_SCOPES turn off ellmer's telemetry,"`OTEL_R_SUPPRESS_SCOPES` could not turn off ellmer's spans or metrics with any value. ellmer passed its scope name to `otel::get_tracer()` and `otel::get_meter()`. When it gets a name, otel sets the scope's package to `NA`, and no suppress pattern can remove an `NA` (see [r-lib/otel#50](https://github.com/r-lib/otel/issues/50)).
-
-This PR calls both functions without a name. otel then reads `otel_tracer_name` from the ellmer namespace, so the scope name is still `co.posit.r-package.ellmer`, and the package is recorded as `ellmer`. Because of r-lib/otel#50, users must currently list both names: `OTEL_R_SUPPRESS_SCOPES=ellmer,co.posit.r-package.ellmer`. Once otel is fixed, `ellmer` alone should work.
-
-Adds a test that checks no spans are recorded when the scope is suppressed. The test fails on `main` and passes here.
-",schloerke,,open,TRUE,2026-10-20T02:35:34Z,2026-10-21T19:43:50Z,https://github.com/tidyverse/ellmer/pull/1188
 1187,Add an OpenTelemetry vignette,"ellmer records OpenTelemetry traces and metrics, but the only place this is written up is `NEWS.md`. This adds `vignette(""otel"")`, which covers how to turn it on with the otel and otelsdk environment variables, the span tree (`invoke_agent`, `chat`, `execute_tool`, and httr2's `POST`), the metrics, opting in to recording prompts and responses, `Chat$conversation_id`, and nesting ellmer's spans under your own, with `otel::start_local_active_span()` for `$chat()` and `promises::with_otel_span()` for async calls.
 
-The vignette's claims were checked against `R/otel.R`. Tool errors mark only the `execute_tool` span, since the chat goes on, so `invoke_agent` is not marked as failed. Tool metrics are tagged by tool name rather than provider and model. The `OTEL_R_SUPPRESS_SCOPES=ellmer` example doesn't work with otel 0.2.0. It will work once otel releases the fixes for [r-lib/otel#50](https://github.com/r-lib/otel/issues/50) and [r-lib/otel#52](https://github.com/r-lib/otel/issues/52), with no change to ellmer.
+The vignette's claims were checked against `R/otel.R`. Tool errors mark only the `execute_tool` span, since the chat goes on, so `invoke_agent` is not marked as failed. Tool metrics are tagged by tool name rather than provider and model. The `OTEL_R_SUPPRESS_SCOPES=httr2` example needs otel 0.2.1 or later, which has the fixes for [r-lib/otel#50](https://github.com/r-lib/otel/issues/50) and [r-lib/otel#52](https://github.com/r-lib/otel/issues/52); the vignette says so.
 
 Code chunks don't run (`eval = FALSE`), since they need an exporter and an API key. The metrics table describes `main`; the cache-write counter from [tidyverse/ellmer#1186](https://github.com/tidyverse/ellmer/issues/1186) can be added to the `usage.*` row once that merges.
-
-- [ ] otel is released with the fixes for [r-lib/otel#50](https://github.com/r-lib/otel/issues/50) and [r-lib/otel#52](https://github.com/r-lib/otel/issues/52), so `OTEL_R_SUPPRESS_SCOPES=ellmer` works
-",schloerke,,open,TRUE,2026-10-20T02:13:08Z,2026-10-21T20:48:00Z,https://github.com/tidyverse/ellmer/pull/1187
+",schloerke,,open,FALSE,2026-10-20T02:13:08Z,2026-10-22T16:03:02Z,https://github.com/tidyverse/ellmer/pull/1187
 1186,Record prompt cache-write tokens on OpenTelemetry chat spans and metrics,"Claude reports the number of input tokens written to the prompt cache (`cache_creation_input_tokens`), but ellmer only used it for pricing. This records it on the OpenTelemetry `chat` span as `gen_ai.usage.cache_write.input_tokens` and as the `gen_ai.client.inference.usage.cache_write.input_tokens` counter, using the names from the current [GenAI semantic conventions](https://github.com/open-telemetry/semantic-conventions-genai/blob/main/docs/gen-ai/gen-ai-token-metrics.md). The Anthropic SDKs and the Claude API record the same attribute on their own spans.
 
 A new internal generic, `value_cache_write_tokens()`, mirrors `value_reasoning_tokens()`: it returns `NULL` by default and Claude implements it. Claude's cost code now reads the value through it. Per the conventions, cache numbers are left off the `invoke_agent` span.
