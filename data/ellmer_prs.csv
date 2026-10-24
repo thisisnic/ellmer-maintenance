@@ -1,4 +1,15 @@
 number,title,body,user,labels,state,draft,created_at,updated_at,url
+1202,Group articles in the pkgdown site,"This groups the six articles in the pkgdown Articles menu and index page into ""Working with models"" (prompt design, structured data, tool calling) and ""Building with ellmer"" (programming, streaming and async, OpenTelemetry). That puts the new `vignette(""otel"")` from [tidyverse/ellmer#1187](https://github.com/tidyverse/ellmer/pull/1187) last, rather than first by title.
+
+[tidytemplate's update checklist](https://github.com/tidyverse/tidytemplate#updating) asks packages to ""Eliminate superseded navbar customisation (`home: ~`, article re-ordering)"", but with this many articles I think the grouping makes the menu easier to scan.
+
+<img width=""1200"" height=""897"" alt=""image"" src=""https://github.com/user-attachments/assets/419df37a-5b13-4bdd-b03d-2bc3d6a9f8c0"" />
+
+The group headings make the menu taller than pkgdown's 280px dropdown cap, which hid the last article behind a scroll. `pkgdown/extra.scss` lifts the cap for the Articles menu only. The menu also starts with an empty divider, which is a pkgdown bug ([r-lib/pkgdown#3033](https://github.com/r-lib/pkgdown/issues/3033)) fixed in [r-lib/pkgdown#3034](https://github.com/r-lib/pkgdown/pull/3034); it goes away once that is released.
+
+`pkgdown::check_pkgdown()` passes, and a vignette left out of `articles:` now fails the pkgdown build, so new articles have to be added to a group.
+
+<img width=""1200"" height=""897"" alt=""image"" src=""https://github.com/user-attachments/assets/82e0d816-6bcf-4b76-a644-6f85982af2b3"" />",schloerke,,open,FALSE,2026-10-23T19:53:03Z,2026-10-23T19:57:47Z,https://github.com/tidyverse/ellmer/pull/1202
 1201,adding llamacpp & updating docs,"- adding new provider, llama.cpp
 - upd docs
 - upd NEWS
@@ -22,7 +33,7 @@ This change was made with Claude Code.
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
-",pcbeingused333,,open,FALSE,2026-10-21T15:47:56Z,2026-10-23T09:19:42Z,https://github.com/tidyverse/ellmer/pull/1199
+",pcbeingused333,,open,FALSE,2026-10-21T15:47:56Z,2026-10-24T00:27:22Z,https://github.com/tidyverse/ellmer/pull/1199
 1198,fix: collapse a character ContentToolResult value into one string,"Closes #1136
 
 A tool that returns a `ContentToolResult()` whose `value` is a character vector longer than one was sent as-is: the OpenAI Responses serializer emitted `output = [""line one"", ""line two""]` and the API answers with HTTP 400, and the echo of the result assumed a single string. A bare character vector returned by a tool is already collapsed with newlines by `normalize_tool_result()`.
@@ -34,7 +45,7 @@ New tests check the collapsed value in `new_tool_result()` and the `output` that
 This change was made with Claude Code (AI-assisted); the tests above were run, but no request was made to the OpenAI API.
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
-",pcbeingused333,,open,FALSE,2026-10-21T15:04:58Z,2026-10-21T15:04:58Z,https://github.com/tidyverse/ellmer/pull/1198
+",pcbeingused333,,open,FALSE,2026-10-21T15:04:58Z,2026-10-24T00:27:21Z,https://github.com/tidyverse/ellmer/pull/1198
 1197,docs: use adaptive thinking in the chat_aws_bedrock() api_args example,"Fixes #1184.
 
 The `api_args` documentation for `chat_aws_bedrock()` shows enabling thinking on Converse with `thinking = list(type = ""enabled"", budget_tokens = 4000)`. Claude Sonnet 4.6, Opus 4.6 and later models reject manual budgets with a 400 error (see posit-dev/chatlas#448), and the default model is now Sonnet 5, so the example fails as written.
@@ -63,7 +74,7 @@ The block is now kept as a `ContentThinking` with empty text and the encrypted p
 This change was made with Claude Code.
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
-",pcbeingused333,,open,FALSE,2026-10-21T08:01:15Z,2026-10-21T14:59:18Z,https://github.com/tidyverse/ellmer/pull/1195
+",pcbeingused333,,open,FALSE,2026-10-21T08:01:15Z,2026-10-24T00:27:20Z,https://github.com/tidyverse/ellmer/pull/1195
 1194,fix(anthropic): take cumulative usage from message_delta when streaming,"Anthropic's `message_delta` event reports cumulative usage. With server tools (web search, web fetch) its input and cache counts grow during the response and exceed what `message_start` reported. The `stream_merge_chunks()` method for `ProviderAnthropic` copied only `output_tokens` from `message_delta`, so a streamed turn kept `message_start`'s input and cache counts and under-reported tokens and cost compared with the same request without streaming. `chat_aws_bedrock()` with Claude models inherits the method.
 
 For example, with `message_start` usage `input_tokens: 2247, cache_creation_input_tokens: 0` and `message_delta` usage `input_tokens: 2254, cache_creation_input_tokens: 17269`, the merged turn reported 2247 input tokens and dropped the 17k cache-write tokens.
@@ -75,7 +86,7 @@ The merge now copies `input_tokens`, `cache_creation_input_tokens`, `cache_read_
 This change was made with Claude Code.
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
-",pcbeingused333,,open,FALSE,2026-10-21T07:58:51Z,2026-10-21T07:58:51Z,https://github.com/tidyverse/ellmer/pull/1194
+",pcbeingused333,,open,FALSE,2026-10-21T07:58:51Z,2026-10-24T00:27:19Z,https://github.com/tidyverse/ellmer/pull/1194
 1192,Add OpenRouter model discovery and cached cost estimates,"Closes #1189
 
 ## Summary
@@ -158,12 +169,6 @@ This PR is the start of the stack addressing #1189, followed by:
 
 1. #1191
 1. #1192",gadenbuie,,open,FALSE,2026-10-20T15:16:12Z,2026-10-20T16:12:00Z,https://github.com/tidyverse/ellmer/pull/1190
-1187,Add an OpenTelemetry vignette,"ellmer records OpenTelemetry traces and metrics, but the only place this is written up is `NEWS.md`. This adds `vignette(""otel"")`, which covers how to turn it on with the otel and otelsdk environment variables, the span tree (`invoke_agent`, `chat`, `execute_tool`, and httr2's `POST`), the metrics, opting in to recording prompts and responses, `Chat$conversation_id`, and nesting ellmer's spans under your own, with `otel::start_local_active_span()` for `$chat()` and `promises::with_otel_span()` for async calls.
-
-The vignette's claims were checked against `R/otel.R`. Tool errors mark only the `execute_tool` span, since the chat goes on, so `invoke_agent` is not marked as failed. Tool metrics are tagged by tool name rather than provider and model. The `OTEL_R_SUPPRESS_SCOPES=httr2` example needs otel 0.2.1 or later, which has the fixes for [r-lib/otel#50](https://github.com/r-lib/otel/issues/50) and [r-lib/otel#52](https://github.com/r-lib/otel/issues/52); the vignette says so.
-
-Code chunks don't run (`eval = FALSE`), since they need an exporter and an API key. The metrics table describes `main`; the cache-write counter from [tidyverse/ellmer#1186](https://github.com/tidyverse/ellmer/issues/1186) can be added to the `usage.*` row once that merges.
-",schloerke,,open,FALSE,2026-10-20T02:13:08Z,2026-10-22T16:03:02Z,https://github.com/tidyverse/ellmer/pull/1187
 1186,Record prompt cache-write tokens on OpenTelemetry chat spans and metrics,"Claude reports the number of input tokens written to the prompt cache (`cache_creation_input_tokens`), but ellmer only used it for pricing. This records it on the OpenTelemetry `chat` span as `gen_ai.usage.cache_write.input_tokens` and as the `gen_ai.client.inference.usage.cache_write.input_tokens` counter, using the names from the current [GenAI semantic conventions](https://github.com/open-telemetry/semantic-conventions-genai/blob/main/docs/gen-ai/gen-ai-token-metrics.md). The Anthropic SDKs and the Claude API record the same attribute on their own spans.
 
 A new internal generic, `value_cache_write_tokens()`, mirrors `value_reasoning_tokens()`: it returns `NULL` by default and Claude implements it. Claude's cost code now reads the value through it. Per the conventions, cache numbers are left off the `invoke_agent` span.
