@@ -2,31 +2,6 @@ number,title,body,user,labels,state,draft,created_at,updated_at,url
 1205,list bedrock-mantle models from `base_url`,"Currently, `models_aws_bedrock()` with `api = ""messages""` or `api = ""responses""` ignores `base_url` and `AWS_ENDPOINT_URL_BEDROCK_MANTLE`, which chat requests use, and always lists models from `https://bedrock-mantle.<region>.api.aws/v1`. This PR lists models from `base_url` instead, with `/openai/v1` or `/anthropic/v1` replaced by `/v1`, like chatlas does.
 
 Connect's LLM gateway will set `AWS_ENDPOINT_URL_BEDROCK_MANTLE` for content with a Bedrock integration, so this way model listing will go through the gateway too.",karawoo,,open,FALSE,2026-10-26T21:46:49Z,2026-10-26T21:46:49Z,https://github.com/tidyverse/ellmer/pull/1205
-1204,Add chat_cheaper_inference() provider for Cheaper Inference,"This PR adds Cheaper Inference as a community provider.
-It follows `chat_openrouter()` and the Portkey precedent (#471).
-
-Cheaper Inference is an OpenAI-compatible gateway.
-One API key gives access to models from several labs.
-
-Usage:
-
-```r
-chat <- chat_cheaper_inference()
-chat$chat(""Tell me three jokes about statisticians"")
-```
-
-<details><summary>Details</summary>
-
-Files:
-- `R/provider-cheaper-inference.R`: new `chat_cheaper_inference()`, a thin `ProviderOpenAICompatible` subclass.
-- `NAMESPACE`, `DESCRIPTION` (Collate), `NEWS.md`, `README.Rmd`, `README.md`, `_pkgdown.yml`.
-- `man/`: new topic plus the `@family chatbots` cross-references.
-
-The default model is `gpt-5.4-mini`.
-The key comes from the `CHEAPER_INFERENCE_API_KEY` environment variable.
-
-Live check: `gpt-5.4-mini` returned a reply through the OpenAI-compatible chat completions endpoint.
-</details>",aiapienthusiast,,open,FALSE,2026-10-26T14:53:20Z,2026-10-26T14:53:20Z,https://github.com/tidyverse/ellmer/pull/1204
 1202,Group articles in the pkgdown site,"This groups the six articles in the pkgdown Articles menu and index page into ""Working with models"" (prompt design, structured data, tool calling) and ""Building with ellmer"" (programming, streaming and async, OpenTelemetry). That puts the new `vignette(""otel"")` from [tidyverse/ellmer#1187](https://github.com/tidyverse/ellmer/pull/1187) last, rather than first by title.
 
 [tidytemplate's update checklist](https://github.com/tidyverse/tidytemplate#updating) asks packages to ""Eliminate superseded navbar customisation (`home: ~`, article re-ordering)"", but with this many articles I think the grouping makes the menu easier to scan.
