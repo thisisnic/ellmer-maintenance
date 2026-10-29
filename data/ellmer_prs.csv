@@ -2,17 +2,6 @@ number,title,body,user,labels,state,draft,created_at,updated_at,url
 1205,list bedrock-mantle models from `base_url`,"Currently, `models_aws_bedrock()` with `api = ""messages""` or `api = ""responses""` ignores `base_url` and `AWS_ENDPOINT_URL_BEDROCK_MANTLE`, which chat requests use, and always lists models from `https://bedrock-mantle.<region>.api.aws/v1`. This PR lists models from `base_url` instead, with `/openai/v1` or `/anthropic/v1` replaced by `/v1`, like chatlas does.
 
 Connect's LLM gateway will set `AWS_ENDPOINT_URL_BEDROCK_MANTLE` for content with a Bedrock integration, so this way model listing will go through the gateway too.",karawoo,,open,FALSE,2026-10-26T21:46:49Z,2026-10-26T21:46:49Z,https://github.com/tidyverse/ellmer/pull/1205
-1202,Group articles in the pkgdown site,"This groups the six articles in the pkgdown Articles menu and index page into ""Working with models"" (prompt design, structured data, tool calling) and ""Building with ellmer"" (programming, streaming and async, OpenTelemetry). That puts the new `vignette(""otel"")` from [tidyverse/ellmer#1187](https://github.com/tidyverse/ellmer/pull/1187) last, rather than first by title.
-
-[tidytemplate's update checklist](https://github.com/tidyverse/tidytemplate#updating) asks packages to ""Eliminate superseded navbar customisation (`home: ~`, article re-ordering)"", but with this many articles I think the grouping makes the menu easier to scan.
-
-<img width=""1200"" height=""897"" alt=""image"" src=""https://github.com/user-attachments/assets/419df37a-5b13-4bdd-b03d-2bc3d6a9f8c0"" />
-
-The group headings make the menu taller than pkgdown's 280px dropdown cap, which hid the last article behind a scroll. `pkgdown/extra.scss` lifts the cap for the Articles menu only. The menu also starts with an empty divider, which is a pkgdown bug ([r-lib/pkgdown#3033](https://github.com/r-lib/pkgdown/issues/3033)) fixed in [r-lib/pkgdown#3034](https://github.com/r-lib/pkgdown/pull/3034); it goes away once that is released.
-
-`pkgdown::check_pkgdown()` passes, and a vignette left out of `articles:` now fails the pkgdown build, so new articles have to be added to a group.
-
-<img width=""1200"" height=""897"" alt=""image"" src=""https://github.com/user-attachments/assets/82e0d816-6bcf-4b76-a644-6f85982af2b3"" />",schloerke,,open,FALSE,2026-10-23T19:53:03Z,2026-10-23T19:57:47Z,https://github.com/tidyverse/ellmer/pull/1202
 1201,adding llamacpp & updating docs,"- adding new provider, llama.cpp
 - upd docs
 - upd NEWS
@@ -198,11 +187,6 @@ TODO before marking ready for review:
 - [ ] Re-reread code/flow and compare with alternative approaches
 - [ ] Revisit which tests to keep/drop
 ",thisisnic,,open,TRUE,2026-10-11T15:10:12Z,2026-10-11T16:44:44Z,https://github.com/tidyverse/ellmer/pull/1177
-1171,Use verified OAuth clients for Gemini browser auth,"Closes #1156. Replaces the old unverified Gemini OAuth client with two new ones from the posit.co GCP project: a desktop client for local sessions and a web client for hosted sessions, where the user pastes a code back from the tidyverse.org callback page instead of being redirected to localhost.
-
-`is_hosted_session()` now also detects Workbench, Positron server, and Colab, matching gargle, so Azure and Databricks skip their browser flows in those environments too.
-
-Also fixes `chat_google_vertex()` falling through to the Gemini browser flow with the wrong scope when no ADC is available. ",thisisnic,,open,FALSE,2026-10-02T11:03:00Z,2026-10-08T09:19:16Z,https://github.com/tidyverse/ellmer/pull/1171
 1163,Record all failed prompts in `.error`,"Fixes #1121 and #1126.
 
 `parallel_chat_structured()` and `batch_chat_structured()` now record extraction failures and incomplete responses in `.error` when returning a data frame. Affected rows get the usual missing values, even when a truncated response contains valid JSON.
