@@ -38,20 +38,6 @@ This change was made with Claude Code (AI-assisted); the tests above were run, b
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
 ",pcbeingused333,,open,FALSE,2026-10-21T15:04:58Z,2026-10-24T00:27:21Z,https://github.com/tidyverse/ellmer/pull/1198
-1197,docs: use adaptive thinking in the chat_aws_bedrock() api_args example,"Fixes #1184.
-
-The `api_args` documentation for `chat_aws_bedrock()` shows enabling thinking on Converse with `thinking = list(type = ""enabled"", budget_tokens = 4000)`. Claude Sonnet 4.6, Opus 4.6 and later models reject manual budgets with a 400 error (see posit-dev/chatlas#448), and the default model is now Sonnet 5, so the example fails as written.
-
-The example now uses adaptive thinking with an effort level, the same request shape `chat_claude()` builds when `params(reasoning_effort =)` is set, and a sentence notes that manual budgets only apply to earlier models. `man/chat_aws_bedrock.Rd` is updated to match.
-
-This is a documentation-only change; no code or tests changed. The new example was not run against a live Bedrock endpoint.
-
-This change was made with Claude Code.
-
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
-
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
-",pcbeingused333,,open,FALSE,2026-10-21T14:44:39Z,2026-10-22T23:55:12Z,https://github.com/tidyverse/ellmer/pull/1197
 1195,fix(anthropic): keep redacted_thinking blocks instead of erroring,"When extended thinking is on, Claude can return a `redacted_thinking` content block (encrypted reasoning that was flagged by safety systems). `value_turn()` for `ProviderAnthropic` only knew `thinking`, so such a response aborted with an internal error:
 
 ```
