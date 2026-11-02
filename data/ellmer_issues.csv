@@ -1,9 +1,10 @@
 number,title,body,user,labels,state,created_at,updated_at,comments,url,linked_prs
+1208,R-devel `str()` whitespace change breaks four snapshot tests,"R-devel r90805 (r-source commit 83231b37, fixing PR#18719) changed `str()` to always put a space after `<name>:` and to stop prepending a space to leaf output. This breaks four whitespace-only snapshots on the `ubuntu-latest (devel)` job: `test-provider-azure.R:80`, `test-provider-databricks.R:140`, `test-provider.R:43`, and `test-utils-S7.R:27`. Main last passed CI on 2026-10-30 before that commit landed, so any new push now fails on devel, e.g. https://github.com/tidyverse/ellmer/actions/runs/41352735264/job/124986231253.",thisisnic,,open,2026-11-02T12:42:11Z,2026-11-02T12:47:59Z,0,https://github.com/tidyverse/ellmer/issues/1208,
 1206,gpt-4.1-nano has been deprecated by OpenAI,"OpenAI now returns HTTP 404 for `gpt-4.1-nano` (""The model `gpt-4.1-nano` has been deprecated""), which is failing the live-api job in CI (e.g. https://github.com/tidyverse/ellmer/actions/runs/40015510427/job/120626439506). 
 
 It's the default model for `chat_openai_compatible()` and `chat_portkey()`, and is also hard-coded in a few tests (test-chat-tools.R, test-provider-openai.R, test-chat-utils.R). 
 
-We should pick a replacement default and update the tests to match.",thisisnic,upkeep,open,2026-10-28T04:29:40Z,2026-10-30T12:08:37Z,0,https://github.com/tidyverse/ellmer/issues/1206,
+We should pick a replacement default and update the tests to match.",thisisnic,upkeep,open,2026-10-28T04:29:40Z,2026-10-30T12:08:37Z,0,https://github.com/tidyverse/ellmer/issues/1206,1207
 1196,Explore server-side state management,https://ai.google.dev/gemini-api/docs/interactions-overview#server-side-state,hadley,feature,open,2026-10-21T14:10:34Z,2026-10-21T19:54:35Z,0,https://github.com/tidyverse/ellmer/issues/1196,
 1189,"OpenRouter pricing: drop litellm rows, source prices from OpenRouter directly","### Problem
 

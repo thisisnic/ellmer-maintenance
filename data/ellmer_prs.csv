@@ -1,4 +1,7 @@
 number,title,body,user,labels,state,draft,created_at,updated_at,url
+1207,Bump OpenAI models,"Fixes #1206
+
+Draft right now as some vignettes feel like they're jumping around due to changing models to fit prose, and we should just rewrite the prose instead",thisisnic,,open,FALSE,2026-11-01T21:34:45Z,2026-11-02T14:25:10Z,https://github.com/tidyverse/ellmer/pull/1207
 1205,list bedrock-mantle models from `base_url`,"Currently, `models_aws_bedrock()` with `api = ""messages""` or `api = ""responses""` ignores `base_url` and `AWS_ENDPOINT_URL_BEDROCK_MANTLE`, which chat requests use, and always lists models from `https://bedrock-mantle.<region>.api.aws/v1`. This PR lists models from `base_url` instead, with `/openai/v1` or `/anthropic/v1` replaced by `/v1`, like chatlas does.
 
 Connect's LLM gateway will set `AWS_ENDPOINT_URL_BEDROCK_MANTLE` for content with a Bedrock integration, so this way model listing will go through the gateway too.",karawoo,,open,FALSE,2026-10-26T21:46:49Z,2026-10-26T21:46:49Z,https://github.com/tidyverse/ellmer/pull/1205
