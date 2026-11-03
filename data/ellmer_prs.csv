@@ -1,7 +1,8 @@
 number,title,body,user,labels,state,draft,created_at,updated_at,url
-1207,Bump OpenAI models,"Fixes #1206
+1214,Make snapshot tests independent of str() spacing,"Fixes #1208. 
 
-Draft right now as some vignettes feel like they're jumping around due to changing models to fit prose, and we should just rewrite the prose instead",thisisnic,,open,FALSE,2026-11-01T21:34:45Z,2026-11-02T14:25:10Z,https://github.com/tidyverse/ellmer/pull/1207
+R-devel changed where `str()` puts the space after `:`, which broke four snapshots on the devel CI job.
+",thisisnic,,open,FALSE,2026-11-02T23:13:36Z,2026-11-03T08:22:00Z,https://github.com/tidyverse/ellmer/pull/1214
 1205,list bedrock-mantle models from `base_url`,"Currently, `models_aws_bedrock()` with `api = ""messages""` or `api = ""responses""` ignores `base_url` and `AWS_ENDPOINT_URL_BEDROCK_MANTLE`, which chat requests use, and always lists models from `https://bedrock-mantle.<region>.api.aws/v1`. This PR lists models from `base_url` instead, with `/openai/v1` or `/anthropic/v1` replaced by `/v1`, like chatlas does.
 
 Connect's LLM gateway will set `AWS_ENDPOINT_URL_BEDROCK_MANTLE` for content with a Bedrock integration, so this way model listing will go through the gateway too.",karawoo,,open,FALSE,2026-10-26T21:46:49Z,2026-10-26T21:46:49Z,https://github.com/tidyverse/ellmer/pull/1205
@@ -14,21 +15,6 @@ this closes #884. a slimmed down version of #1178 (@thisisnic), closing #1178 as
 gg**r**uf, was created to find, inspect, & serve GGUF files for llama.cpp. mainly designed as a helper for ellmer::chat_llamacpp but could be useful elsewhere.
 
 package link: https://github.com/frankiethull/ggruf 🐐 🐐 🐐 ",frankiethull,,open,FALSE,2026-10-22T07:18:01Z,2026-10-22T07:18:01Z,https://github.com/tidyverse/ellmer/pull/1201
-1199,"fix(google, openai): standardise finish reasons","`value_finish_reason()` for Google Gemini and OpenAI Responses did not standardise two cases, which the docs for `finish_reason` in `Turn` say is done ""across providers"":
-
-- **Content filter.** Gemini's `IMAGE_SAFETY`, `IMAGE_PROHIBITED_CONTENT`, `IMAGE_RECITATION` and `LANGUAGE` finish reasons were passed through as raw strings, so `check_finish_reason()` warned ""Response may be incomplete, unexpected finish reason"" instead of reporting a content filter. They now map to `""content_filter""` like `SAFETY`, `RECITATION`, `BLOCKLIST`, `PROHIBITED_CONTENT` and `SPII`.
-- **Tool calls.** Gemini finishes with `STOP` when the response contains a `functionCall`, and the Responses API reports `status = ""completed""` when it contains a `function_call` item, so such turns got `""success""`. The Anthropic and OpenAI-compatible providers report `""tool_use""` for the same situation. Both now return `""tool_use""` when the response has a tool call.
-
-This is the same fix as posit-dev/chatlas#473 (Gemini `STOP` with a function call is now `tool_use` there).
-
-**Tests:** `test-provider-google.R` checks `STOP`, `MAX_TOKENS`, each content-filter reason, an unknown reason (still `I(""OTHER"")`) and `STOP` with a `functionCall` part; `test-provider-openai.R` checks a completed response with and without a `function_call` output item. Both new tests fail on `main` and pass with the change. They call `value_finish_reason()` on hand-built result lists; no request was made to either API.
-
-This change was made with Claude Code.
-
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
-
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
-",pcbeingused333,,open,FALSE,2026-10-21T15:47:56Z,2026-10-24T00:27:22Z,https://github.com/tidyverse/ellmer/pull/1199
 1198,fix: collapse a character ContentToolResult value into one string,"Closes #1136
 
 A tool that returns a `ContentToolResult()` whose `value` is a character vector longer than one was sent as-is: the OpenAI Responses serializer emitted `output = [""line one"", ""line two""]` and the API answers with HTTP 400, and the echo of the result assumed a single string. A bare character vector returned by a tool is already collapsed with newlines by `normalize_tool_result()`.
@@ -40,34 +26,7 @@ New tests check the collapsed value in `new_tool_result()` and the `output` that
 This change was made with Claude Code (AI-assisted); the tests above were run, but no request was made to the OpenAI API.
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
-",pcbeingused333,,open,FALSE,2026-10-21T15:04:58Z,2026-10-24T00:27:21Z,https://github.com/tidyverse/ellmer/pull/1198
-1195,fix(anthropic): keep redacted_thinking blocks instead of erroring,"When extended thinking is on, Claude can return a `redacted_thinking` content block (encrypted reasoning that was flagged by safety systems). `value_turn()` for `ProviderAnthropic` only knew `thinking`, so such a response aborted with an internal error:
-
-```
-Error: Unknown content type ""redacted_thinking"".
-i This is an internal error that was detected in the ellmer package.
-```
-
-The block is now kept as a `ContentThinking` with empty text and the encrypted payload in `extra`, and `as_json()` sends it back unchanged as `{type = ""redacted_thinking"", data = ...}`. The API expects these blocks to be returned as received when a turn continues after a tool call. Streaming needs no extra handling because the block arrives complete in `content_block_start`.
-
-**Tests** (in `test-provider-claude.R`): `value_turn()` followed by `as_json()` for a response with thinking, redacted thinking and text; and the same block merged from stream events. Both fail on main with the error above and pass with the change. The blocks are built by hand from the documented shape; no request was made to a live API.
-
-This change was made with Claude Code.
-
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
-",pcbeingused333,,open,FALSE,2026-10-21T08:01:15Z,2026-10-24T00:27:20Z,https://github.com/tidyverse/ellmer/pull/1195
-1194,fix(anthropic): take cumulative usage from message_delta when streaming,"Anthropic's `message_delta` event reports cumulative usage. With server tools (web search, web fetch) its input and cache counts grow during the response and exceed what `message_start` reported. The `stream_merge_chunks()` method for `ProviderAnthropic` copied only `output_tokens` from `message_delta`, so a streamed turn kept `message_start`'s input and cache counts and under-reported tokens and cost compared with the same request without streaming. `chat_aws_bedrock()` with Claude models inherits the method.
-
-For example, with `message_start` usage `input_tokens: 2247, cache_creation_input_tokens: 0` and `message_delta` usage `input_tokens: 2254, cache_creation_input_tokens: 17269`, the merged turn reported 2247 input tokens and dropped the 17k cache-write tokens.
-
-The merge now copies `input_tokens`, `cache_creation_input_tokens`, `cache_read_input_tokens`, `output_tokens` and `server_tool_use` from `message_delta` when present, as the Anthropic SDKs' stream accumulators do. Fields the event omits keep the `message_start` value.
-
-**Tests** (in `test-provider-claude.R`): one with the counts above, which fails on main (`actual$input: 2247`, `expected$input: 19523`), and one checking that fields `message_delta` omits keep the `message_start` value. The file passes with the change. No request was made to a live API; the counts come from the Anthropic streaming docs' event shape and a recorded chatlas cassette.
-
-This change was made with Claude Code.
-
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
-",pcbeingused333,,open,FALSE,2026-10-21T07:58:51Z,2026-10-24T00:27:19Z,https://github.com/tidyverse/ellmer/pull/1194
+",pcbeingused333,,open,FALSE,2026-10-21T15:04:58Z,2026-11-03T00:56:19Z,https://github.com/tidyverse/ellmer/pull/1198
 1192,Add OpenRouter model discovery and cached cost estimates,"Closes #1189
 
 ## Summary
@@ -95,7 +54,7 @@ PR 3 of 3 for #1189. Discovery is independently shippable; the fallback extends 
 
 1. #1190
 2. #1191
-3. 1192",gadenbuie,,open,FALSE,2026-10-20T15:16:20Z,2026-10-20T17:11:01Z,https://github.com/tidyverse/ellmer/pull/1192
+3. 1192",gadenbuie,,open,FALSE,2026-10-20T15:16:20Z,2026-11-03T00:01:09Z,https://github.com/tidyverse/ellmer/pull/1192
 1191,Remove obsolete OpenRouter prices from the static snapshot,"Refs #1189
 
 ## Summary
@@ -121,7 +80,7 @@ PR 2 of 3 for #1189. This updater/data change is independently usable; stacking 
 
 1. #1190
 2. 1191
-3. #1192",gadenbuie,,open,FALSE,2026-10-20T15:16:16Z,2026-10-20T16:36:46Z,https://github.com/tidyverse/ellmer/pull/1191
+3. #1192",gadenbuie,,open,FALSE,2026-10-20T15:16:16Z,2026-11-03T00:01:09Z,https://github.com/tidyverse/ellmer/pull/1191
 1190,Use OpenRouter's reported response costs,"Refs #1189
 
 ## Summary
@@ -149,18 +108,12 @@ Deterministic tests cover conflicting static/cached prices, zero and missing cos
 This PR is the start of the stack addressing #1189, followed by:
 
 1. #1191
-1. #1192",gadenbuie,,open,FALSE,2026-10-20T15:16:12Z,2026-10-20T16:12:00Z,https://github.com/tidyverse/ellmer/pull/1190
+1. #1192",gadenbuie,,open,FALSE,2026-10-20T15:16:12Z,2026-11-03T13:28:47Z,https://github.com/tidyverse/ellmer/pull/1190
 1186,Record prompt cache-write tokens on OpenTelemetry chat spans and metrics,"Claude reports the number of input tokens written to the prompt cache (`cache_creation_input_tokens`), but ellmer only used it for pricing. This records it on the OpenTelemetry `chat` span as `gen_ai.usage.cache_write.input_tokens` and as the `gen_ai.client.inference.usage.cache_write.input_tokens` counter, using the names from the current [GenAI semantic conventions](https://github.com/open-telemetry/semantic-conventions-genai/blob/main/docs/gen-ai/gen-ai-token-metrics.md). The Anthropic SDKs and the Claude API record the same attribute on their own spans.
 
 A new internal generic, `value_cache_write_tokens()`, mirrors `value_reasoning_tokens()`: it returns `NULL` by default and Claude implements it. Claude's cost code now reads the value through it. Per the conventions, cache numbers are left off the `invoke_agent` span.
 
 Other providers (e.g. Bedrock) can add a one-line method later.",schloerke,,open,FALSE,2026-10-20T02:11:08Z,2026-10-20T10:07:15Z,https://github.com/tidyverse/ellmer/pull/1186
-1181,Avoid S7 import and constructor documentation warnings,"Development S7 exports `:=`, so importing all of S7 and rlang produces a warning when ellmer loads. Import `:=` from S7 and exclude the rlang stub so ellmer can use S7's assignment syntax without an import warning.
-
-Document the inherited `AssistantPartialTurn()` arguments through `...`, forwarded to `AssistantTurn()`, to match its generated constructor. Quote the `AssistantTurn` token default so S7 accepts the vector without a warning; the default token values are unchanged.
-
-Use S7’s load, unload, and build hooks when available, retaining `methods_register()` for older releases. On development S7, unloading removes the package’s external S7 methods and dependency hooks, and the build hook cleans external generic bindings after method declarations.
-",t-kalinowski,,open,FALSE,2026-10-16T13:40:02Z,2026-10-16T14:12:01Z,https://github.com/tidyverse/ellmer/pull/1181
 1178,adding llama.cpp support for ellmer,"tested locally with `ggml-org_gemma-3-1b-it-GGUF_gemma-3-1b-it-Q4_K_M.gguf` on Pop!_OS, closes #884.",frankiethull,,open,FALSE,2026-10-12T21:19:49Z,2026-10-22T04:44:45Z,https://github.com/tidyverse/ellmer/pull/1178
 1177,Implement OAuth for chat_openrouter,"Closes #1172
 

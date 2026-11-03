@@ -1,11 +1,17 @@
 number,title,body,user,labels,state,created_at,updated_at,comments,url,linked_prs
-1208,R-devel `str()` whitespace change breaks four snapshot tests,"R-devel r90805 (r-source commit 83231b37, fixing PR#18719) changed `str()` to always put a space after `<name>:` and to stop prepending a space to leaf output. This breaks four whitespace-only snapshots on the `ubuntu-latest (devel)` job: `test-provider-azure.R:80`, `test-provider-databricks.R:140`, `test-provider.R:43`, and `test-utils-S7.R:27`. Main last passed CI on 2026-10-30 before that commit landed, so any new push now fails on devel, e.g. https://github.com/tidyverse/ellmer/actions/runs/41352735264/job/124986231253.",thisisnic,,open,2026-11-02T12:42:11Z,2026-11-02T12:47:59Z,0,https://github.com/tidyverse/ellmer/issues/1208,
-1206,gpt-4.1-nano has been deprecated by OpenAI,"OpenAI now returns HTTP 404 for `gpt-4.1-nano` (""The model `gpt-4.1-nano` has been deprecated""), which is failing the live-api job in CI (e.g. https://github.com/tidyverse/ellmer/actions/runs/40015510427/job/120626439506). 
+1210,Developer-facing utility for reading conversation traces,"(For the Posit Assistant developers, this is inspired by `npm run request-logs`.)
 
-It's the default model for `chat_openai_compatible()` and `chat_portkey()`, and is also hard-coded in a few tests (test-chat-tools.R, test-provider-openai.R, test-chat-utils.R). 
+When developing agents, I find it helpful to have a developer-focused interface that shows me raw tool results, hidden parts of the user message, etc. Today, I've been developing a different agent using an ellmer fork that logs each request at `chat_perform()` in a `~/.ellmer/{working-directory}`. Then, a shiny app launched from a given directory pulls up the requests in `~/.ellmer/{working-directory}` in a viewer:
 
-We should pick a replacement default and update the tests to match.",thisisnic,upkeep,open,2026-10-28T04:29:40Z,2026-10-30T12:08:37Z,0,https://github.com/tidyverse/ellmer/issues/1206,1207
-1196,Explore server-side state management,https://ai.google.dev/gemini-api/docs/interactions-overview#server-side-state,hadley,feature,open,2026-10-21T14:10:34Z,2026-10-21T19:54:35Z,0,https://github.com/tidyverse/ellmer/issues/1196,
+> <img width=""1716"" height=""985"" alt=""Image"" src=""https://github.com/user-attachments/assets/61173b77-47e7-4eb9-b898-0d9b584d9ff9"" />
+
+Do folks have any appetite for this sort of feature living in ellmer/shinychat?
+
+(I don't know exactly how this data structure / storage format is related to the existing OTel / conversation history features on the shinychat side, but I imagine there's a way to get around this `~/.ellmer` idea.)",simonpcouch,,open,2026-11-02T21:08:37Z,2026-11-03T09:24:04Z,1,https://github.com/tidyverse/ellmer/issues/1210,
+1208,R-devel `str()` whitespace change breaks four snapshot tests,"R-devel r90805 (r-source commit 83231b37, fixing PR#18719) changed `str()` to always put a space after `<name>:` and to stop prepending a space to leaf output. This breaks four whitespace-only snapshots on the `ubuntu-latest (devel)` job: `test-provider-azure.R:80`, `test-provider-databricks.R:140`, `test-provider.R:43`, and `test-utils-S7.R:27`. Main last passed CI on 2026-10-30 before that commit landed, so any new push now fails on devel, e.g. https://github.com/tidyverse/ellmer/actions/runs/41352735264/job/124986231253.",thisisnic,,open,2026-11-02T12:42:11Z,2026-11-02T12:47:59Z,0,https://github.com/tidyverse/ellmer/issues/1208,1214
+1196,Explore server-side state management,"* https://ai.google.dev/gemini-api/docs/interactions-overview#server-side-state
+* https://x.com/ClaudeDevs/status/2117332449382510884
+* and OpenAI has something similar too",hadley,feature,open,2026-10-21T14:10:34Z,2026-11-03T13:17:06Z,0,https://github.com/tidyverse/ellmer/issues/1196,
 1189,"OpenRouter pricing: drop litellm rows, source prices from OpenRouter directly","### Problem
 
 The weekly `update-prices` workflow is failing: litellm deliberately removed all `openrouter` rows from its cost map ([#45665](https://github.com/BerriAI/litellm/pull/45665)–[#45669](https://github.com/BerriAI/litellm/pull/45669)). Our `provider_lookup` inner join in `data-raw/prices.R` now yields 9 providers, and the `Expected 10 providers` check fails. The last committed `prices.json` still has 553 OpenRouter rows, but the next successful run would silently drop them.
@@ -34,7 +40,6 @@ That same property makes `usage.cost` the *best* available pricing signal for Op
 Every step is independently shippable, so implementation can start without waiting on feedback; comments here can still shape the details.
 ",gadenbuie,,open,2026-10-20T13:22:08Z,2026-10-20T13:36:27Z,0,https://github.com/tidyverse/ellmer/issues/1189,1192
 1183,chat_aws_bedrock() should honor the generic AWS_ENDPOINT_URL,"`aws_bedrock_base_url()` only reads the service-specific `AWS_ENDPOINT_URL_BEDROCK_RUNTIME` and `AWS_ENDPOINT_URL_BEDROCK_MANTLE` variables. The AWS SDKs also honor the generic `AWS_ENDPOINT_URL`, with the service-specific variable taking precedence and the computed regional endpoint as the fallback. chatlas added this in posit-dev/chatlas#423; porting it is a small change to the two defaults plus a doc note on `base_url`.",thisisnic,feature,open,2026-10-17T16:19:19Z,2026-10-30T12:08:55Z,0,https://github.com/tidyverse/ellmer/issues/1183,
-1176,Bump default models,"We should bump the default models. Definitely Google Gemini as 3.7 flash is being deprecated, but also the others, ahead of the next release.",thisisnic,upkeep,open,2026-10-10T16:25:32Z,2026-10-30T12:08:01Z,0,https://github.com/tidyverse/ellmer/issues/1176,
 1173,Support third-party providers: export provider generics and allow stream-only providers,"`?Provider` says that to add a backend you subclass `Provider` and implement
 the generics, but those generics (`chat_body()`, `chat_request()`,
 `stream_parse()`, `stream_content()`, `stream_merge_chunks()`,
@@ -120,29 +125,6 @@ Suggest broadening the description to trigger whenever provider tests are being 
 * https://developers.openai.com/api/docs/guides/compaction
 
 It would be super convenient to throw this into an `on_request_start()` or `on_request_end()` hook instead of having to go down that rabbit hole myself. It's so much easier to develop a harness when I only need to think about prompts and tools.",wlandau,feature,open,2026-09-15T03:02:03Z,2026-09-15T16:35:05Z,0,https://github.com/tidyverse/ellmer/issues/1152,
-1150,"Default max_tokens to each model's real output ceiling, not a flat 4096","### Problem
-
-`ProviderAnthropic`'s `chat_params()` hardcodes `params$max_tokens <- params$max_tokens %||% 4096` (`R/provider-claude.R`) regardless of which Claude model is in use. A model that supports 128,000 output tokens gets capped at 4,096 whenever the caller doesn't set `params(max_tokens = ...)` explicitly, causing silent truncation. Other providers set no default at all and just rely on whatever the provider's own API defaults to.
-
-### Proposed direction
-
-A three-tier resolution, applied uniformly across every provider (not just Anthropic):
-
-1. **Explicit `params(max_tokens = N)`** — unchanged, always wins.
-2. **Per-model ceiling from the pricing table.** `data-raw/prices.R` already fetches LiteLLM's `model_prices_and_context_window.json` for cost data (`get_token_cost()`); extend the same pipeline to also capture `max_output_tokens`, with a sibling lookup function.
-3. **Global fallback constant** for models not in the table (new/unlisted/self-hosted), overridable via an `ELLMER_MAX_TOKENS` env var. Scoped only to the lookup-miss case — never clamps a known table value, never overrides an explicit `params()` value.
-
-The resolver plugs in at each provider's `chat_body()` call site (where `model@name` is in scope, unlike `chat_params()`), which turns out to be only **7 files** — several providers share `ProviderOpenAICompatible`'s `chat_body()` method, so fixing that one covers Azure, Mistral, Groq, DeepSeek, OpenRouter, Perplexity, Portkey, GitHub, HuggingFace, Cloudflare, LM Studio, Ollama, and vLLM for free.
-
-One correctness note: adding a `max_output_tokens` column to `prices.json` requires bumping `schema_version` — `prices_cache_compatible()` hard-errors (`stopifnot`) on a same-version cache missing a bundled column, rather than the intended ""please refresh"" path.
-
-### Note to ourselves
-
-A full design doc and a task-by-task TDD implementation plan already exist locally at:
-
-- `docs/plans/2026-09-11-generous-max-output-tokens-design.md`
-- `docs/plans/2026-09-11-generous-max-output-tokens-implementation-plan.md`
-",cpsievert,feature,open,2026-09-12T00:43:41Z,2026-09-15T16:34:55Z,3,https://github.com/tidyverse/ellmer/issues/1150,
 1140,Include more OpenAI built-in tools,"Image gen at a minimum:
 
 ```R
