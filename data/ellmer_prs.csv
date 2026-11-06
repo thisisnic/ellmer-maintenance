@@ -1,8 +1,25 @@
 number,title,body,user,labels,state,draft,created_at,updated_at,url
+1218,Update tests to pass on otelsdk 0.3.0 ,"A couple of tests started failing since the new version of Otel was released
+
+Fixes #1217 
+
+This is just Claude-generated code which I don't understand super well, so it's worth a review of whether this is the correct solution.",thisisnic,,open,FALSE,2026-11-06T11:54:10Z,2026-11-06T12:15:15Z,https://github.com/tidyverse/ellmer/pull/1218
+1215,fix(aws): count cache-write tokens as input tokens in chat_aws_bedrock(),"`chat_aws_bedrock()` under-reports input tokens (and therefore cost) whenever a request writes to the prompt cache.
+
+**Cause:** the Bedrock Converse `usage` object reports `cacheWriteInputTokens` separately from `inputTokens`. `value_tokens()` for `ProviderAWSBedrock` only read `inputTokens` and `cacheReadInputTokens`, so cache-write tokens were never counted. `chat_anthropic()` already adds `cache_creation_input_tokens` to `input`.
+
+**Fix:** add `cacheWriteInputTokens` to `input` in `value_tokens()`, plus a NEWS entry.
+
+**Test:** new unit test in `test-provider-aws.R` feeding a usage list with cache-write tokens (fails before, passes after).
+
+Related to #1194 (same family of token-accounting fixes).
+
+_Disclosure: this change was prepared with an AI coding agent (Claude)._
+",pcbeingused333,,open,FALSE,2026-11-05T14:59:44Z,2026-11-05T14:59:44Z,https://github.com/tidyverse/ellmer/pull/1215
 1214,Make snapshot tests independent of str() spacing,"Fixes #1208. 
 
 R-devel changed where `str()` puts the space after `:`, which broke four snapshots on the devel CI job.
-",thisisnic,,open,TRUE,2026-11-02T23:13:36Z,2026-11-03T14:33:13Z,https://github.com/tidyverse/ellmer/pull/1214
+",thisisnic,,open,FALSE,2026-11-02T23:13:36Z,2026-11-06T13:30:56Z,https://github.com/tidyverse/ellmer/pull/1214
 1205,list bedrock-mantle models from `base_url`,"Currently, `models_aws_bedrock()` with `api = ""messages""` or `api = ""responses""` ignores `base_url` and `AWS_ENDPOINT_URL_BEDROCK_MANTLE`, which chat requests use, and always lists models from `https://bedrock-mantle.<region>.api.aws/v1`. This PR lists models from `base_url` instead, with `/openai/v1` or `/anthropic/v1` replaced by `/v1`, like chatlas does.
 
 Connect's LLM gateway will set `AWS_ENDPOINT_URL_BEDROCK_MANTLE` for content with a Bedrock integration, so this way model listing will go through the gateway too.",karawoo,,open,FALSE,2026-10-26T21:46:49Z,2026-10-26T21:46:49Z,https://github.com/tidyverse/ellmer/pull/1205
@@ -54,7 +71,7 @@ PR 3 of 3 for #1189. Discovery is independently shippable; the fallback extends 
 
 1. #1190
 2. #1191
-3. 1192",gadenbuie,,open,FALSE,2026-10-20T15:16:20Z,2026-11-04T21:57:04Z,https://github.com/tidyverse/ellmer/pull/1192
+3. 1192",gadenbuie,,open,FALSE,2026-10-20T15:16:20Z,2026-11-05T15:05:55Z,https://github.com/tidyverse/ellmer/pull/1192
 1191,Remove obsolete OpenRouter prices from the static snapshot,"Refs #1189
 
 ## Summary

@@ -1,4 +1,43 @@
 number,title,body,user,labels,state,created_at,updated_at,comments,url,linked_prs
+1217,Two test-otel.R tests fail with otelsdk 0.3.0,"Output below from Claude analysis of failing CI jobs:
+
+otelsdk 0.3.0 (CRAN 2026-11-05) upgrades the bundled opentelemetry-cpp from 1.22.0 to 1.30.0, and two tests in `test-otel.R` now fail on every R CMD check job on main and other open PRs (e.g. https://github.com/tidyverse/ellmer/actions/runs/42208233232).
+
+- `test-otel.R:566` ""duration is recorded once when parsing fails after the response"": opentelemetry-cpp 1.30.0 enforces the spec rule that a span status of ""ok"" is final. ellmer sets ""ok"" in `record_chat_otel_span_status()` before `value_turn()` parses the response, so the ""error"" set when parsing fails is now ignored. The ""ok"" status needs to move after parsing.
+- `test-otel.R:1037` ""tool execution duration is recorded as a metric"": ellmer's `with_otel_record()` test wrapper calls both `flush()` and `shutdown()` on the memory meter provider. With 1.30.0 both calls export, and the exporter is cumulative, so every metric appears twice. On 0.2.4 only `flush()` exported. Dropping the `shutdown()` call gives one export on both versions.
+
+Only the second test inspects `names(points)`, so the duplication is probably present in every metric test and hidden by `[[name]]` returning the first match.",thisisnic,,open,2026-11-06T11:43:36Z,2026-11-06T11:52:34Z,2,https://github.com/tidyverse/ellmer/issues/1217,1218
+1216,Release ellmer 0.5.1,"Prepare for release:
+
+* [ ] Merge #1214 
+* [ ] Merge #1218 
+* [x] Tell ellmercodex maintainer about revdep failure
+* [x] Tell vitals maintainer about revdep failure
+* [ ] `git pull`
+* [x] Check [current CRAN check results](https://cran.rstudio.org/web/checks/check_results_ellmer.html)
+* [ ] [Polish NEWS](https://style.tidyverse.org/news.html#news-release)
+* [ ] `urlchecker::url_check()`
+* [ ] `devtools::build_readme()`
+* [ ] `devtools::check(remote = TRUE, manual = TRUE)`
+* [ ] `devtools::check_win_devel()`
+* [ ] Update `cran-comments.md`
+* [ ] `git push`
+
+Submit to CRAN:
+
+* [ ] `usethis::use_version('patch')`
+* [ ] `devtools::submit_cran()`
+* [ ] Approve email
+
+Wait for CRAN...
+
+* [ ] Accepted :tada:
+* [ ] `usethis::use_github_release()`
+* [ ] `usethis::use_dev_version(push = TRUE)`
+
+
+
+",thisisnic,,open,2026-11-06T09:39:09Z,2026-11-06T12:11:11Z,2,https://github.com/tidyverse/ellmer/issues/1216,
 1210,Developer-facing utility for reading conversation traces,"(For the Posit Assistant developers, this is inspired by `npm run request-logs`.)
 
 When developing agents, I find it helpful to have a developer-focused interface that shows me raw tool results, hidden parts of the user message, etc. Today, I've been developing a different agent using an ellmer fork that logs each request at `chat_perform()` in a `~/.ellmer/{working-directory}`. Then, a shiny app launched from a given directory pulls up the requests in `~/.ellmer/{working-directory}` in a viewer:
