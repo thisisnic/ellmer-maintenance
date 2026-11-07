@@ -1,9 +1,4 @@
 number,title,body,user,labels,state,draft,created_at,updated_at,url
-1218,Update tests to pass on otelsdk 0.3.0 ,"A couple of tests started failing since the new version of Otel was released
-
-Fixes #1217 
-
-This is just Claude-generated code which I don't understand super well, so it's worth a review of whether this is the correct solution.",thisisnic,,open,FALSE,2026-11-06T11:54:10Z,2026-11-06T12:15:15Z,https://github.com/tidyverse/ellmer/pull/1218
 1215,fix(aws): count cache-write tokens as input tokens in chat_aws_bedrock(),"`chat_aws_bedrock()` under-reports input tokens (and therefore cost) whenever a request writes to the prompt cache.
 
 **Cause:** the Bedrock Converse `usage` object reports `cacheWriteInputTokens` separately from `inputTokens`. `value_tokens()` for `ProviderAWSBedrock` only read `inputTokens` and `cacheReadInputTokens`, so cache-write tokens were never counted. `chat_anthropic()` already adds `cache_creation_input_tokens` to `input`.
@@ -15,11 +10,7 @@ This is just Claude-generated code which I don't understand super well, so it's 
 Related to #1194 (same family of token-accounting fixes).
 
 _Disclosure: this change was prepared with an AI coding agent (Claude)._
-",pcbeingused333,,open,FALSE,2026-11-05T14:59:44Z,2026-11-05T14:59:44Z,https://github.com/tidyverse/ellmer/pull/1215
-1214,Make snapshot tests independent of str() spacing,"Fixes #1208. 
-
-R-devel changed where `str()` puts the space after `:`, which broke four snapshots on the devel CI job.
-",thisisnic,,open,FALSE,2026-11-02T23:13:36Z,2026-11-06T13:30:56Z,https://github.com/tidyverse/ellmer/pull/1214
+",pcbeingused333,,open,FALSE,2026-11-05T14:59:44Z,2026-11-07T01:48:01Z,https://github.com/tidyverse/ellmer/pull/1215
 1205,list bedrock-mantle models from `base_url`,"Currently, `models_aws_bedrock()` with `api = ""messages""` or `api = ""responses""` ignores `base_url` and `AWS_ENDPOINT_URL_BEDROCK_MANTLE`, which chat requests use, and always lists models from `https://bedrock-mantle.<region>.api.aws/v1`. This PR lists models from `base_url` instead, with `/openai/v1` or `/anthropic/v1` replaced by `/v1`, like chatlas does.
 
 Connect's LLM gateway will set `AWS_ENDPOINT_URL_BEDROCK_MANTLE` for content with a Bedrock integration, so this way model listing will go through the gateway too.",karawoo,,open,FALSE,2026-10-26T21:46:49Z,2026-10-26T21:46:49Z,https://github.com/tidyverse/ellmer/pull/1205
@@ -44,88 +35,6 @@ This change was made with Claude Code (AI-assisted); the tests above were run, b
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
 ",pcbeingused333,,open,FALSE,2026-10-21T15:04:58Z,2026-11-03T16:34:52Z,https://github.com/tidyverse/ellmer/pull/1198
-1192,Add OpenRouter model discovery and cached cost estimates,"Closes #1189
-
-## Summary
-
-Add credential-free `models_openrouter()` with model metadata and advertised input, output, and cached-input rates in USD per million tokens, parsed directly from OpenRouter's public API. Preserve free rates as zero and map absent, variable, or invalid rates to `NA`; do not depend on litellm or the local price snapshot.
-
-When a response lacks a valid actual charge but reports usable token counts, estimate its cost from one lazily fetched model-price table cached for the R session. Actual charges, including zero, never fetch models. Failed lookups are latched too; the optional lookup is bounded and best-effort. Explicit model discovery stays fresh and independent of this cache.
-
-Fallback estimates use the public OpenRouter catalog and token rates only, not conditional overrides, cache-write premiums, or non-token fees. They can be stale and are not guaranteed to match routed charges. Insufficient counts/rates or lookup failure leave costs unknown.
-
-## Verification
-
-No credentials are needed for discovery:
-
-```r
-library(ellmer)
-models_openrouter()[c(""id"", ""input"", ""output"", ""cached_input"")]
-```
-
-Offline tests cover a trimmed recorded public response, rate conversion and model metadata, auth isolation, free/unknown rates, actual-cost precedence, one lookup across turns/models, latched failures, missing counts, zero-token categories, fresh explicit discovery, request limits/restoration, and mixed actual/estimated totals. Local package checks and subsystem reviews are completed before this draft is opened; GitHub CI results are recorded separately.
-
-## Stack
-
-PR 3 of 3 for #1189. Discovery is independently shippable; the fallback extends the first layer's reviewed actual-cost path. 
-
-1. #1190
-2. #1191
-3. 1192",gadenbuie,,open,FALSE,2026-10-20T15:16:20Z,2026-11-05T15:05:55Z,https://github.com/tidyverse/ellmer/pull/1192
-1191,Remove obsolete OpenRouter prices from the static snapshot,"Refs #1189
-
-## Summary
-
-Remove OpenRouter from the litellm-backed pricing updater and replace its provider-count assertion with a provider-set check that names missing and unexpected providers. The expected set comes from the maintained lookup plus Posit.
-
-The committed JSON and bundled R data remove only the 553 OpenRouter rows; all other prices remain unchanged. There is no schema-version bump or cache migration. Existing caches remain readable, but refreshed snapshots no longer supply obsolete OpenRouter estimates. General upstream price/model refreshes are left to the normal workflow.
-
-## Verification
-
-With the PR's package installed:
-
-```r
-library(ellmer)
-sort(unique(ellmer:::prices$provider))
-```
-
-The bundled snapshot has nine providers and no OpenRouter rows. Tests cover the supported set, same-count substitutions, named diagnostics, JSON/bundled metadata agreement, and cache compatibility. Dev-only checks explicitly skip when `data-raw` is absent from a built package; bundled checks still run. The updater was run successfully against current upstream data, validated its schema, and reported unchanged data on a second run. Schema validation stays in the existing updater, without a new package dependency.
-
-## Stack
-
-PR 2 of 3 for #1189. This updater/data change is independently usable; stacking it above actual-cost support avoids a temporary loss of OpenRouter cost reporting.
-
-1. #1190
-2. 1191
-3. #1192",gadenbuie,,open,FALSE,2026-10-20T15:16:16Z,2026-11-04T17:06:17Z,https://github.com/tidyverse/ellmer/pull/1191
-1190,Use OpenRouter's reported response costs,"Refs #1189
-
-## Summary
-
-Use OpenRouter's response-reported `usage.cost` for each completed assistant turn instead of a static token-rate estimate. Preserve zero charges and full precision; missing or malformed charges remain unknown (`NA`) in this layer. Keep inherited content, reasoning, tool, structured-output, and streaming parsing unchanged, and document the difference between OpenRouter account charges and external BYOK bills.
-
-No deprecated usage opt-in flags are added. Unknown charges continue to make cumulative chat/provider-model totals unknown; known individual turn costs remain available.
-
-## Verification
-
-With the PR's package installed and a valid `OPENROUTER_API_KEY`:
-
-```r
-library(ellmer)
-chat <- chat_openrouter(model = ""openai/gpt-4o-mini"")
-chat$chat(""Say hello"")
-chat$get_cost()
-chat$get_tokens()
-```
-
-Deterministic tests cover conflicting static/cached prices, zero and missing costs, final usage-only SSE chunks, async streaming, tool and structured-output turns, and aggregation. The cache fixture explicitly proves its conflicting price is active during the test. Tests run offline; existing live tests skip when no key is configured.
-
-## Stack
-
-This PR is the start of the stack addressing #1189, followed by:
-
-1. #1191
-1. #1192",gadenbuie,,open,FALSE,2026-10-20T15:16:12Z,2026-11-04T16:58:55Z,https://github.com/tidyverse/ellmer/pull/1190
 1186,Record prompt cache-write tokens on OpenTelemetry chat spans and metrics,"Claude reports the number of input tokens written to the prompt cache (`cache_creation_input_tokens`), but ellmer only used it for pricing. This records it on the OpenTelemetry `chat` span as `gen_ai.usage.cache_write.input_tokens` and as the `gen_ai.client.inference.usage.cache_write.input_tokens` counter, using the names from the current [GenAI semantic conventions](https://github.com/open-telemetry/semantic-conventions-genai/blob/main/docs/gen-ai/gen-ai-token-metrics.md). The Anthropic SDKs and the Claude API record the same attribute on their own spans.
 
 A new internal generic, `value_cache_write_tokens()`, mirrors `value_reasoning_tokens()`: it returns `NULL` by default and Claude implements it. Claude's cost code now reads the value through it. Per the conventions, cache numbers are left off the `invoke_agent` span.
