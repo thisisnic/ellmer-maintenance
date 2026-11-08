@@ -10,7 +10,7 @@ number,title,body,user,labels,state,draft,created_at,updated_at,url
 Related to #1194 (same family of token-accounting fixes).
 
 _Disclosure: this change was prepared with an AI coding agent (Claude)._
-",pcbeingused333,,open,FALSE,2026-11-05T14:59:44Z,2026-11-07T01:48:01Z,https://github.com/tidyverse/ellmer/pull/1215
+",pcbeingused333,,open,FALSE,2026-11-05T14:59:44Z,2026-11-08T08:53:29Z,https://github.com/tidyverse/ellmer/pull/1215
 1205,list bedrock-mantle models from `base_url`,"Currently, `models_aws_bedrock()` with `api = ""messages""` or `api = ""responses""` ignores `base_url` and `AWS_ENDPOINT_URL_BEDROCK_MANTLE`, which chat requests use, and always lists models from `https://bedrock-mantle.<region>.api.aws/v1`. This PR lists models from `base_url` instead, with `/openai/v1` or `/anthropic/v1` replaced by `/v1`, like chatlas does.
 
 Connect's LLM gateway will set `AWS_ENDPOINT_URL_BEDROCK_MANTLE` for content with a Bedrock integration, so this way model listing will go through the gateway too.",karawoo,,open,FALSE,2026-10-26T21:46:49Z,2026-10-26T21:46:49Z,https://github.com/tidyverse/ellmer/pull/1205

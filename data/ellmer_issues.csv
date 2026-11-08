@@ -1,4 +1,27 @@
 number,title,body,user,labels,state,created_at,updated_at,comments,url,linked_prs
+1222,`chat_openrouter()` + `required = FALSE` returns HTTP 400 for OpenAI models,"```r
+library(ellmer)
+chat <- chat_openrouter()
+chat$chat_structured(""The fee is $300"", type = type_number(""Fee"", required = FALSE))
+#> Error in `req_perform()`:
+#> ! HTTP 400 Bad Request.
+```
+
+Works with `required = TRUE`, and works with Anthropic, Gemini and Llama models via OpenRouter. Same failure for any type or object with an optional field, and for `openai/gpt-4.1-mini`.
+
+Upstream error:
+
+```
+Invalid schema for response_format 'structured_data': 'required' is required to be
+supplied and to be an array including every key in properties. Missing 'wrapper'.
+```
+
+**Cause:** since #1135, `strict = FALSE` means the `strict` key is omitted from the request (`provider-openai-compatible.R`, `strict = if (provider@strict) TRUE`). OpenRouter sends OpenAI models through the Responses API, where `strict` defaults to `true`, so the non-strict schema gets validated under strict rules. Confirmed with curl: the same schema with an explicit `""strict"": false` succeeds.
+
+**Workaround:** `chat_openrouter(strict = TRUE)`.
+
+**Possible fix:** send `strict = provider@strict` explicitly instead of omitting it. Would need checking that other OpenAI-compatible providers don't reject the key.
+",thisisnic,bug,open,2026-11-07T15:13:52Z,2026-11-07T15:14:07Z,0,https://github.com/tidyverse/ellmer/issues/1222,
 1220,Add clear guidance on testing,"As discussed in https://github.com/tidyverse/ellmer/pull/1192,  as people are using agents for writing tests, there's ambiguity in terms of how much it should be tested and exactly what we want to test.
 
 It would be useful, whether in a `CONTRIBUTING.md` or an `AGENTS.md` to have a clear explanation of test approach in ellmer, so that our approach is unambiguous.
@@ -17,14 +40,14 @@ After this, it could be worth having a quick sweep over the package to see if th
 * [x] `urlchecker::url_check()`
 * [x] `devtools::build_readme()`
 * [x] `devtools::check(remote = TRUE, manual = TRUE)`
-* [ ] `devtools::check_win_devel()`
+* [x] `devtools::check_win_devel()`
 * [x] Update `cran-comments.md`
 * [x] `git push`
 
 Submit to CRAN:
 
 * [x] `usethis::use_version('patch')`
-* [ ] `devtools::submit_cran()`
+* [x] `devtools::submit_cran()`
 * [ ] Approve email
 
 Wait for CRAN...
@@ -35,7 +58,7 @@ Wait for CRAN...
 
 
 
-",thisisnic,,open,2026-11-06T09:39:09Z,2026-11-07T12:21:25Z,2,https://github.com/tidyverse/ellmer/issues/1216,
+",thisisnic,,open,2026-11-06T09:39:09Z,2026-11-07T12:28:43Z,2,https://github.com/tidyverse/ellmer/issues/1216,
 1210,Developer-facing utility for reading conversation traces,"(For the Posit Assistant developers, this is inspired by `npm run request-logs`.)
 
 When developing agents, I find it helpful to have a developer-focused interface that shows me raw tool results, hidden parts of the user message, etc. Today, I've been developing a different agent using an ellmer fork that logs each request at `chat_perform()` in a `~/.ellmer/{working-directory}`. Then, a shiny app launched from a given directory pulls up the requests in `~/.ellmer/{working-directory}` in a viewer:
