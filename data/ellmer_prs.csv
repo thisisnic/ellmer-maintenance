@@ -34,7 +34,7 @@ New tests check the collapsed value in `new_tool_result()` and the `output` that
 This change was made with Claude Code (AI-assisted); the tests above were run, but no request was made to the OpenAI API.
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
-",pcbeingused333,,open,FALSE,2026-10-21T15:04:58Z,2026-11-03T16:34:52Z,https://github.com/tidyverse/ellmer/pull/1198
+",pcbeingused333,,open,FALSE,2026-10-21T15:04:58Z,2026-11-08T18:08:41Z,https://github.com/tidyverse/ellmer/pull/1198
 1186,Record prompt cache-write tokens on OpenTelemetry chat spans and metrics,"Claude reports the number of input tokens written to the prompt cache (`cache_creation_input_tokens`), but ellmer only used it for pricing. This records it on the OpenTelemetry `chat` span as `gen_ai.usage.cache_write.input_tokens` and as the `gen_ai.client.inference.usage.cache_write.input_tokens` counter, using the names from the current [GenAI semantic conventions](https://github.com/open-telemetry/semantic-conventions-genai/blob/main/docs/gen-ai/gen-ai-token-metrics.md). The Anthropic SDKs and the Claude API record the same attribute on their own spans.
 
 A new internal generic, `value_cache_write_tokens()`, mirrors `value_reasoning_tokens()`: it returns `NULL` by default and Claude implements it. Claude's cost code now reads the value through it. Per the conventions, cache numbers are left off the `invoke_agent` span.

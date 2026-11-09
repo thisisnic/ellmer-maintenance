@@ -1,4 +1,11 @@
 number,title,body,user,labels,state,created_at,updated_at,comments,url,linked_prs
+1223,test-otel.R tool duration test fails on CRAN M1 Mac due to a race with the start-up metric export,"The CRAN M1 Mac check of ellmer 0.5.1 fails in ""tool execution duration is recorded as a metric"" (https://www.stats.ox.ac.uk/pub/bdr/M1mac/ellmer.out). The in-memory meter provider's background reader exports once as soon as its thread starts, and on that slow R-devel run the export landed after the first tool call had recorded its duration. Since the exporter is cumulative, the final flush then contained both points, and `otel_metric_points()` concatenated the two exports into two entries with the same instrument name, so indexing by name returned only the first one.
+
+Reproduced locally on otelsdk 0.2.4 by pinning the recording loop to one busy CPU core, where about 10% of runs split the points across two exports; reading from the last export only removed the failure.
+
+This is a problem with ellmer's test helper rather than with otelsdk: `otel_metric_points()` should read points from the last export only, since a cumulative export already holds every point. It is distinct from #1217, and both of those fixes are in 0.5.1.
+
+This analysis was drafted by AI and reviewed by thisisnic.",thisisnic,,open,2026-11-09T14:57:45Z,2026-11-09T14:57:45Z,0,https://github.com/tidyverse/ellmer/issues/1223,
 1222,`chat_openrouter()` + `required = FALSE` returns HTTP 400 for OpenAI models,"```r
 library(ellmer)
 chat <- chat_openrouter()
@@ -27,38 +34,6 @@ supplied and to be an array including every key in properties. Missing 'wrapper'
 It would be useful, whether in a `CONTRIBUTING.md` or an `AGENTS.md` to have a clear explanation of test approach in ellmer, so that our approach is unambiguous.
 
 After this, it could be worth having a quick sweep over the package to see if there's any areas where we can make changes to existing tests to bring them in line with what we decide.",thisisnic,upkeep,open,2026-11-07T09:24:11Z,2026-11-07T09:29:54Z,1,https://github.com/tidyverse/ellmer/issues/1220,
-1216,Release ellmer 0.5.1,"Prepare for release:
-
-* [x] Merge #1214 
-* [x] Merge #1218 
-* [x] Merge #1192
-* [x] Tell ellmercodex maintainer about revdep failure
-* [x] Tell vitals maintainer about revdep failure
-* [x] `git pull`
-* [x] Check [current CRAN check results](https://cran.rstudio.org/web/checks/check_results_ellmer.html)
-* [x] [Polish NEWS](https://style.tidyverse.org/news.html#news-release)
-* [x] `urlchecker::url_check()`
-* [x] `devtools::build_readme()`
-* [x] `devtools::check(remote = TRUE, manual = TRUE)`
-* [x] `devtools::check_win_devel()`
-* [x] Update `cran-comments.md`
-* [x] `git push`
-
-Submit to CRAN:
-
-* [x] `usethis::use_version('patch')`
-* [x] `devtools::submit_cran()`
-* [ ] Approve email
-
-Wait for CRAN...
-
-* [ ] Accepted :tada:
-* [ ] `usethis::use_github_release()`
-* [ ] `usethis::use_dev_version(push = TRUE)`
-
-
-
-",thisisnic,,open,2026-11-06T09:39:09Z,2026-11-07T12:28:43Z,2,https://github.com/tidyverse/ellmer/issues/1216,
 1210,Developer-facing utility for reading conversation traces,"(For the Posit Assistant developers, this is inspired by `npm run request-logs`.)
 
 When developing agents, I find it helpful to have a developer-focused interface that shows me raw tool results, hidden parts of the user message, etc. Today, I've been developing a different agent using an ellmer fork that logs each request at `chat_perform()` in a `~/.ellmer/{working-directory}`. Then, a shiny app launched from a given directory pulls up the requests in `~/.ellmer/{working-directory}` in a viewer:
