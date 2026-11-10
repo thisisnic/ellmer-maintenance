@@ -1,11 +1,29 @@
 number,title,body,user,labels,state,created_at,updated_at,comments,url,linked_prs
-1223,test-otel.R tool duration test fails on CRAN M1 Mac due to a race with the start-up metric export,"The CRAN M1 Mac check of ellmer 0.5.1 fails in ""tool execution duration is recorded as a metric"" (https://www.stats.ox.ac.uk/pub/bdr/M1mac/ellmer.out). The in-memory meter provider's background reader exports once as soon as its thread starts, and on that slow R-devel run the export landed after the first tool call had recorded its duration. Since the exporter is cumulative, the final flush then contained both points, and `otel_metric_points()` concatenated the two exports into two entries with the same instrument name, so indexing by name returned only the first one.
+1226,Posit price list is missing the default model `claude-sonnet-5-5`,"`chat_posit()` defaults to `claude-sonnet-5-5`, but the Posit prices in `data-raw/prices.R` are derived from a hard-coded list of Claude models that stops at Sonnet 4.6 and Fable 5, so there is no price for the default model and cost estimates come back empty. Adding `claude-sonnet-5-5` to that list and letting the weekly price update regenerate the snapshot should fix it.",thisisnic,,open,2026-11-09T19:07:08Z,2026-11-09T19:46:08Z,1,https://github.com/tidyverse/ellmer/issues/1226,
+1224,Release ellmer 0.5.2,"Prepare for release:
 
-Reproduced locally on otelsdk 0.2.4 by pinning the recording loop to one busy CPU core, where about 10% of runs split the points across two exports; reading from the last export only removed the failure.
+* [x] `git pull`
+* [x] Check [current CRAN check results](https://cran.rstudio.org/web/checks/check_results_ellmer.html)
+* [x] [Polish NEWS](https://style.tidyverse.org/news.html#news-release)
+* [x] `urlchecker::url_check()`
+* [x] `devtools::build_readme()`
+* [x] `devtools::check(remote = TRUE, manual = TRUE)`
+* [x] `devtools::check_win_devel()`
+* [x] Update `cran-comments.md`
+* [x] `git push`
 
-This is a problem with ellmer's test helper rather than with otelsdk: `otel_metric_points()` should read points from the last export only, since a cumulative export already holds every point. It is distinct from #1217, and both of those fixes are in 0.5.1.
+Submit to CRAN:
 
-This analysis was drafted by AI and reviewed by thisisnic.",thisisnic,,open,2026-11-09T14:57:45Z,2026-11-09T14:57:45Z,0,https://github.com/tidyverse/ellmer/issues/1223,
+* [x] `usethis::use_version('patch')`
+* [x] `devtools::submit_cran()`
+* [x] Approve email
+
+Wait for CRAN...
+
+* [ ] Accepted :tada:
+* [ ] `usethis::use_github_release()`
+* [ ] `usethis::use_dev_version(push = TRUE)`
+",thisisnic,,open,2026-11-09T15:12:10Z,2026-11-09T20:31:53Z,0,https://github.com/tidyverse/ellmer/issues/1224,
 1222,`chat_openrouter()` + `required = FALSE` returns HTTP 400 for OpenAI models,"```r
 library(ellmer)
 chat <- chat_openrouter()
