@@ -1,4 +1,91 @@
 number,title,body,user,labels,state,created_at,updated_at,comments,url,linked_prs
+1227,batch_chat_text drops registered tools — web search not included in batch API requests,"The tools (particularly search tools) are not passed through to `batch_chat()`. 
+
+```
+> library(ellmer)
++ 
++ chat <- chat_anthropic()
++ chat$register_tool(claude_tool_web_search())
++ 
++ # tool is correctly registered
++ chat$get_tools()
++ $web_search
+<ellmer::ToolBuiltIn>
+ @ name       : chr ""web_search""
+ @ description: chr ""Search the web for up-to-date information.""
+ @ annotations:List of 3
+ .. $ title          : chr ""Web search""
+ .. $ read_only_hint : logi TRUE
+ .. $ open_world_hint: logi TRUE
+ @ json       :List of 2
+ .. $ name: chr ""web_search""
+ .. $ type: chr ""web_search_20250305""
+
++ # but batch job produces a response with no web search
++ batch_chat_text(chat, list(""What was in the news today?""), path = tempfile())
+Using model = ""claude-sonnet-5"".
+                                                      
+[1] ""I don't have access to real-time information, including today's news. My knowledge comes from training data with a cutoff date, and I can't browse the internet or access live feeds unless you're using a version of me that's specifically connected to search tools.\n\nTo get today's news, I'd suggest:\n\n- Checking a news app or website directly (AP, Reuters, BBC, etc.)\n- Asking a voice assistant connected to the internet\n- Checking if the platform you're using me through has web search enabled (sometimes there's a toggle or plugin for this)\n\nIf you let me know what topic you're interested in (tech, politics, sports, etc.) and tell me what you've already heard, I'm happy to discuss it or provide background/context based on what I do know. Is there something specific you're trying to find out about?""
+````
+
+Compared to the standard `chat_...` functions: 
+```
+> chat2 <- chat_anthropic()
++ chat2$register_tool(claude_tool_web_search())
++ chat2$chat(""What was in the news today?"")
+Using model = ""claude-sonnet-5"".
+Here's a roundup of the biggest stories from the news today (Nov. 13, 2026):
+
+**Nvidia CEO Jensen Huang resigns in scandal**
+The biggest business story of the day: NVIDIA's Board of Directors announced that 
+Jensen Huang resigned as President, CEO, and a member of the Board, effective 
+immediately, with Colette Kress, EVP and CFO, appointed Interim CEO, and Harvey C. 
+came on 
+... [Cut for length]
+```
+
+I think the issue is here: 
+```
+self$batch <- batch_submit(self$provider, self$model, conversations, type = self$type)
+```
+`batch_submit()` should also take a tools argument. 
+
+Session info: 
+```
+> sessionInfo()
+R version 4.5.2 (2025-10-31)
+Platform: aarch64-apple-darwin23.6.0
+Running under: macOS Sonoma 14.3
+
+Matrix products: default
+BLAS:   /System/Library/Frameworks/Accelerate.framework/Versions/A/Frameworks/vecLib.framework/Versions/A/libBLAS.dylib 
+LAPACK: /opt/homebrew/Cellar/r/4.5.2_1/lib/R/lib/libRlapack.dylib;  LAPACK version 3.12.1
+
+locale:
+[1] en_US.UTF-8/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8
+
+time zone: America/New_York
+tzcode source: internal
+
+attached base packages:
+[1] stats     graphics  grDevices utils     datasets  methods   base     
+
+other attached packages:
+[1] fs_1.6.6      stringr_1.5.1 tidyr_1.3.1   purrr_1.2.2   tibble_3.3.0  readr_2.2.0  
+[7] dplyr_1.2.1   ellmer_0.5.0 
+
+loaded via a namespace (and not attached):
+ [1] crayon_1.5.3      vctrs_0.7.3       cli_3.6.5         rlang_1.3.0      
+ [5] stringi_1.8.7     otel_0.2.0        generics_0.1.4    S7_0.2.1         
+ [9] coro_1.1.0        jsonlite_2.0.0    data.table_1.17.8 bit_4.6.0        
+[13] glue_1.8.0        hms_1.1.3         tzdb_0.5.0        lifecycle_1.0.5  
+[17] httr2_1.3.0       compiler_4.5.2    pkgconfig_2.0.3   R6_2.6.1         
+[21] tidyselect_1.2.1  parallel_4.5.2    vroom_1.7.1       pillar_1.11.1    
+[25] curl_7.0.0        magrittr_2.0.5    withr_3.0.2       bit64_4.6.0-1    
+[29] tools_4.5.2  
+```
+
+",zmeers,,open,2026-11-13T04:03:39Z,2026-11-13T04:10:14Z,1,https://github.com/tidyverse/ellmer/issues/1227,
 1226,Posit price list is missing the default model `claude-sonnet-5-5`,"`chat_posit()` defaults to `claude-sonnet-5-5`, but the Posit prices in `data-raw/prices.R` are derived from a hard-coded list of Claude models that stops at Sonnet 4.6 and Fable 5, so there is no price for the default model and cost estimates come back empty. Adding `claude-sonnet-5-5` to that list and letting the weekly price update regenerate the snapshot should fix it.",thisisnic,,open,2026-11-09T19:07:08Z,2026-11-09T19:46:08Z,1,https://github.com/tidyverse/ellmer/issues/1226,
 1224,Release ellmer 0.5.2,"Prepare for release:
 
