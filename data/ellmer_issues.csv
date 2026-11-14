@@ -85,32 +85,8 @@ loaded via a namespace (and not attached):
 [29] tools_4.5.2  
 ```
 
-",zmeers,,open,2026-11-13T04:03:39Z,2026-11-13T04:10:14Z,1,https://github.com/tidyverse/ellmer/issues/1227,
-1226,Posit price list is missing the default model `claude-sonnet-5-5`,"`chat_posit()` defaults to `claude-sonnet-5-5`, but the Posit prices in `data-raw/prices.R` are derived from a hard-coded list of Claude models that stops at Sonnet 4.6 and Fable 5, so there is no price for the default model and cost estimates come back empty. Adding `claude-sonnet-5-5` to that list and letting the weekly price update regenerate the snapshot should fix it.",thisisnic,,open,2026-11-09T19:07:08Z,2026-11-09T19:46:08Z,1,https://github.com/tidyverse/ellmer/issues/1226,
-1224,Release ellmer 0.5.2,"Prepare for release:
-
-* [x] `git pull`
-* [x] Check [current CRAN check results](https://cran.rstudio.org/web/checks/check_results_ellmer.html)
-* [x] [Polish NEWS](https://style.tidyverse.org/news.html#news-release)
-* [x] `urlchecker::url_check()`
-* [x] `devtools::build_readme()`
-* [x] `devtools::check(remote = TRUE, manual = TRUE)`
-* [x] `devtools::check_win_devel()`
-* [x] Update `cran-comments.md`
-* [x] `git push`
-
-Submit to CRAN:
-
-* [x] `usethis::use_version('patch')`
-* [x] `devtools::submit_cran()`
-* [x] Approve email
-
-Wait for CRAN...
-
-* [ ] Accepted :tada:
-* [ ] `usethis::use_github_release()`
-* [ ] `usethis::use_dev_version(push = TRUE)`
-",thisisnic,,open,2026-11-09T15:12:10Z,2026-11-09T20:31:53Z,0,https://github.com/tidyverse/ellmer/issues/1224,
+",zmeers,feature,open,2026-11-13T04:03:39Z,2026-11-13T15:55:34Z,2,https://github.com/tidyverse/ellmer/issues/1227,
+1226,Posit price list is missing the default model `claude-sonnet-5-5`,"`chat_posit()` defaults to `claude-sonnet-5-5`, but the Posit prices in `data-raw/prices.R` are derived from a hard-coded list of Claude models that stops at Sonnet 4.6 and Fable 5, so there is no price for the default model and cost estimates come back empty. Adding `claude-sonnet-5-5` to that list and letting the weekly price update regenerate the snapshot should fix it.",thisisnic,bug,open,2026-11-09T19:07:08Z,2026-11-13T16:27:29Z,3,https://github.com/tidyverse/ellmer/issues/1226,
 1222,`chat_openrouter()` + `required = FALSE` returns HTTP 400 for OpenAI models,"```r
 library(ellmer)
 chat <- chat_openrouter()
@@ -492,7 +468,7 @@ release_bullets <- function() {
   )
 }
 ```
-",thisisnic,upkeep,open,2026-09-03T05:18:39Z,2026-09-04T13:13:56Z,1,https://github.com/tidyverse/ellmer/issues/1124,
+",thisisnic,upkeep,open,2026-09-03T05:18:39Z,2026-09-04T13:13:56Z,1,https://github.com/tidyverse/ellmer/issues/1124,1228
 1123,Advance deprecations for 0.6.0,"The following deprecations should move to `deprecate_stop()` in 0.6.0.
 
 Deprecated in 0.3.2:

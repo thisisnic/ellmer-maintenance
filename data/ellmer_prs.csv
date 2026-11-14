@@ -1,4 +1,5 @@
 number,title,body,user,labels,state,draft,created_at,updated_at,url
+1228,Add custom bullets to release checklist,Closes #1124 ,thisisnic,,open,FALSE,2026-11-13T16:34:01Z,2026-11-13T18:19:53Z,https://github.com/tidyverse/ellmer/pull/1228
 1215,fix(aws): count cache-write tokens as input tokens in chat_aws_bedrock(),"`chat_aws_bedrock()` under-reports input tokens (and therefore cost) whenever a request writes to the prompt cache.
 
 **Cause:** the Bedrock Converse `usage` object reports `cacheWriteInputTokens` separately from `inputTokens`. `value_tokens()` for `ProviderAWSBedrock` only read `inputTokens` and `cacheReadInputTokens`, so cache-write tokens were never counted. `chat_anthropic()` already adds `cache_creation_input_tokens` to `input`.
