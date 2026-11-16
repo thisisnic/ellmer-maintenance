@@ -1,4 +1,24 @@
 number,title,body,user,labels,state,draft,created_at,updated_at,url
+1229,Support DeepSeek reasoning effort and preserve thinking history,"`chat_deepseek()` omits the standard `reasoning_effort` parameter mapping and drops stored thinking when serializing assistant history. This PR addresses both gaps within the existing DeepSeek adapter.
+
+1. **Support the standard effort parameter.** `params(reasoning_effort = ""max"")` currently produces an unsupported-parameter warning and sends no effort setting. The mapping now forwards the setting, including DeepSeek's documented `""none""`, `""low""`, `""high""`, and `""max""` values. `api_args = list(reasoning_effort = ""max"")` already works; this change makes the same capability available through ellmer's common parameter interface. Omitting the setting continues to use the API default.
+
+2. **Include thinking in assistant history.** ellmer already captures DeepSeek's reasoning as `ContentThinking`, but the DeepSeek-specific assistant serializer drops it. `chat_deepseek()` now sets the existing `preserve_thinking` property to `TRUE`, as OpenRouter does, and its serializer honors that property when emitting `reasoning_content`. This includes reasoning from assistant turns with tool calls and from ordinary assistant answers. The generic provider's default is unchanged.
+
+The current [DeepSeek thinking guide](https://api-docs.deepseek.com/guides/thinking_mode/) requires prior reasoning on subsequent requests carrying tools and says it is ignored when tools are absent. This deliberately updates the DeepSeek behavior described in #972, whose rationale was the earlier requirement to exclude reasoning. #1045 added provider-specific field names to the shared serializer, but DeepSeek's assistant serialization override bypasses that path.
+
+DeepSeek documents an HTTP 400 when required reasoning is omitted. Separate live checks reported during review succeeded on both main and the earlier patch for `deepseek-flash` and `deepseek-v4-pro`, with streaming and non-streaming, effort `""max""`, and two user turns. Those checks did not reproduce that 400. This PR therefore addresses a demonstrated omission from outgoing messages and follows the documented API contract; it does not establish a live tool-call failure or a measured answer-quality improvement.
+
+The help page and NEWS describe effort control and reasoning preservation, following the thinking guide and [Chat Completions API reference](https://api-docs.deepseek.com/api/create-chat-completion/).
+
+### Validation
+
+- Two focused regression tests (six expectations) cover `reasoning_effort = ""max""` in the request body and assistant serialization with tool calls or text answers, multiple or absent thinking blocks, and disabling `preserve_thinking`. The effort/history assertions fail against the original code (`3ebd68f`); the flag assertion also catches the earlier patch ignoring `preserve_thinking`.
+- DeepSeek and parameter tests pass locally. The four live DeepSeek tests were skipped because `DEEPSEEK_API_KEY` was unset in this test environment. The final revision was verified offline; the separately reported live checks above apply to the earlier patch.
+- Air formatting, `git diff --check`, and `pkgdown::check_pkgdown()` pass. Help files were regenerated with roxygen2.
+- `R CMD check --no-manual` on R 4.4.0/macOS completed with 0 errors, 0 warnings, and 1 NOTE for unavailable suggested packages, with `_R_CHECK_FORCE_SUGGESTS_=false`. The unavailable packages were `connectcreds`, `gargle`, `magick`, `otelsdk`, `png`, and `shinychat`. Its test run reports 1,399 passed expectations and 337 skips.
+- The full development test suite still reports nine failures in other providers' image tests: seven require the unavailable `magick` package, and two cannot match recorded image-tool requests. These are the same nine failures previously reproduced on the original commit in this environment; no new failures appeared.
+",songyue-chen,,open,FALSE,2026-11-15T18:21:41Z,2026-11-15T18:21:41Z,https://github.com/tidyverse/ellmer/pull/1229
 1228,Add custom bullets to release checklist,Closes #1124 ,thisisnic,,open,FALSE,2026-11-13T16:34:01Z,2026-11-13T18:19:53Z,https://github.com/tidyverse/ellmer/pull/1228
 1215,fix(aws): count cache-write tokens as input tokens in chat_aws_bedrock(),"`chat_aws_bedrock()` under-reports input tokens (and therefore cost) whenever a request writes to the prompt cache.
 
@@ -203,7 +223,7 @@ Internally, this adds shared one-time reauthentication for synchronous, asynchro
 
 - Focused provider tests: 17 passing
 - Live synchronous, multi-turn, and asynchronous requests with `gpt-5.6-luna`
-",t-kalinowski,,open,FALSE,2026-07-31T21:07:00Z,2026-10-07T12:33:41Z,https://github.com/tidyverse/ellmer/pull/1067
+",t-kalinowski,,open,FALSE,2026-07-31T21:07:00Z,2026-11-16T02:59:51Z,https://github.com/tidyverse/ellmer/pull/1067
 991,Add `mcp_connector()` for provider-hosted MCP server connections,"Closes #985 (supersedes).
 
 ## Summary
