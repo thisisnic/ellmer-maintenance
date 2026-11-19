@@ -1,4 +1,26 @@
 number,title,body,user,labels,state,draft,created_at,updated_at,url
+1230,chore: test against r-lib/coro#81,"Do not merge. This draft runs ellmer's CI against [r-lib/coro#81](https://github.com/r-lib/coro/issues/81).
+
+[r-lib/coro#81](https://github.com/r-lib/coro/issues/81) makes `coro::async()` functions reject their promise for errors thrown before the first `await()`, instead of throwing from the call. Before, the same `stop()` was reported in two different ways depending on where it sat in the function body.
+
+## What changes for ellmer
+
+The only change here is `Remotes: r-lib/coro#81`. No ellmer code or tests needed to change.
+
+I looked for code that could be simplified now that errors always reject. There is none:
+
+* `invoke_tool_async()` and `maybe_on_tool_request_async()` wrap `await()` in `tryCatch()`. That `tryCatch()` catches both a sync throw and a rejected promise, so it worked before and still works. It is still needed to turn errors into tool results and to catch `ellmer_tool_reject`.
+* `$chat_async()` and `$chat_structured_async()` are plain functions, not `coro::async()` functions, so their argument checks (`arg_match()`, `check_echo()`, `user_turn()`) still throw from the call. This PR does not change that.
+* No test waits on both a sync throw and a rejection. The `sync()` test helper handles both cases.
+
+## Small behavior difference
+
+With concurrent tool calls, if an `on_tool_request` callback throws an error that is not `tool_reject()`:
+
+* Before: the error was thrown while collecting the tool calls, so the callback ran only for the first tool request.
+* After: each tool call returns a rejected promise, so the callback runs for every tool request before `promise_all()` rejects with the first error. Tools are still not called.
+
+The error that reaches the user is the same.",schloerke,,open,TRUE,2026-11-18T21:51:20Z,2026-11-18T21:51:20Z,https://github.com/tidyverse/ellmer/pull/1230
 1229,Support DeepSeek reasoning effort and preserve thinking history,"`chat_deepseek()` omits the standard `reasoning_effort` parameter mapping and drops stored thinking when serializing assistant history. This PR addresses both gaps within the existing DeepSeek adapter.
 
 1. **Support the standard effort parameter.** `params(reasoning_effort = ""max"")` currently produces an unsupported-parameter warning and sends no effort setting. The mapping now forwards the setting, including DeepSeek's documented `""none""`, `""low""`, `""high""`, and `""max""` values. `api_args = list(reasoning_effort = ""max"")` already works; this change makes the same capability available through ellmer's common parameter interface. Omitting the setting continues to use the API default.
@@ -41,18 +63,6 @@ this closes #884. a slimmed down version of #1178 (@thisisnic), closing #1178 as
 gg**r**uf, was created to find, inspect, & serve GGUF files for llama.cpp. mainly designed as a helper for ellmer::chat_llamacpp but could be useful elsewhere.
 
 package link: https://github.com/frankiethull/ggruf 🐐 🐐 🐐 ",frankiethull,,open,FALSE,2026-10-22T07:18:01Z,2026-10-22T07:18:01Z,https://github.com/tidyverse/ellmer/pull/1201
-1198,fix: collapse a character ContentToolResult value into one string,"Closes #1136
-
-A tool that returns a `ContentToolResult()` whose `value` is a character vector longer than one was sent as-is: the OpenAI Responses serializer emitted `output = [""line one"", ""line two""]` and the API answers with HTTP 400, and the echo of the result assumed a single string. A bare character vector returned by a tool is already collapsed with newlines by `normalize_tool_result()`.
-
-`new_tool_result()` now applies the same collapse to the `value` of a `ContentToolResult` that a tool returns, so both paths hand the providers and the echo a single string. Other values (a string, a `Content` object, a list of `Content`, an error result, numbers) are untouched. I first normalized every value, but that changed the type of non-string values that existing tests keep as-is, so this only handles character vectors.
-
-New tests check the collapsed value in `new_tool_result()` and the `output` that `as_json()` produces for the OpenAI provider.
-
-This change was made with Claude Code (AI-assisted); the tests above were run, but no request was made to the OpenAI API.
-
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
-",pcbeingused333,,open,FALSE,2026-10-21T15:04:58Z,2026-11-08T18:08:41Z,https://github.com/tidyverse/ellmer/pull/1198
 1186,Record prompt cache-write tokens on OpenTelemetry chat spans and metrics,"Claude reports the number of input tokens written to the prompt cache (`cache_creation_input_tokens`), but ellmer only used it for pricing. This records it on the OpenTelemetry `chat` span as `gen_ai.usage.cache_write.input_tokens` and as the `gen_ai.client.inference.usage.cache_write.input_tokens` counter, using the names from the current [GenAI semantic conventions](https://github.com/open-telemetry/semantic-conventions-genai/blob/main/docs/gen-ai/gen-ai-token-metrics.md). The Anthropic SDKs and the Claude API record the same attribute on their own spans.
 
 A new internal generic, `value_cache_write_tokens()`, mirrors `value_reasoning_tokens()`: it returns `NULL` by default and Claude implements it. Claude's cost code now reads the value through it. Per the conventions, cache numbers are left off the `invoke_agent` span.
@@ -168,16 +178,17 @@ str(lapply(res$.error, \(e) if (!is.null(e)) conditionMessage(e)))
 | vLLM | `max_model_len` |
 | Ollama | `<arch>.context_length`, from the `api/show` response already fetched for `capabilities` |
 
-Everyone else gets `NA`, so the column is there whichever provider you ask. The OpenAI-compatible parser reads `context_window` generically, which is what covers Groq.
+Everyone else gets `NA`, so the column is there whichever provider you ask. The OpenAI-compatible parser reads `context_window` generically, which is what covers Groq. The `models_openrouter()` listing from #1192 already reported the length as `context_length`, so this renames that column to `max_context_length` to match.
 
 The `Chat$get_max_context_length()` method looks the current model up in `models_list()`, and an undated alias such as `claude-sonnet-4-5` matches its latest dated snapshot. The listing is cached per provider and base URL, so it costs one request per session, and a listing that fails gives `NA` and is retried on the next call.
 
-Verified live: Gemini 36/36 models, Mistral 55/55, Groq 15/15, Ollama Cloud 18/18, OpenRouter 468/468, Posit 10/10, LM Studio against a local server. Anthropic comes from the existing `anthropic-list-models` cassette, vLLM from vLLM's source, and DeepSeek from its API reference. Vertex publishes no token limit anywhere in `publisherModels`, in either projection, so it falls through to `NA`. For LM Studio, its OpenAI-compatible `/v1/models` carries only `id`, `object` and `owned_by`, so the window is joined from the native `/api/v1/models` by model key, and a server without that route degrades to `NA`. The `test_models()` helper now checks the column, and checks it is populated for the providers that report one.
+Verified live: Gemini 36/36 models, Mistral 55/55, Groq 15/15, Ollama Cloud 18/18, OpenRouter 478/478, Posit 10/10, LM Studio against a local server. Anthropic comes from the existing `anthropic-list-models` cassette, vLLM from vLLM's source, and DeepSeek from its API reference. Vertex publishes no token limit anywhere in `publisherModels`, in either projection, so it falls through to `NA`. For LM Studio, its OpenAI-compatible `/v1/models` carries only `id`, `object` and `owned_by`, so the window is joined from the native `/api/v1/models` by model key, and a server without that route degrades to `NA`. The `test_models()` helper now checks the column, and checks it is populated for the providers that report one.
 
 Fixes #1083
 
 
-",nbenn,,open,FALSE,2026-08-13T14:37:54Z,2026-10-21T14:04:19Z,https://github.com/tidyverse/ellmer/pull/1089
+
+",nbenn,,open,FALSE,2026-08-13T14:37:54Z,2026-11-18T21:04:58Z,https://github.com/tidyverse/ellmer/pull/1089
 1075,Explore contents_trajectory(): serialize chats to trajectory-v1,"## Summary
 
 This is an exploratory draft. The implementation is in solid shape, but there's no pressure to merge this — it's here to spark discussion about whether this fits ellmer's scope. It's inspired by [letta-ai/trajectory](https://github.com/letta-ai/trajectory), a schema/toolkit for normalizing raw agent transcripts (Claude Code, Codex, etc.) into a common `trajectory-v1` JSON shape. ellmer already holds a fully structured `Chat`/`Round`/`Turn`/`Content` object graph in memory, so the parsing problem that project solves doesn't apply here — this PR asks a narrower question: does ellmer's internal model map cleanly onto that shape, and is a native R serializer worth having?
