@@ -1,4 +1,39 @@
 number,title,body,user,labels,state,created_at,updated_at,comments,url,linked_prs
+1236,chat_openrouter() returns a type error in the cost header when using a free model,"Dear ellmer developers, 
+The course tutors and students for Stat 133 and Berkeley encountered a bug in `chat_openrouter()` while attempting to use it for one of the course assignments. 
+# Details 
+`chat_openrouter()` fails and returns the error ""<ellmer::AssistantTurn>@cost must be \<double\>, not S3<ellmer_dollars/numeric>"" when the free model ""nvidia/nemotron-3.5-super-vl:free"" is used and a message is sent to the model using `or1$chat`. This issue can be fixed by using `chat_openai_compatible()` and copying the OpenRouter API key to the variable `OPENAI_API_KEY` in the R environment. This error occurs on version 0.5.2.9000 of ellmer, and it does not appear to be present on version 0.4.0. 
+
+### Works: Bypasses the bug using `chat_openai_compatible`, which calculates the cost locally. 
+```r
+library(ellmer)
+
+or1 <- chat_openai_compatible(
+  base_url = ""https://openrouter.ai/api/v1"",
+  model = ""nvidia/nemotron-3.5-super-vl:free""
+)
+
+or1$chat(""The capital of Canada is"")
+```
+
+### Fails: A type error is returned because the cost value is stored as `S3<ellmer_dollars/numeric>`, not a double type. 
+
+```r 
+library(ellmer)
+ or1 <- chat_openrouter(
+    model = ""nvidia/nemotron-3.5-super-vl:free"")
+ or1$chat(""The capital of Canada is"")
+```
+
+Please fix this bug ASAP, as it is blocking our ability to use the OpenRouter API in ellmer to teach and learn the course content.
+Sincerely,
+Aritra Nag",AritraNagtheStatistician,bug,open,2026-11-20T23:35:49Z,2026-11-20T23:52:20Z,1,https://github.com/tidyverse/ellmer/issues/1236,
+1235,"Check all API outputs, workarounds etc","When reviewing a recent PR, a workaround previously needed for `chat_deepseek()` was found to be redundant. Given the frequency at which provider APIs are updated, we should do a pass over the package, focusing on workarounds to see if they're still needed.
+
+At the last release, I also forgot to consider rerecording cassettes other than where the default provider was updated. Let's rerun the lot and check nothing else has changed in provider APIs.",thisisnic,upkeep,open,2026-11-20T23:19:54Z,2026-11-20T23:19:54Z,0,https://github.com/tidyverse/ellmer/issues/1235,
+1234,Consistency and duplication check,"As we've been updating code for different providers' changing APIs, and most PRs these days are at least in some part AI-generated and partially agent reviewed, we're likely to have accumulated some duplication, and less consistency than if code had been human generated and entirely human reviewed. 
+
+Given the codebase is maintained by humans albeit with agentic assistance, let's do an agentic sweep over the codebase to see where we can reduce duplication and increase consistency, to make it easier for the humans to reason about the code.",thisisnic,upkeep,open,2026-11-20T22:43:54Z,2026-11-21T02:05:41Z,2,https://github.com/tidyverse/ellmer/issues/1234,
 1227,batch_chat_text drops registered tools — web search not included in batch API requests,"The tools (particularly search tools) are not passed through to `batch_chat()`. 
 
 ```
@@ -206,7 +241,7 @@ Which do we prefer? If we keep historical rates, a follow-up question is whether
 ",gadenbuie,,open,2026-09-28T13:42:13Z,2026-09-28T15:32:44Z,1,https://github.com/tidyverse/ellmer/issues/1166,
 1158,Make the http-mocking skill trigger for any provider test work,"The `http-mocking` skill's description says to use it ""when adding or modifying provider tests that make real API calls, recording new cassettes, creating `chat_*_test()` helper functions for new providers, or setting up vcr cassettes"". In practice that means it only triggers once you've already decided a test needs HTTP, but much of its value is the guidance on when *not* to use vcr and how to test request formatting and parsing with constructed objects instead. While working on #1155 the skill wasn't loaded until I asked for it explicitly, after several provider tests had already been written.
 
-Suggest broadening the description to trigger whenever provider tests are being written or changed, e.g. ""Use when writing or modifying any test for a `chat_*()` provider, whether or not it makes HTTP requests, to decide between vcr cassettes, constructed objects and `mocked_chat()`.""",thisisnic,upkeep,open,2026-09-25T09:46:32Z,2026-09-25T09:46:32Z,0,https://github.com/tidyverse/ellmer/issues/1158,
+Suggest broadening the description to trigger whenever provider tests are being written or changed, e.g. ""Use when writing or modifying any test for a `chat_*()` provider, whether or not it makes HTTP requests, to decide between vcr cassettes, constructed objects and `mocked_chat()`.""",thisisnic,upkeep,open,2026-09-25T09:46:32Z,2026-09-25T09:46:32Z,0,https://github.com/tidyverse/ellmer/issues/1158,1233
 1152,Support for server-side provider-native compaction?,"I understand that `ellmer` does not support compaction, and instead provides an entry point for the user to write manual auto-compaction as a callback (#1051, #1052). For client-side compaction, it's an insightful and elegant solution, and I fully agree the approach. But for server-side compaction callable through provider APIs, would you be open to considering native support in `ellmer`? Examples:
 
 * https://platform.claude.com/docs/en/build-with-claude/compaction
@@ -367,7 +402,7 @@ One implementation note: tool search introduces `tool_search_call` and `tool_sea
 
 Happy to open a PR if this is a direction you would take.
 ",nbenn,feature,open,2026-09-03T08:53:23Z,2026-09-15T16:32:53Z,0,https://github.com/tidyverse/ellmer/issues/1128,
-1127,Make date format prompt unambiguous in `test_tools_simple()`,"Running the live Databricks tests with the new default model (`databricks-claude-sonnet-5`), the ""supports tool calling"" test failed because the model reformatted the tool result ""2024-01-01"" as ""2024-1-1"" in its reply. The `test_tools_simple()` helper in `tests/testthat/helper-provider.R` asks for the date ""in Y-M-D format"", which doesn't say anything about zero padding, but then uses `expect_match(result, ""2024-01-01"")`. Asking for ""YYYY-MM-DD format"" instead should make the expected output unambiguous without loosening the check.",thisisnic,upkeep,open,2026-09-03T08:01:11Z,2026-09-03T09:44:10Z,0,https://github.com/tidyverse/ellmer/issues/1127,
+1127,Make date format prompt unambiguous in `test_tools_simple()`,"Running the live Databricks tests with the new default model (`databricks-claude-sonnet-5`), the ""supports tool calling"" test failed because the model reformatted the tool result ""2024-01-01"" as ""2024-1-1"" in its reply. The `test_tools_simple()` helper in `tests/testthat/helper-provider.R` asks for the date ""in Y-M-D format"", which doesn't say anything about zero padding, but then uses `expect_match(result, ""2024-01-01"")`. Asking for ""YYYY-MM-DD format"" instead should make the expected output unambiguous without loosening the check.",thisisnic,upkeep,open,2026-09-03T08:01:11Z,2026-09-03T09:44:10Z,0,https://github.com/tidyverse/ellmer/issues/1127,1232
 1126,"`parallel_chat_structured()` returns an ordinary row, with no `.error`, for a response cut off at `max_tokens`","## Summary
 
 `chat_structured()` raises an error when a response is truncated (#867, since 0.4.2), via `check_finish_reason()`. `parallel_chat_structured()` and `batch_chat_structured()` do not. `parallel_turns()` builds the turns and `multi_convert()` converts them without looking at `turn@finish_reason`, so a response that hit `max_tokens` comes back as an ordinary row: `NA` scalars, or a zero-row tibble for an array property, no `.error`, and the request billed in full. The turns are then discarded, so the caller cannot recover the finish reason afterwards.
@@ -567,29 +602,6 @@ Session info: ellmer 0.4.2, R 4.6.1, macOS.",kbenoit,bug,open,2026-09-03T01:52:3
 - **Confirmed unverified inheritance:** `chat_posit()` inherits `has_batch_support = TRUE` from `ProviderAnthropic`, so `batch_chat()` will POST to `{gateway}/anthropic/v1/messages/batches` with no verification that the gateway supports that endpoint. chatlas notes the gateway doesn't proxy the beta Files API, so incomplete endpoint coverage is plausible; chatlas appears to have the same inheritance. Needs a live test against the gateway (or confirmation from Posit folks); if unsupported the fix is a one-line override.
 - **Feature gap, not a bug:** `google_upload()` is hardcoded to the Gemini endpoint (R/provider-google-upload.R:31), and this is more than parameterization: Vertex has no Files API equivalent and expects Cloud Storage URIs instead, so Vertex audio/video support is new functionality (e.g. accepting `gs://` URIs). The docs already note it's Gemini specific. Should be split into a separate feature request.
 ",thisisnic,bug,open,2026-08-13T14:30:24Z,2026-09-15T18:32:10Z,0,https://github.com/tidyverse/ellmer/issues/1088,
-1083,Model metadata omits the context window,"The `models_*()` functions don't report how much context a model accepts, and nothing on `Chat` exposes it either. A caller can see how many tokens a conversation has accumulated, through `get_tokens()`, but not how close that is to the limit — leaving a hardcoded per-model table that goes stale with every release, or per-provider HTTP calls, as the only ways to find out. That is the work ellmer otherwise saves callers from doing.
-
-Most providers already return it, in a response ellmer parses and then discards. The table below is a brief overview gathered from their docs, so it may well have shifted by the time anyone acts on it.
-
-| Provider | Endpoint | Field |
-| --- | --- | --- |
-| Anthropic | `/v1/models` | `max_input_tokens`, `max_tokens` |
-| OpenRouter | `/api/v1/models` | `context_length` |
-| Gemini | `/models` | `inputTokenLimit`, `outputTokenLimit` |
-| Mistral | `/v1/models` | `max_context_length` |
-| vLLM | `/v1/models` | `max_model_len` |
-| LM Studio | `/v1/models` | `max_context_length` |
-| Ollama | `api/show` | `<arch>.context_length`, not in the `api/tags` ellmer calls |
-| OpenAI | `/v1/models` | Absent |
-| Bedrock | `ListFoundationModels` | Absent |
-| Portkey | `/models` | Absent; normalised to the OpenAI shape before it reaches ellmer |
-
-Five of those are a parser widening — the Anthropic parser keeps `id`, `display_name` and `created_at`, and the vLLM and LM Studio parsers keep `id` alone. Ollama needs a second call. For the last three there is nothing to read, which is what `NA` is for. OpenAI's model object is only `id`, `object`, `created` and `owned_by`, so everyone keeps their own table — including OpenAI, whose Codex CLI [added a `max_context_window` field to its own model metadata](https://github.com/openai/codex/pull/18382) in April.
-
-Suggestion: add it to the `models_*()` data frames as `max_input_tokens`, or whatever name generalises best, `NA` where the provider doesn't report it. Exposing it on `Chat` too would pair naturally with `get_tokens()`, and would give the compaction hook in #1051 the number it needs to decide.
-
-Happy to send a PR if you'd like one.
-",nbenn,feature,open,2026-08-12T04:51:59Z,2026-08-12T19:09:54Z,2,https://github.com/tidyverse/ellmer/issues/1083,1089
 1074,consider a Chat field describing whether thinking is enabled,"A couple times in dependent packages, I've thought it would be useful to know whether a given ellmer Chat had thinking enabled or not. This is admittedly a hard problem, e.g. some models have thinking enabled by default but most don't, different models $x$ providers have different ways of parameterizing thinking, etc. That said, to be able to quickly reach for a best-guess `thinking` field with `c(""yes"", ""no"", NA_character_)` would be helpful.
 
 [One example in commons](https://github.com/posit-dev/commons/issues/14).
