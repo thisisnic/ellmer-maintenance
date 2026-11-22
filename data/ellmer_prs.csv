@@ -1,7 +1,14 @@
 number,title,body,user,labels,state,draft,created_at,updated_at,url
-1233,Update VCR skill trigger to make broader,Closes #1158 ,thisisnic,,open,FALSE,2026-11-20T22:39:49Z,2026-11-20T22:39:49Z,https://github.com/tidyverse/ellmer/pull/1233
-1232,Make tests which return dates less ambiguous,Fixes #1127 ,thisisnic,,open,FALSE,2026-11-20T22:34:48Z,2026-11-20T22:34:48Z,https://github.com/tidyverse/ellmer/pull/1232
-1231,Bump S7 version and update relevant tests,The new S7 version on CRAN led to a couple of our snapshot tests failing. We also had some TODOs relating to S7 version. I bumped the version and rerecorded the tests for it.,thisisnic,,open,FALSE,2026-11-20T22:13:28Z,2026-11-21T13:58:40Z,https://github.com/tidyverse/ellmer/pull/1231
+1238,fix: `chat_openrouter()` no longer errors with free models,"Fixes #1236.
+
+Free models on OpenRouter report a cost of `0`, which is parsed as an integer and rejected by `AssistantTurn@cost`. `dollars()` now always converts its input to a double.",thisisnic,,open,FALSE,2026-11-21T14:54:24Z,2026-11-21T14:56:41Z,https://github.com/tidyverse/ellmer/pull/1238
+1237,fix: `chat_openrouter()` sends `strict: false` explicitly for structured output,"Fixes #1222.
+
+`chat_openrouter()` with OpenAI models returned HTTP 400 for `chat_structured()` with a `required = FALSE` type. Since #1135 we omit `strict` when it is `FALSE`, but OpenRouter treats a missing `strict` as `true` for newer OpenAI models, so it's now sent explicitly.
+
+Checked live against OpenAI, Anthropic, Gemini, Llama, DeepSeek, Mistral, Grok and Qwen models. Tool definitions are unchanged, as optional tool arguments already work.",thisisnic,,open,FALSE,2026-11-21T14:40:17Z,2026-11-21T14:40:17Z,https://github.com/tidyverse/ellmer/pull/1237
+1233,Update VCR skill trigger to make broader,Closes #1158 ,thisisnic,,open,FALSE,2026-11-20T22:39:49Z,2026-11-21T14:58:18Z,https://github.com/tidyverse/ellmer/pull/1233
+1232,Make tests which return dates less ambiguous,Fixes #1127 ,thisisnic,,open,FALSE,2026-11-20T22:34:48Z,2026-11-21T14:57:55Z,https://github.com/tidyverse/ellmer/pull/1232
 1230,chore: test against r-lib/coro#81,"Do not merge. This draft runs ellmer's CI against [r-lib/coro#81](https://github.com/r-lib/coro/issues/81).
 
 [r-lib/coro#81](https://github.com/r-lib/coro/issues/81) makes `coro::async()` functions reject their promise for errors thrown before the first `await()`, instead of throwing from the call. Before, the same `stop()` was reported in two different ways depending on where it sat in the function body.
@@ -34,7 +41,7 @@ DeepSeek's custom assistant serializer also dropped thinking that ellmer had alr
 - The full development suite passed on R 4.4.0/macOS with 1,755 expectations and 158 skips. Four live DeepSeek tests skipped because `DEEPSEEK_API_KEY` was unset. The [reviewer reported successful live checks](https://github.com/tidyverse/ellmer/pull/1229#discussion_r4648834207) of the shared serializer on `deepseek-flash` and `deepseek-v4-pro`.
 - Regenerated the help with roxygen2 8.1.0. Air formatting, `git diff --check`, and `pkgdown::check_pkgdown()` passed.
 - `R CMD check --no-manual` completed with 0 errors, 0 warnings, and 0 notes.
-",songyue-chen,,open,FALSE,2026-11-15T18:21:41Z,2026-11-21T01:24:02Z,https://github.com/tidyverse/ellmer/pull/1229
+",songyue-chen,,open,FALSE,2026-11-15T18:21:41Z,2026-11-21T21:16:35Z,https://github.com/tidyverse/ellmer/pull/1229
 1228,Add custom bullets to release checklist,Closes #1124 ,thisisnic,,open,FALSE,2026-11-13T16:34:01Z,2026-11-13T18:19:53Z,https://github.com/tidyverse/ellmer/pull/1228
 1215,fix(aws): count cache-write tokens as input tokens in chat_aws_bedrock(),"`chat_aws_bedrock()` under-reports input tokens (and therefore cost) whenever a request writes to the prompt cache.
 

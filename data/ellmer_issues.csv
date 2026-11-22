@@ -27,7 +27,7 @@ library(ellmer)
 
 Please fix this bug ASAP, as it is blocking our ability to use the OpenRouter API in ellmer to teach and learn the course content.
 Sincerely,
-Aritra Nag",AritraNagtheStatistician,bug,open,2026-11-20T23:35:49Z,2026-11-20T23:52:20Z,1,https://github.com/tidyverse/ellmer/issues/1236,
+Aritra Nag",AritraNagtheStatistician,bug,open,2026-11-20T23:35:49Z,2026-11-20T23:52:20Z,1,https://github.com/tidyverse/ellmer/issues/1236,1238
 1235,"Check all API outputs, workarounds etc","When reviewing a recent PR, a workaround previously needed for `chat_deepseek()` was found to be redundant. Given the frequency at which provider APIs are updated, we should do a pass over the package, focusing on workarounds to see if they're still needed.
 
 At the last release, I also forgot to consider rerecording cassettes other than where the default provider was updated. Let's rerun the lot and check nothing else has changed in provider APIs.",thisisnic,upkeep,open,2026-11-20T23:19:54Z,2026-11-20T23:19:54Z,0,https://github.com/tidyverse/ellmer/issues/1235,
@@ -144,7 +144,7 @@ supplied and to be an array including every key in properties. Missing 'wrapper'
 **Workaround:** `chat_openrouter(strict = TRUE)`.
 
 **Possible fix:** send `strict = provider@strict` explicitly instead of omitting it. Would need checking that other OpenAI-compatible providers don't reject the key.
-",thisisnic,bug,open,2026-11-07T15:13:52Z,2026-11-07T15:14:07Z,0,https://github.com/tidyverse/ellmer/issues/1222,
+",thisisnic,bug,open,2026-11-07T15:13:52Z,2026-11-07T15:14:07Z,0,https://github.com/tidyverse/ellmer/issues/1222,1237
 1220,Add clear guidance on testing,"As discussed in https://github.com/tidyverse/ellmer/pull/1192,  as people are using agents for writing tests, there's ambiguity in terms of how much it should be tested and exactly what we want to test.
 
 It would be useful, whether in a `CONTRIBUTING.md` or an `AGENTS.md` to have a clear explanation of test approach in ellmer, so that our approach is unambiguous.
