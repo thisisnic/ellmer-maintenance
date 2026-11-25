@@ -1,12 +1,4 @@
 number,title,body,user,labels,state,draft,created_at,updated_at,url
-1238,fix: `chat_openrouter()` no longer errors with free models,"Fixes #1236.
-
-Free models on OpenRouter report a cost of `0`, which is parsed as an integer and rejected by `AssistantTurn@cost`. `dollars()` now always converts its input to a double.",thisisnic,,open,FALSE,2026-11-21T14:54:24Z,2026-11-21T14:56:41Z,https://github.com/tidyverse/ellmer/pull/1238
-1237,fix: `chat_openrouter()` sends `strict: false` explicitly for structured output,"Fixes #1222.
-
-`chat_openrouter()` with OpenAI models returned HTTP 400 for `chat_structured()` with a `required = FALSE` type. Since #1135 we omit `strict` when it is `FALSE`, but OpenRouter treats a missing `strict` as `true` for newer OpenAI models, so it's now sent explicitly.
-
-Checked live against OpenAI, Anthropic, Gemini, Llama, DeepSeek, Mistral, Grok and Qwen models. Tool definitions are unchanged, as optional tool arguments already work.",thisisnic,,open,FALSE,2026-11-21T14:40:17Z,2026-11-21T14:40:17Z,https://github.com/tidyverse/ellmer/pull/1237
 1233,Update VCR skill trigger to make broader,Closes #1158 ,thisisnic,,open,FALSE,2026-11-20T22:39:49Z,2026-11-21T14:58:18Z,https://github.com/tidyverse/ellmer/pull/1233
 1232,Make tests which return dates less ambiguous,Fixes #1127 ,thisisnic,,open,FALSE,2026-11-20T22:34:48Z,2026-11-21T14:57:55Z,https://github.com/tidyverse/ellmer/pull/1232
 1230,chore: test against r-lib/coro#81,"Do not merge. This draft runs ellmer's CI against [r-lib/coro#81](https://github.com/r-lib/coro/issues/81).
