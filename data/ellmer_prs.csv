@@ -33,7 +33,7 @@ DeepSeek's custom assistant serializer also dropped thinking that ellmer had alr
 - The full development suite passed on R 4.4.0/macOS with 1,755 expectations and 158 skips. Four live DeepSeek tests skipped because `DEEPSEEK_API_KEY` was unset. The [reviewer reported successful live checks](https://github.com/tidyverse/ellmer/pull/1229#discussion_r4648834207) of the shared serializer on `deepseek-flash` and `deepseek-v4-pro`.
 - Regenerated the help with roxygen2 8.1.0. Air formatting, `git diff --check`, and `pkgdown::check_pkgdown()` passed.
 - `R CMD check --no-manual` completed with 0 errors, 0 warnings, and 0 notes.
-",songyue-chen,,open,FALSE,2026-11-15T18:21:41Z,2026-11-21T21:16:35Z,https://github.com/tidyverse/ellmer/pull/1229
+",songyue-chen,,open,FALSE,2026-11-15T18:21:41Z,2026-11-25T21:58:03Z,https://github.com/tidyverse/ellmer/pull/1229
 1228,Add custom bullets to release checklist,Closes #1124 ,thisisnic,,open,FALSE,2026-11-13T16:34:01Z,2026-11-13T18:19:53Z,https://github.com/tidyverse/ellmer/pull/1228
 1215,fix(aws): count cache-write tokens as input tokens in chat_aws_bedrock(),"`chat_aws_bedrock()` under-reports input tokens (and therefore cost) whenever a request writes to the prompt cache.
 

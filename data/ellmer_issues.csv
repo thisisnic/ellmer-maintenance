@@ -1,4 +1,20 @@
 number,title,body,user,labels,state,created_at,updated_at,comments,url,linked_prs
+1239,Allow on_tool_request() / on_tool_result() callbacks to modify the request and result?,"Would you be open to letting `on_tool_request()` / `on_tool_result()` callbacks modify the request and result?
+
+Currently a request callback can reject a call and a result callback can observe a result, but neither can change them. I've been wanting this to redact sensitive values from a tool's arguments or result before the model sees them, and at the moment I do it by replacing the function inside each `ToolDef` (`S7::S7_data(tool) <- wrapper`), which feels fragile.
+
+One possible shape, which I've tried out on a branch:
+
+- `on_tool_request()`: return an updated `ContentToolRequest` (same `id` and `name`) to change the arguments the tool is called with.
+- `on_tool_result()`: return a `ContentToolResult` to replace the result sent to the model.
+- Any other return value is ignored, as now.
+
+The callback still sees the original, so it can log it. Side effects: results are echoed after the callbacks run, and async result callbacks are awaited.
+
+For reference, Claude Code's hooks offer something similar: `PreToolUse` can return `updatedInput`, and `PostToolUse` can return `updatedToolOutput`. A wrapping hook (`on_tool_call(function(request, call))`) would be another option, but seems like a bigger API.
+
+Branch with tests: https://github.com/kaipingyang/ellmer/tree/feat/modifiable-tool-callbacks. I'm not attached to this design, so I'm happy to change it or drop it if it doesn't fit ellmer.
+",kaipingyang,,open,2026-11-26T15:22:03Z,2026-11-26T15:22:03Z,0,https://github.com/tidyverse/ellmer/issues/1239,
 1235,"Check all API outputs, workarounds etc","When reviewing a recent PR, a workaround previously needed for `chat_deepseek()` was found to be redundant. Given the frequency at which provider APIs are updated, we should do a pass over the package, focusing on workarounds to see if they're still needed.
 
 At the last release, I also forgot to consider rerecording cassettes other than where the default provider was updated. Let's rerun the lot and check nothing else has changed in provider APIs.",thisisnic,upkeep,open,2026-11-20T23:19:54Z,2026-11-20T23:19:54Z,0,https://github.com/tidyverse/ellmer/issues/1235,
